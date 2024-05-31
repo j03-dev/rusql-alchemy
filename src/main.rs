@@ -1,6 +1,6 @@
 use rust_alchemy::db::models::Model;
 
-use rust_alchemy::args;
+use rust_alchemy::kwargs;
 use rust_alchemy_macro::Model;
 use serde::Deserialize;
 
@@ -20,12 +20,12 @@ async fn main() {
     };
 
     user.save().await;
-    User::create(args!(
+    User::create(kwargs!(
         name = "joe",
         email = "24nomeniavo@gmail.com",
         password = "password"
     ))
     .await;
-    User::get(args!(name = "John Doe")).await;
-    User::filter(args!(name = "John Doe", name = "joe").or()).await;
+    User::get(kwargs!(name = "John Doe")).await;
+    User::filter(kwargs!(name = "John Doe", name = "joe").or()).await;
 }

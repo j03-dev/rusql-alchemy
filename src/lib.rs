@@ -1,5 +1,5 @@
 #[macro_export]
-macro_rules! args {
+macro_rules! kwargs {
     ($($key:ident = $value:expr),*) => {
         {
             let mut args = Vec::new();
