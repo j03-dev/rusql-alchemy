@@ -1,8 +1,4 @@
-use libsql::Connection;
-use rust_alchemy::db::models::Model;
-
-use rust_alchemy::kwargs;
-use serde::Deserialize;
+use rust_alchemy::prelude::*;
 
 #[derive(Deserialize, Default)]
 struct User {
@@ -38,7 +34,7 @@ impl Model for User {
 
 #[tokio::main]
 async fn main() {
-    let conn = rust_alchemy::config::db::Database::new().await.conn;
+    let conn = config::db::Database::new().await.conn;
     let user = User {
         name: "John Doe".to_string(),
         email: "johndoe@gmailcom".to_string(),

@@ -199,3 +199,9 @@ pub mod db {
         }
     }
 }
+
+pub mod prelude {
+    pub use crate::{config, db::models::Model, kwargs};
+    pub use libsql::Connection;
+    pub use serde::Deserialize;
+}

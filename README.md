@@ -7,11 +7,7 @@ Just for fun! XD
 
 ## Example
 ```rust
-use libsql::Connection;
-use rust_alchemy::db::models::Model;
-
-use rust_alchemy::kwargs;
-use serde::Deserialize;
+user rust_alchemy::prelude::*;
 
 #[derive(Deserialize, Default)]
 struct User {
