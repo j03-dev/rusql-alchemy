@@ -3,12 +3,6 @@ name = "rust-alchemy"
 version = "0.1.0"
 edition = "2021"
 
-[workspace]
-members = ["rust-alchemy-macro"]
-
-[dependencies.rust-alchemy-macro]
-path = "rust-alchemy-macro"
-
 [dependencies]
 async-trait = "0.1.80"
 libsql = "0.3.5"

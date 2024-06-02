@@ -22,10 +22,7 @@ pub mod config {
         use libsql::{Builder, Connection};
 
         async fn establish_connection(url: String, token: String) -> Connection {
-            let db = Builder::new_remote_replica("local.db", url, token)
-                .build()
-                .await
-                .unwrap();
+            let db = Builder::new_remote(url, token).build().await.unwrap();
             db.connect().unwrap()
         }
 
@@ -46,6 +43,15 @@ pub mod config {
 }
 
 pub mod db {
+    use models::Model;
+
+    pub async fn migrate<M: Model>(models: Vec<M>) {
+        let conn = crate::config::db::Database::new().await.conn;
+        for model in models {
+            model.migrate(&conn).await;
+        }
+    }
+
     pub mod models {
         use async_trait::async_trait;
         use libsql::Connection;
@@ -86,21 +92,22 @@ pub mod db {
         }
 
         #[async_trait]
-        pub trait Model: for<'d> Deserialize<'d> {
-            fn name() -> String
-            where
-                Self: Sized;
+        pub trait Model: Sync + for<'d> Deserialize<'d> {
+            const SCHEMA: &'static str;
+            const NAME: &'static str;
 
-            async fn conn() -> Connection {
-                let database = crate::config::db::Database::new().await;
-                database.conn
+            async fn migrate(&self, conn: &Connection) -> bool
+            where
+                Self: Sized,
+            {
+                conn.execute(Self::SCHEMA, libsql::params![]).await.is_ok()
             }
 
-            async fn save(&self) -> bool
+            async fn save(&self, conn: &Connection) -> bool
             where
                 Self: Sized;
 
-            async fn create(kw: Kwargs) -> bool
+            async fn create(kw: Kwargs, conn: &Connection) -> bool
             where
                 Self: Sized,
             {
@@ -118,13 +125,12 @@ pub mod db {
                 let placeholder = placeholder.join(", ");
                 let query = format!(
                     "insert into {name} ({fields}) values ({placeholder});",
-                    name = Self::name()
+                    name = Self::NAME
                 );
-                let conn = Self::conn().as_mut().await;
                 conn.execute(&query, values).await.is_ok()
             }
 
-            async fn get(kw: Kwargs) -> Self
+            async fn get(kw: Kwargs, conn: &Connection) -> Self
             where
                 Self: Sized,
             {
@@ -136,9 +142,8 @@ pub mod db {
                     values.push(arg.value.to_string());
                 }
                 let fields = fields.join(kw.operator.unwrap().get());
-                let query = format!("select * from {name} where {fields};", name = Self::name());
+                let query = format!("select * from {name} where {fields};", name = Self::NAME);
 
-                let conn = Self::conn().as_mut().await;
                 let row = conn
                     .query(&query, values)
                     .await
@@ -150,13 +155,12 @@ pub mod db {
                 libsql::de::from_row(&row).unwrap()
             }
 
-            async fn all() -> Vec<Self>
+            async fn all(conn: &Connection) -> Vec<Self>
             where
                 Self: Sized,
             {
-                let query = format!("select * from {name}", name = Self::name());
+                let query = format!("select * from {name}", name = Self::NAME);
 
-                let conn = Self::conn().as_mut().await;
                 let row = conn
                     .query(&query, libsql::params![])
                     .await
@@ -168,7 +172,7 @@ pub mod db {
                 libsql::de::from_row(&row).unwrap()
             }
 
-            async fn filter(kw: Kwargs) -> Vec<Self>
+            async fn filter(kw: Kwargs, conn: &Connection) -> Vec<Self>
             where
                 Self: Sized,
             {
@@ -180,9 +184,8 @@ pub mod db {
                     values.push(arg.value.to_string());
                 }
                 let fields = fields.join(kw.operator.unwrap().get());
-                let query = format!("select * from {name} where {fields};", name = Self::name());
+                let query = format!("select * from {name} where {fields};", name = Self::NAME);
 
-                let conn = Self::conn().as_mut().await;
                 let row = conn
                     .query(&query, values)
                     .await
