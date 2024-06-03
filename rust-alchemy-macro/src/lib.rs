@@ -40,9 +40,13 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
                     for nested in &list.nested {
                         if let syn::NestedMeta::Meta(syn::Meta::NameValue(ref nv)) = nested {
                             if nv.path.is_ident("primary_key") {
-                                is_primary_key = true;
+                                if let syn::Lit::Bool(ref lit) = nv.lit {
+                                    is_primary_key = lit.value;
+                                }
                             } else if nv.path.is_ident("auto") {
-                                is_auto = true;
+                                if let syn::Lit::Bool(ref lit) = nv.lit {
+                                    is_auto = lit.value;
+                                }
                             } else if nv.path.is_ident("size") {
                                 if let Lit::Int(ref lit) = nv.lit {
                                     size = Some(lit.clone());
