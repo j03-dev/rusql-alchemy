@@ -1,39 +1,22 @@
 use rust_alchemy::prelude::*;
+use serde::Deserialize;
 
-#[derive(Deserialize, Default)]
+#[derive(Deserialize, Default, rust_alchemy_macro::Model)]
 struct User {
-    id: Option<i32>,
+    #[model(primary_key = true, auto = true, null = false)]
+    id: i32,
+    #[model(size = 50, null = false)]
     name: String,
+    #[model(size = 255, unique, null = true)]
     email: String,
+    #[model(size = 255, null = false)]
     password: String,
-}
-
-#[async_trait::async_trait]
-impl Model for User {
-    const SCHEMA: &'static str = r#"
-    create table User (
-        id integer primary key autoincrement,
-        name varchar(255) not null,
-        email varchar(255) not null,
-        password varchar(255) not null
-    );"#;
-    const NAME: &'static str = "User";
-
-    async fn save(&self, conn: &Connection) -> bool {
-        Self::create(
-            kwargs!(
-                name = self.name,
-                email = self.email,
-                password = self.password
-            ),
-            conn,
-        )
-        .await
-    }
 }
 
 #[tokio::main]
 async fn main() {
+    let schema = User::schema();
+    println!("{}", schema);
     let conn = config::db::Database::new().await.conn;
     let user = User {
         name: "John Doe".to_string(),
@@ -53,6 +36,11 @@ async fn main() {
     )
     .await;
     let user = User::get(kwargs!(name = "John Doe"), &conn).await;
+    User {
+        email: "21johndoe@gmail.com".to_string(),
+        ..user
+    }
+    .update(&conn)
+    .await;
     User::filter(kwargs!(name = "John Doe", name = "joe").or(), &conn).await;
-    println!("{:?}", user.id);
 }

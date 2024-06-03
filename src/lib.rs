@@ -96,11 +96,34 @@ pub mod db {
             const SCHEMA: &'static str;
             const NAME: &'static str;
 
+            fn schema() -> String {
+                Self::SCHEMA.to_string()
+            }
+
             async fn migrate(&self, conn: &Connection) -> bool
             where
                 Self: Sized,
             {
                 conn.execute(Self::SCHEMA, libsql::params![]).await.is_ok()
+            }
+
+            async fn update(&self, conn: &Connection) -> bool
+            where
+                Self: Sized;
+
+            async fn set(id: i32, kw: Kwargs, conn: &Connection) -> bool {
+                let mut fields = Vec::new();
+                let mut values = Vec::new();
+
+                for (i, arg) in kw.args.iter().enumerate() {
+                    fields.push(format!("set {}=?{}", arg.key, i + 1));
+                    values.push(arg.value.to_string());
+                }
+                values.push(id.to_string());
+                let j = fields.len() + 1;
+                let fields = fields.join(", ");
+                let query = format!("update {name} {fields} where id=?{j};", name = Self::NAME);
+                conn.execute(&query, values).await.is_ok()
             }
 
             async fn save(&self, conn: &Connection) -> bool

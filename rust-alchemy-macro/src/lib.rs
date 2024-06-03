@@ -1,0 +1,156 @@
+use proc_macro::TokenStream;
+use quote::quote;
+use syn::{parse_macro_input, Data, DeriveInput, Fields, Lit};
+
+#[proc_macro_derive(Model, attributes(model))]
+pub fn model_derive(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    let name = input.ident;
+
+    let fields = match input.data {
+        Data::Struct(ref data) => match data.fields {
+            Fields::Named(ref fields) => &fields.named,
+            _ => panic!("Model derive macro only supports structs with named fields"),
+        },
+        _ => panic!("Model derive macro only supports structs"),
+    };
+
+    let mut schema_fields = Vec::new();
+    let mut create_args = Vec::new();
+    let mut update_args = Vec::new();
+
+    for field in fields {
+        let field_name = field.ident.as_ref().unwrap();
+        let field_type = match &field.ty {
+            syn::Type::Path(type_path) => type_path.path.segments.last().unwrap().ident.to_string(),
+            _ => panic!("Unsupported field type"),
+        };
+
+        let mut is_nullable = true;
+        let mut is_primary_key = false;
+        let mut is_auto = false;
+        let mut is_unique = false;
+        let mut size = None;
+
+        for attr in &field.attrs {
+            if attr.path.is_ident("model") {
+                let meta = attr.parse_meta().unwrap();
+                if let syn::Meta::List(ref list) = meta {
+                    for nested in &list.nested {
+                        if let syn::NestedMeta::Meta(syn::Meta::NameValue(ref nv)) = nested {
+                            if nv.path.is_ident("primary_key") {
+                                is_primary_key = true;
+                            } else if nv.path.is_ident("auto") {
+                                is_auto = true;
+                            } else if nv.path.is_ident("size") {
+                                if let Lit::Int(ref lit) = nv.lit {
+                                    size = Some(lit.clone());
+                                }
+                            } else if nv.path.is_ident("unique") {
+                                is_unique = false;
+                            } else if nv.path.is_ident("null") {
+                                if let syn::Lit::Bool(ref lit) = nv.lit {
+                                    is_nullable = lit.value;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        let field_schema = {
+            let base_type = match field_type.as_str() {
+                "i32" => quote! { integer },
+                "String" => {
+                    if let Some(size) = size {
+                        quote! {varchar(#size)}
+                    } else {
+                        quote! {varchar(255)}
+                    }
+                }
+                "text" => quote! {text},
+                _ => panic!(""),
+            };
+
+            let primary_key = if is_primary_key {
+                let auto = if is_auto {
+                    quote! { autoincrement }
+                } else {
+                    create_args.push(quote! { #field_name });
+                    quote! {}
+                };
+                quote! { primary key #auto}
+            } else {
+                create_args.push(quote! { #field_name });
+                update_args.push(quote! { #field_name });
+                quote! {}
+            };
+
+            let nullable = if is_nullable {
+                quote! {}
+            } else {
+                quote! {not null}
+            };
+            let unique = if is_unique {
+                quote! { unique }
+            } else {
+                quote! {}
+            };
+            quote! { #field_name #base_type #primary_key #unique #nullable }
+        };
+
+        schema_fields.push(field_schema);
+    }
+
+    let schema = {
+        let fields = schema_fields
+            .iter()
+            .map(|f| f.to_string())
+            .collect::<Vec<_>>()
+            .join(", ");
+
+        let schema = format!("create table {name} ({fields});");
+
+        quote! {
+            const SCHEMA: &'static str = #schema;
+        }
+    };
+
+    let create = quote! {
+        async fn save(&self, conn: &Connection) -> bool {
+            Self::create(
+                kwargs!(
+                    #(#create_args = self.#create_args),*
+                ),
+                conn,
+            )
+            .await
+        }
+    };
+
+    let update = quote! {
+        async fn update(&self, conn: &Connection) -> bool {
+            Self::set(
+                self.id,
+                kwargs!(
+                    #(#update_args = self.#update_args),*
+                ),
+                conn,
+            )
+            .await
+        }
+    };
+
+    let expanded = quote! {
+        #[async_trait::async_trait]
+        impl Model for #name {
+            const NAME: &'static str = stringify!(#name);
+            #schema
+            #create
+            #update
+        }
+    };
+
+    TokenStream::from(expanded)
+}
