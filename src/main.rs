@@ -11,6 +11,9 @@ struct User {
     email: String,
     #[model(size = 255, null = false)]
     password: String,
+    bio: Text,
+    #[model(default = "now")]
+    birth: Date,
 }
 
 #[tokio::main]

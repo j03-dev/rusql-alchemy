@@ -31,6 +31,7 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
         let mut is_auto = false;
         let mut is_unique = false;
         let mut size = None;
+        let mut default = None;
 
         for attr in &field.attrs {
             if attr.path.is_ident("model") {
@@ -52,6 +53,10 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
                                 if let syn::Lit::Bool(ref lit) = nv.lit {
                                     is_nullable = lit.value;
                                 }
+                            } else if nv.path.is_ident("default") {
+                                if let syn::Lit::Str(ref lit) = nv.lit {
+                                    default = Some(lit.value())
+                                }
                             }
                         }
                     }
@@ -69,7 +74,10 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
                         quote! {varchar(255)}
                     }
                 }
-                "text" => quote! {text},
+                "Text" => quote! { text },
+                "Date" => quote! { date },
+                "DateTime" => quote! { datetime },
+
                 _ => panic!(""),
             };
 
@@ -87,6 +95,18 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
                 quote! {}
             };
 
+            let as_default = if let Some(df) = default {
+                if field_type == "DateTime" && df == "now" {
+                    quote! { default current_timestamp }
+                } else if field_type == "Date" && df == "now" {
+                    quote! { default current_date }
+                } else {
+                    quote! { default #df }
+                }
+            } else {
+                quote! {}
+            };
+
             let nullable = if is_nullable {
                 quote! {}
             } else {
@@ -97,7 +117,7 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
             } else {
                 quote! {}
             };
-            quote! { #field_name #base_type #primary_key #unique #nullable }
+            quote! { #field_name #base_type #primary_key #unique #as_default #nullable }
         };
 
         schema_fields.push(field_schema);

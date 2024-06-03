@@ -56,6 +56,11 @@ pub mod db {
         use serde::Deserialize;
         use serde_json::Value;
 
+        pub type Date = String;
+        pub type DateTime = String;
+        pub type Text = String;
+        pub type Float = f32;
+
         pub enum Operator {
             Or,
             And,
@@ -222,7 +227,11 @@ pub mod db {
 }
 
 pub mod prelude {
-    pub use crate::{config, db::models::Model, kwargs, migrate};
+    pub use crate::{
+        config,
+        db::models::{Date, DateTime, Float, Model, Text},
+        kwargs, migrate,
+    };
     pub use libsql::Connection;
     pub use serde::Deserialize;
 }
