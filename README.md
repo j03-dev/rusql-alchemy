@@ -7,43 +7,30 @@ Just for fun! XD
 
 ## Example
 ```rust
-user rust_alchemy::prelude::*;
+use rust_alchemy::prelude::*;
+use serde::Deserialize;
 
-#[derive(Deserialize, Default)]
+#[derive(Deserialize, Debug, Default, rust_alchemy_macro::Model)]
 struct User {
-    id: Option<i32>,
+    #[model(primary_key = true, auto = true, null = false)]
+    id: i32,
+    #[model(size = 50, null = false)]
     name: String,
+    #[model(size = 255, unique, null = true)]
     email: String,
+    #[model(size = 255, null = false)]
     password: String,
-}
-
-#[async_trait::async_trait]
-impl Model for User {
-    const SCHEMA: &'static str = r#"
-    create table User (
-        id integer primary key autoincrement,
-        name varchar(255) not null,
-        email varchar(255) not null,
-        password varchar(255) not null
-    );"#;
-    const NAME: &'static str = "User";
-
-    async fn save(&self, conn: &Connection) -> bool {
-        Self::create(
-            kwargs!(
-                name = self.name,
-                email = self.email,
-                password = self.password
-            ),
-            conn,
-        )
-        .await
-    }
 }
 
 #[tokio::main]
 async fn main() {
-    let conn = rust_alchemy::config::db::Database::new().await.conn;
+    let schema = User::schema();
+    println!("{}", schema);
+
+    let conn = config::db::Database::new().await.conn;
+
+    migrate!([User], &conn);
+
     let user = User {
         name: "John Doe".to_string(),
         email: "johndoe@gmailcom".to_string(),
@@ -52,6 +39,7 @@ async fn main() {
     };
 
     user.save(&conn).await;
+
     User::create(
         kwargs!(
             name = "joe",
@@ -61,8 +49,16 @@ async fn main() {
         &conn,
     )
     .await;
+
     let user = User::get(kwargs!(name = "John Doe"), &conn).await;
-    User::filter(kwargs!(name = "John Doe", name = "joe").or(), &conn).await;
-    println!("{:?}", user.id);
+    User {
+        email: "21johndoe@gmail.com".to_string(),
+        ..user
+    }
+    .update(&conn)
+    .await;
+
+    let users = User::filter(kwargs!(name = "John Doe", name = "joe").or(), &conn).await;
+    println!("{:#?}", users);
 }
 ```
