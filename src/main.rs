@@ -1,7 +1,7 @@
 use rust_alchemy::prelude::*;
 use serde::Deserialize;
 
-#[derive(Deserialize, Default, rust_alchemy_macro::Model)]
+#[derive(Deserialize, Debug, Default, rust_alchemy_macro::Model)]
 struct User {
     #[model(primary_key = true, auto = true, null = false)]
     id: i32,
@@ -17,7 +17,11 @@ struct User {
 async fn main() {
     let schema = User::schema();
     println!("{}", schema);
+
     let conn = config::db::Database::new().await.conn;
+
+    migrate!([User], &conn);
+
     let user = User {
         name: "John Doe".to_string(),
         email: "johndoe@gmailcom".to_string(),
@@ -26,6 +30,7 @@ async fn main() {
     };
 
     user.save(&conn).await;
+
     User::create(
         kwargs!(
             name = "joe",
@@ -35,6 +40,7 @@ async fn main() {
         &conn,
     )
     .await;
+
     let user = User::get(kwargs!(name = "John Doe"), &conn).await;
     User {
         email: "21johndoe@gmail.com".to_string(),
@@ -42,5 +48,7 @@ async fn main() {
     }
     .update(&conn)
     .await;
-    User::filter(kwargs!(name = "John Doe", name = "joe").or(), &conn).await;
+
+    let users = User::filter(kwargs!(name = "John Doe", name = "joe").or(), &conn).await;
+    println!("{:#?}", users);
 }

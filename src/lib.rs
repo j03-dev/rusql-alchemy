@@ -17,6 +17,13 @@ macro_rules! kwargs {
     };
 }
 
+#[macro_export]
+macro_rules! migrate {
+    ([$($struct:ident),*], $conn:expr ) => {
+        $( $struct::migrate($conn).await; )*
+    };
+}
+
 pub mod config {
     pub mod db {
         use libsql::{Builder, Connection};
@@ -43,15 +50,6 @@ pub mod config {
 }
 
 pub mod db {
-    use models::Model;
-
-    pub async fn migrate<M: Model>(models: Vec<M>) {
-        let conn = crate::config::db::Database::new().await.conn;
-        for model in models {
-            model.migrate(&conn).await;
-        }
-    }
-
     pub mod models {
         use async_trait::async_trait;
         use libsql::Connection;
@@ -100,7 +98,7 @@ pub mod db {
                 Self::SCHEMA.to_string()
             }
 
-            async fn migrate(&self, conn: &Connection) -> bool
+            async fn migrate(conn: &Connection) -> bool
             where
                 Self: Sized,
             {
@@ -224,7 +222,7 @@ pub mod db {
 }
 
 pub mod prelude {
-    pub use crate::{config, db::models::Model, kwargs};
+    pub use crate::{config, db::models::Model, kwargs, migrate};
     pub use libsql::Connection;
     pub use serde::Deserialize;
 }
