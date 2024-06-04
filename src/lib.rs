@@ -233,5 +233,6 @@ pub mod prelude {
         kwargs, migrate,
     };
     pub use libsql::Connection;
+    pub use rusql_alchemy_macro::Mode;
     pub use serde::Deserialize;
 }
