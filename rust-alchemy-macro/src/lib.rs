@@ -116,6 +116,7 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
             };
 
             let as_default = if let Some(df) = default {
+                create_args.pop();
                 if field_type == "DateTime" && df == "now" {
                     quote! { default current_timestamp }
                 } else if field_type == "Date" && df == "now" {
