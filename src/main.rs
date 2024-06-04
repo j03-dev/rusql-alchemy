@@ -5,7 +5,7 @@ use serde::Deserialize;
 #[derive(Deserialize, Debug, Default, Model)]
 struct User {
     #[model(primary_key = true, auto = true, null = false)]
-    id: String,
+    id: i32,
     #[model(size = 50, null = false)]
     name: String,
     #[model(size = 255, unique, null = true)]

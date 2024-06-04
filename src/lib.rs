@@ -114,7 +114,12 @@ pub mod db {
             where
                 Self: Sized;
 
-            async fn set<T: ToString + Send + Sync>(id: T, kw: Kwargs, conn: &Connection) -> bool {
+            async fn set<T: ToString + Send + Sync>(
+                id_field: String,
+                id_value: T,
+                kw: Kwargs,
+                conn: &Connection,
+            ) -> bool {
                 let mut fields = Vec::new();
                 let mut values = Vec::new();
 
@@ -122,10 +127,13 @@ pub mod db {
                     fields.push(format!("set {}=?{}", arg.key, i + 1));
                     values.push(arg.value.to_string());
                 }
-                values.push(id.to_string());
+                values.push(id_value.to_string());
                 let j = fields.len() + 1;
                 let fields = fields.join(", ");
-                let query = format!("update {name} {fields} where id=?{j};", name = Self::NAME);
+                let query = format!(
+                    "update {name} {fields} where {id_field}=?{j};",
+                    name = Self::NAME
+                );
                 conn.execute(&query, values).await.is_ok()
             }
 
