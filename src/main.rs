@@ -5,7 +5,7 @@ use serde::Deserialize;
 #[derive(Deserialize, Debug, Default, Model)]
 struct User {
     #[model(primary_key = true, auto = true, null = false)]
-    id: i32,
+    id: String,
     #[model(size = 50, null = false)]
     name: String,
     #[model(size = 255, unique, null = true)]
@@ -20,7 +20,7 @@ struct User {
 #[derive(Deserialize, Debug, Default, Model)]
 struct Product {
     #[model(primary_key = true, auto = true, null = false)]
-    id: i32,
+    id: String,
     #[model(size = 50, null = false)]
     name: String,
     price: Float,

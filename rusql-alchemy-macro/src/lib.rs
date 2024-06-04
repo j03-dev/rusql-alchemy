@@ -44,7 +44,7 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
                         if let syn::NestedMeta::Meta(syn::Meta::NameValue(ref nv)) = nested {
                             if nv.path.is_ident("primary_key") {
                                 if let syn::Lit::Bool(ref lit) = nv.lit {
-                                    the_primary_key = quote! { #field_name };
+                                    the_primary_key = quote! { #field_name.clone() };
                                     is_primary_key = lit.value;
                                 }
                             } else if nv.path.is_ident("auto") {
