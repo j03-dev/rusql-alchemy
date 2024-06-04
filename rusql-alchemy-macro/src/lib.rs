@@ -192,7 +192,7 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
             format!("delete from {name} where {the_primary_key}=?1;").replace(".clone()", "");
         quote! {
             async fn delete(&self, conn: &Connection) -> bool {
-                conn.execute(&#query, libsql::params![self.#the_primary_key]).await.is_ok()
+                conn.execute(&#query, [self.#the_primary_key]).await.is_ok()
             }
         }
     };
