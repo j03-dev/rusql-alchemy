@@ -176,7 +176,7 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
     let update = quote! {
         async fn update(&self, conn: &Connection) -> bool {
             Self::set(
-                stringify!(#the_primary_key).to_string(),
+                stringify!(#the_primary_key).to_string().replace(".clone()", ""),
                 self.#the_primary_key,
                 kwargs!(
                     #(#update_args = self.#update_args),*
@@ -187,6 +187,16 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
         }
     };
 
+    let delete = {
+        let query =
+            format!("delete from {name} where {the_primary_key}=?1;").replace(".clone()", "");
+        quote! {
+            async fn delete(&self, conn: &Connection) -> bool {
+                conn.execute(&#query, libsql::params![self.#the_primary_key]).await.is_ok()
+            }
+        }
+    };
+
     let expanded = quote! {
         #[async_trait::async_trait]
         impl Model for #name {
@@ -194,6 +204,7 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
             #schema
             #create
             #update
+            #delete
         }
     };
 

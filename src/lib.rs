@@ -124,16 +124,20 @@ pub mod db {
                 let mut values = Vec::new();
 
                 for (i, arg) in kw.args.iter().enumerate() {
-                    fields.push(format!("set {}=?{}", arg.key, i + 1));
+                    fields.push(format!("{}=?{}", arg.key, i + 1));
                     values.push(arg.value.to_string());
                 }
                 values.push(id_value.to_string());
                 let j = fields.len() + 1;
                 let fields = fields.join(", ");
                 let query = format!(
-                    "update {name} {fields} where {id_field}=?{j};",
+                    "update {name} set {fields} where {id_field}=?{j};",
                     name = Self::NAME
                 );
+                let values = values
+                    .iter()
+                    .map(|v| v.replace("\"", ""))
+                    .collect::<Vec<_>>();
                 conn.execute(&query, values).await.is_ok()
             }
 
@@ -161,10 +165,14 @@ pub mod db {
                     "insert into {name} ({fields}) values ({placeholder});",
                     name = Self::NAME
                 );
+                let values = values
+                    .iter()
+                    .map(|v| v.replace("\"", ""))
+                    .collect::<Vec<_>>();
                 conn.execute(&query, values).await.is_ok()
             }
 
-            async fn get(kw: Kwargs, conn: &Connection) -> Self
+            async fn get(kw: Kwargs, conn: &Connection) -> Option<Self>
             where
                 Self: Sized,
             {
@@ -178,15 +186,20 @@ pub mod db {
                 let fields = fields.join(kw.operator.unwrap().get());
                 let query = format!("select * from {name} where {fields};", name = Self::NAME);
 
-                let row = conn
-                    .query(&query, values)
-                    .await
-                    .unwrap()
-                    .next()
-                    .await
-                    .unwrap()
-                    .unwrap();
-                libsql::de::from_row(&row).unwrap()
+                let values = values
+                    .iter()
+                    .map(|v| v.replace("\"", ""))
+                    .collect::<Vec<_>>();
+
+                if let Ok(mut rows) = conn.query(&query, values).await {
+                    if let Ok(Some(row)) = rows.next().await {
+                        libsql::de::from_row(&row).ok()
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
             }
 
             async fn all(conn: &Connection) -> Vec<Self>
@@ -195,15 +208,15 @@ pub mod db {
             {
                 let query = format!("select * from {name}", name = Self::NAME);
 
-                let row = conn
-                    .query(&query, libsql::params![])
-                    .await
-                    .unwrap()
-                    .next()
-                    .await
-                    .unwrap()
-                    .unwrap();
-                libsql::de::from_row(&row).unwrap()
+                let mut result = Vec::new();
+                if let Ok(mut rows) = conn.query(&query, libsql::params![]).await {
+                    while let Ok(Some(row)) = rows.next().await {
+                        if let Ok(model) = libsql::de::from_row(&row) {
+                            result.push(model);
+                        }
+                    }
+                }
+                result
             }
 
             async fn filter(kw: Kwargs, conn: &Connection) -> Vec<Self>
@@ -218,18 +231,27 @@ pub mod db {
                     values.push(arg.value.to_string());
                 }
                 let fields = fields.join(kw.operator.unwrap().get());
-                let query = format!("select * from {name} where {fields};", name = Self::NAME);
+                let query = format!("SELECT * FROM {name} WHERE {fields};", name = Self::NAME);
 
-                let row = conn
-                    .query(&query, values)
-                    .await
-                    .unwrap()
-                    .next()
-                    .await
-                    .unwrap()
-                    .unwrap();
-                libsql::de::from_row(&row).unwrap()
+                let values = values
+                    .iter()
+                    .map(|v| v.replace("\"", ""))
+                    .collect::<Vec<_>>();
+
+                let mut result = Vec::new();
+                if let Ok(mut rows) = conn.query(&query, values.clone()).await {
+                    while let Ok(Some(row)) = rows.next().await {
+                        if let Ok(model) = libsql::de::from_row(&row) {
+                            result.push(model);
+                        }
+                    }
+                }
+                result
             }
+
+            async fn delete(&self, conn: &Connection) -> bool
+            where
+                Self: Sized;
         }
     }
 }

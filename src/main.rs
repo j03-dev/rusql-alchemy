@@ -2,13 +2,13 @@ use rusql_alchemy::prelude::*;
 use rusql_alchemy_macro::Model;
 use serde::Deserialize;
 
-#[derive(Deserialize, Debug, Default, Model)]
+#[derive(Deserialize, Clone, Debug, Default, Model)]
 struct User {
     #[model(primary_key = true, auto = true, null = false)]
     id: i32,
-    #[model(size = 50, null = false)]
+    #[model(size = 50, unique = true, null = false)]
     name: String,
-    #[model(size = 255, unique, null = true)]
+    #[model(size = 255, unique = true, null = true)]
     email: String,
     #[model(size = 255, null = false)]
     password: String,
@@ -33,6 +33,7 @@ struct Product {
 
 #[tokio::main]
 async fn main() {
+    dotenv::dotenv().ok();
     println!("{}", User::schema());
     println!("{}", Product::schema());
 
@@ -40,35 +41,51 @@ async fn main() {
 
     migrate!([User, Product], &conn);
 
-    let user = User {
-        name: "John Doe".to_string(),
-        email: "johndoe@gmailcom".to_string(),
-        password: "password".to_string(),
-        birth: "01-01-1990".to_string(),
+    User {
+        name: "johnDoe@gmail.com".to_string(),
+        email: "21john@gmail.com".to_string(),
+        password: "p455w0rd".to_string(),
+        birth: "01-01-1999".to_string(),
         ..Default::default()
-    };
-
-    user.save(&conn).await;
+    }
+    .save(&conn)
+    .await;
 
     User::create(
         kwargs!(
             name = "joe",
             email = "24nomeniavo@gmail.com",
-            password = "password",
+            password = "strongpassword",
             birth = "24-03-2001"
         ),
         &conn,
     )
     .await;
 
-    let user = User::get(kwargs!(name = "joe"), &conn).await;
-    User {
-        role: "admin".to_string(),
-        ..user
-    }
-    .update(&conn)
-    .await;
+    let users = User::all(&conn).await;
+    println!("1: {:#?}", users);
 
-    let users = User::filter(kwargs!(name = "John Doe", name = "joe").or(), &conn).await;
-    println!("{:#?}", users);
+    let user = User::get(
+        kwargs!(email = "24nomeniavo@gmail.com", password = "strongpassword"),
+        &conn,
+    )
+    .await;
+    println!("2: {:#?}", user);
+
+    if let Some(user) = user {
+        let update = User {
+            role: "admin".to_string(),
+            ..user.clone()
+        }
+        .update(&conn)
+        .await;
+        println!("3: {update}");
+    }
+
+    if let Some(user) = User::get(kwargs!(id = 1), &conn).await {
+        user.delete(&conn).await;
+    }
+
+    let users = User::all(&conn).await;
+    println!("4: {:#?}", users);
 }
