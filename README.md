@@ -3,9 +3,11 @@
 ## RustAlchemy is ORM for `Turso` Database
 
 ### Why ?
+
 Just for fun! XD
 
 ## Example
+
 ```rust
 use rust_alchemy::prelude::*;
 use rust_alchemy_macro::Model;
@@ -81,5 +83,4 @@ async fn main() {
     let users = User::filter(kwargs!(name = "John Doe", name = "joe").or(), &conn).await;
     println!("{:#?}", users);
 }
-
 ```
