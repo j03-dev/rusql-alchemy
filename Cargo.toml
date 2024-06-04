@@ -1,14 +1,14 @@
 [package]
-name = "rust-alchemy"
+name = "rusql-alchemy"
 version = "0.1.0"
 edition = "2021"
 
 [workspace]
-members = ["rust-alchemy-macro"]
+members = ["rusql-alchemy-macro"]
 
-[dependencies.rust-alchemy-macro]
+[dependencies.rusql-alchemy-macro]
 version = "0.1.0"
-path = "rust-alchemy-macro"
+path = "rusql-alchemy-macro"
 
 [dependencies]
 async-trait = "0.1.80"

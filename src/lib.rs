@@ -4,13 +4,13 @@ macro_rules! kwargs {
         {
             let mut args = Vec::new();
             $(
-                args.push(rust_alchemy::db::models::Arg {
+                args.push(rusql_alchemy::db::models::Arg {
                     key: stringify!($key).to_string(),
                     value: serde_json::json!($value)
                 });
             )*
-            rust_alchemy::db::models::Kwargs {
-                operator: Some(rust_alchemy::db::models::Operator::And),
+            rusql_alchemy::db::models::Kwargs {
+                operator: Some(rusql_alchemy::db::models::Operator::And),
                 args
             }
         }

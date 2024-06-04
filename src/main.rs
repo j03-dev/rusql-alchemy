@@ -1,5 +1,5 @@
-use rust_alchemy::prelude::*;
-use rust_alchemy_macro::Model;
+use rusql_alchemy::prelude::*;
+use rusql_alchemy_macro::Model;
 use serde::Deserialize;
 
 #[derive(Deserialize, Debug, Default, Model)]
