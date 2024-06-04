@@ -1,6 +1,6 @@
-# RustAlchemy
+# Rusql Alchemy
 
-## RustAlchemy is ORM for `Turso` Database
+## Rusql Alchemy is ORM for `Turso` Database
 
 ### Why ?
 
@@ -9,8 +9,8 @@ Just for fun! XD
 ## Example
 
 ```rust
-use rust_alchemy::prelude::*;
-use rust_alchemy_macro::Model;
+use rusql_alchemy::prelude::*;
+use rusql_alchemy_macro::Model;
 use serde::Deserialize;
 
 #[derive(Deserialize, Debug, Default, Model)]
