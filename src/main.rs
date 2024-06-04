@@ -16,14 +16,25 @@ struct User {
     birth: Date,
 }
 
+#[derive(Deserialize, Debug, Default, rust_alchemy_macro::Model)]
+struct Product {
+    #[model(primary_key = true, auto = true, null = false)]
+    id: i32,
+    #[model(size = 50, null = false)]
+    name: String,
+    price: Float,
+    #[model(null = false, foreign_key = "User.id")]
+    owner: i32,
+}
+
 #[tokio::main]
 async fn main() {
-    let schema = User::schema();
-    println!("{}", schema);
+    println!("{}", User::schema());
+    println!("{}", Product::schema());
 
     let conn = config::db::Database::new().await.conn;
 
-    migrate!([User], &conn);
+    migrate!([User, Product], &conn);
 
     let user = User {
         name: "John Doe".to_string(),

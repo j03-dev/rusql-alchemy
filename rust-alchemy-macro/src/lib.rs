@@ -32,6 +32,7 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
         let mut is_unique = false;
         let mut size = None;
         let mut default = None;
+        let mut foreign_key = quote! {};
 
         for attr in &field.attrs {
             if attr.path.is_ident("model") {
@@ -61,6 +62,20 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
                                 if let syn::Lit::Str(ref lit) = nv.lit {
                                     default = Some(lit.value())
                                 }
+                            } else if nv.path.is_ident("foreign_key") {
+                                if let syn::Lit::Str(ref lit) = nv.lit {
+                                    let fk = lit.value();
+                                    let foreign_key_parts: Vec<&str> = fk.split('.').collect();
+                                    if foreign_key_parts.len() != 2 {
+                                        panic!("Invalid foreign key");
+                                    }
+                                    let foreign_key_table = foreign_key_parts[0];
+                                    let foreign_key_field = foreign_key_parts[1];
+
+                                    foreign_key = quote! {
+                                        ,foreign key (#field_name) references #foreign_key_table(#foreign_key_field)
+                                    };
+                                }
                             }
                         }
                     }
@@ -78,6 +93,7 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
                         quote! {varchar(255)}
                     }
                 }
+                "Float" => quote! { float },
                 "Text" => quote! { text },
                 "Date" => quote! { date },
                 "DateTime" => quote! { datetime },
@@ -121,7 +137,7 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
             } else {
                 quote! {}
             };
-            quote! { #field_name #base_type #primary_key #unique #as_default #nullable }
+            quote! { #field_name #base_type #primary_key #unique #as_default #nullable #foreign_key }
         };
 
         schema_fields.push(field_schema);
