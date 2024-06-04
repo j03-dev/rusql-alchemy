@@ -114,7 +114,7 @@ pub mod db {
             where
                 Self: Sized;
 
-            async fn set(id: i32, kw: Kwargs, conn: &Connection) -> bool {
+            async fn set<T: ToString + Send + Sync>(id: T, kw: Kwargs, conn: &Connection) -> bool {
                 let mut fields = Vec::new();
                 let mut values = Vec::new();
 

@@ -19,6 +19,8 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
     let mut create_args = Vec::new();
     let mut update_args = Vec::new();
 
+    let mut the_primary_key = quote! {};
+
     for field in fields {
         let field_name = field.ident.as_ref().unwrap();
         let field_type = match &field.ty {
@@ -42,6 +44,7 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
                         if let syn::NestedMeta::Meta(syn::Meta::NameValue(ref nv)) = nested {
                             if nv.path.is_ident("primary_key") {
                                 if let syn::Lit::Bool(ref lit) = nv.lit {
+                                    the_primary_key = quote! { #field_name };
                                     is_primary_key = lit.value;
                                 }
                             } else if nv.path.is_ident("auto") {
@@ -173,7 +176,7 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
     let update = quote! {
         async fn update(&self, conn: &Connection) -> bool {
             Self::set(
-                self.id,
+                self.#the_primary_key,
                 kwargs!(
                     #(#update_args = self.#update_args),*
                 ),
