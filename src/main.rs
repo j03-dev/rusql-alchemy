@@ -44,7 +44,7 @@ async fn main() {
         name: "John Doe".to_string(),
         email: "johndoe@gmailcom".to_string(),
         password: "password".to_string(),
-		birth: "01-01-1990".to_string(),
+        birth: "01-01-1990".to_string(),
         ..Default::default()
     };
 
@@ -55,7 +55,7 @@ async fn main() {
             name = "joe",
             email = "24nomeniavo@gmail.com",
             password = "password",
-			birth = "24-03-2001"
+            birth = "24-03-2001"
         ),
         &conn,
     )
@@ -63,7 +63,7 @@ async fn main() {
 
     let user = User::get(kwargs!(name = "joe"), &conn).await;
     User {
-		role: "admin".to_string(),
+        role: "admin".to_string(),
         ..user
     }
     .update(&conn)

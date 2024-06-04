@@ -74,7 +74,7 @@ async fn main() {
 
     let user = User::get(kwargs!(name = "joe"), &conn).await;
     User {
-		role: "admin".to_string(),
+        role: "admin".to_string(),
         ..user
     }
     .update(&conn)
