@@ -55,7 +55,7 @@ async fn main() {
         name: "John Doe".to_string(),
         email: "johndoe@gmailcom".to_string(),
         password: "password".to_string(),
-		birth: "01-01-1990".to_string(),
+        birth: "01-01-1990".to_string(),
         ..Default::default()
     };
 
@@ -66,7 +66,7 @@ async fn main() {
             name = "joe",
             email = "24nomeniavo@gmail.com",
             password = "password",
-			birth = "24-03-2001"
+            birth = "24-03-2001"
         ),
         &conn,
     )
