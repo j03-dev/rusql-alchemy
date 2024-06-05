@@ -139,7 +139,7 @@ pub mod db {
                     .map(|v| v.replace("\"", ""))
                     .collect::<Vec<_>>();
                 if let Err(err) = conn.execute(&query, values).await {
-                    eprintln!("Error: {}", err);
+                    println!("Error: {}", err);
                     false
                 } else {
                     true
