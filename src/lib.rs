@@ -138,12 +138,7 @@ pub mod db {
                     .iter()
                     .map(|v| v.replace("\"", ""))
                     .collect::<Vec<_>>();
-                if let Err(err) = conn.execute(&query, values).await {
-                    println!("Error: {}", err);
-                    false
-                } else {
-                    true
-                }
+                conn.execute(&query, values).await.is_ok()
             }
 
             async fn save(&self, conn: &Connection) -> bool
