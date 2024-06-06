@@ -31,15 +31,15 @@ struct User {
 #[derive(Deserialize, Debug, Default, Model)]
 struct Product {
     #[model(primary_key = true, auto = true, null = false)]
-    id: String,
+    id: i32,
     #[model(size = 50, null = false)]
     name: String,
     price: Float,
-    #[model(null = false, foreign_key = "User.id")]
-    owner: i32,
     description: Text,
     #[model(default = "now")]
     at: DateTime,
+    #[model(null = false, foreign_key = "User.id")]
+    owner: i32,
 }
 
 #[tokio::main]

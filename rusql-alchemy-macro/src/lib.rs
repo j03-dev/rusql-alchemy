@@ -56,7 +56,9 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
                                     size = Some(lit.clone());
                                 }
                             } else if nv.path.is_ident("unique") {
-                                is_unique = false;
+                                if let syn::Lit::Bool(ref lit) = nv.lit {
+                                    is_unique = lit.value;
+                                }
                             } else if nv.path.is_ident("null") {
                                 if let syn::Lit::Bool(ref lit) = nv.lit {
                                     is_nullable = lit.value;

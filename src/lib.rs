@@ -107,7 +107,12 @@ pub mod db {
             where
                 Self: Sized,
             {
-                conn.execute(Self::SCHEMA, libsql::params![]).await.is_ok()
+                if let Err(r) = conn.execute(Self::SCHEMA, libsql::params![]).await {
+                    println!("{}", r);
+                    false
+                } else {
+                    true
+                }
             }
 
             async fn update(&self, conn: &Connection) -> bool
