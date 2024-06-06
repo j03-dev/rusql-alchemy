@@ -255,4 +255,5 @@ pub mod prelude {
     pub use libsql::Connection;
     pub use rusql_alchemy_macro::Model;
     pub use serde::{Deserialize, Serialize};
+    pub use serde_json;
 }
