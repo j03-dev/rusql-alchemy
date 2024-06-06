@@ -1,5 +1,4 @@
 use rusql_alchemy::prelude::*;
-use rusql_alchemy_macro::Model;
 use serde::Deserialize;
 
 #[derive(Deserialize, Clone, Debug, Default, Model)]
@@ -34,8 +33,8 @@ struct Product {
 #[tokio::main]
 async fn main() {
     dotenv::dotenv().ok();
-    println!("{}", User::schema());
-    println!("{}", Product::schema());
+    println!("{}", User::SCHEMA);
+    println!("{}", Product::SCHEMA);
 
     let conn = config::db::Database::new().await.conn;
 

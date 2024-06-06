@@ -99,16 +99,12 @@ pub mod db {
             const SCHEMA: &'static str;
             const NAME: &'static str;
 
-            fn schema() -> String {
-                Self::SCHEMA.to_string()
-            }
-
             async fn migrate(conn: &Connection) -> bool
             where
                 Self: Sized,
             {
-                if let Err(r) = conn.execute(Self::SCHEMA, libsql::params![]).await {
-                    println!("{}", r);
+                if let Err(err) = conn.execute(Self::SCHEMA, libsql::params![]).await {
+                    eprintln!("{}", err);
                     false
                 } else {
                     true
@@ -139,10 +135,7 @@ pub mod db {
                     "update {name} set {fields} where {id_field}=?{j};",
                     name = Self::NAME
                 );
-                let values = values
-                    .iter()
-                    .map(|v| v.replace("\"", ""))
-                    .collect::<Vec<_>>();
+                values = values.iter().map(|v| v.replace("\"", "")).collect();
                 conn.execute(&query, values).await.is_ok()
             }
 
@@ -170,10 +163,7 @@ pub mod db {
                     "insert into {name} ({fields}) values ({placeholder});",
                     name = Self::NAME
                 );
-                let values = values
-                    .iter()
-                    .map(|v| v.replace("\"", ""))
-                    .collect::<Vec<_>>();
+                values = values.iter().map(|v| v.replace("\"", "")).collect();
                 conn.execute(&query, values).await.is_ok()
             }
 
@@ -191,10 +181,7 @@ pub mod db {
                 let fields = fields.join(kw.operator.unwrap().get());
                 let query = format!("select * from {name} where {fields};", name = Self::NAME);
 
-                let values = values
-                    .iter()
-                    .map(|v| v.replace("\"", ""))
-                    .collect::<Vec<_>>();
+                values = values.iter().map(|v| v.replace("\"", "")).collect();
 
                 if let Ok(mut rows) = conn.query(&query, values).await {
                     if let Ok(Some(row)) = rows.next().await {
@@ -238,10 +225,7 @@ pub mod db {
                 let fields = fields.join(kw.operator.unwrap().get());
                 let query = format!("SELECT * FROM {name} WHERE {fields};", name = Self::NAME);
 
-                let values = values
-                    .iter()
-                    .map(|v| v.replace("\"", ""))
-                    .collect::<Vec<_>>();
+                values = values.iter().map(|v| v.replace("\"", "")).collect();
 
                 let mut result = Vec::new();
                 if let Ok(mut rows) = conn.query(&query, values.clone()).await {
