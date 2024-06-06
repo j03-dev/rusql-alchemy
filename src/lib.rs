@@ -251,7 +251,8 @@ pub mod prelude {
         db::models::{Date, DateTime, Float, Model, Text},
         kwargs, migrate,
     };
+    pub use async_trait::async_trait;
     pub use libsql::Connection;
     pub use rusql_alchemy_macro::Model;
-    pub use serde::Deserialize;
+    pub use serde::{Deserialize, Serialize};
 }

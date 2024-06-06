@@ -200,7 +200,7 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
     };
 
     let expanded = quote! {
-        #[async_trait::async_trait]
+        #[async_trait]
         impl Model for #name {
             const NAME: &'static str = stringify!(#name);
             #schema
