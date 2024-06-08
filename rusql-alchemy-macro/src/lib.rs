@@ -101,6 +101,7 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
                 "Float" => quote! { float },
                 "Text" => quote! { text },
                 "Date" => quote! { date },
+                "bool" => quote! { bool },
                 "DateTime" => quote! { datetime },
 
                 _ => panic!(""),
