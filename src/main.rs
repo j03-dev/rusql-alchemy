@@ -26,6 +26,8 @@ struct Product {
     description: Text,
     #[model(default = "now")]
     at: DateTime,
+    #[model(default = true)]
+    is_sel: bool,
     #[model(null = false, foreign_key = "User.id")]
     owner: i32,
 }
@@ -71,19 +73,18 @@ async fn main() {
     .await;
     println!("2: {:#?}", user);
 
-    if let Some(user) = user {
-        let update = User {
-            role: "admin".to_string(),
-            ..user.clone()
-        }
-        .update(&conn)
-        .await;
-        println!("3: {update}");
+    Product {
+        name: "tomato".to_string(),
+        price: 1000.0,
+        description: "".to_string(),
+        owner: user.clone().unwrap().id,
+        ..Default::default()
     }
+    .save(&conn)
+    .await;
 
-    if let Some(user) = User::get(kwargs!(id = 1), &conn).await {
-        user.delete(&conn).await;
-    }
+    let products = Product::all(&conn).await;
+    println!("3: {:#?}", products);
 
     let users = User::all(&conn).await;
     println!("4: {:#?}", users);

@@ -32,8 +32,9 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
         let mut is_primary_key = false;
         let mut is_auto = false;
         let mut is_unique = false;
+        let mut is_default = false;
         let mut size = None;
-        let mut default = None;
+        let mut default = quote! {};
         let mut foreign_key = quote! {};
 
         for attr in &field.attrs {
@@ -64,8 +65,21 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
                                     is_nullable = lit.value;
                                 }
                             } else if nv.path.is_ident("default") {
-                                if let syn::Lit::Str(ref lit) = nv.lit {
-                                    default = Some(lit.value())
+                                is_default = true;
+                                if let syn::Lit::Str(ref str) = nv.lit {
+                                    if str.value() == "now" {
+                                        if field_type == "Date" {
+                                            default = quote! { default current_date};
+                                        } else if field_type == "DateTime" {
+                                            default = quote! { default current_timestamp};
+                                        }
+                                    } else {
+                                        default = quote! { default #str }
+                                    }
+                                } else if let syn::Lit::Bool(ref bool) = nv.lit {
+                                    default = quote! {default #bool};
+                                } else if let syn::Lit::Int(ref int) = nv.lit {
+                                    default = quote! { default #int }
                                 }
                             } else if nv.path.is_ident("foreign_key") {
                                 if let syn::Lit::Str(ref lit) = nv.lit {
@@ -121,18 +135,9 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
                 quote! {}
             };
 
-            let as_default = if let Some(df) = default {
+            if is_default {
                 create_args.pop();
-                if field_type == "DateTime" && df == "now" {
-                    quote! { default current_timestamp }
-                } else if field_type == "Date" && df == "now" {
-                    quote! { default current_date }
-                } else {
-                    quote! { default #df }
-                }
-            } else {
-                quote! {}
-            };
+            }
 
             let nullable = if is_nullable {
                 quote! {}
@@ -144,7 +149,8 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
             } else {
                 quote! {}
             };
-            quote! { #field_name #base_type #primary_key #unique #as_default #nullable #foreign_key }
+
+            quote! { #field_name #base_type #primary_key #unique #default #nullable #foreign_key }
         };
 
         schema_fields.push(field_schema);
