@@ -4,7 +4,7 @@ use serde::Deserialize;
 #[derive(Deserialize, Clone, Debug, Default, Model)]
 struct User {
     #[model(primary_key = true, auto = true, null = false)]
-    id: i32,
+    id: Integer,
     #[model(size = 50, unique = true, null = false)]
     name: String,
     #[model(size = 255, unique = true, null = true)]
@@ -19,7 +19,7 @@ struct User {
 #[derive(Deserialize, Debug, Default, Model)]
 struct Product {
     #[model(primary_key = true, auto = true, null = false)]
-    id: i32,
+    id: Integer,
     #[model(size = 50, null = false)]
     name: String,
     price: Float,
@@ -29,7 +29,7 @@ struct Product {
     #[model(default = true)]
     is_sel: bool,
     #[model(null = false, foreign_key = "User.id")]
-    owner: i32,
+    owner: Integer,
 }
 
 #[tokio::main]

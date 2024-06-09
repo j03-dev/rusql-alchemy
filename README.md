@@ -10,13 +10,12 @@ Just for fun! XD
 
 ```rust
 use rusql_alchemy::prelude::*;
-use rusql_alchemy_macro::Model;
 use serde::Deserialize;
 
 #[derive(Deserialize, Clone, Debug, Default, Model)]
 struct User {
     #[model(primary_key = true, auto = true, null = false)]
-    id: i32,
+    id: Integer,
     #[model(size = 50, unique = true, null = false)]
     name: String,
     #[model(size = 255, unique = true, null = true)]
@@ -31,22 +30,23 @@ struct User {
 #[derive(Deserialize, Debug, Default, Model)]
 struct Product {
     #[model(primary_key = true, auto = true, null = false)]
-    id: i32,
+    id: Integer,
     #[model(size = 50, null = false)]
     name: String,
     price: Float,
     description: Text,
     #[model(default = "now")]
     at: DateTime,
+    #[model(default = true)]
+    is_sel: bool,
     #[model(null = false, foreign_key = "User.id")]
-    owner: i32,
+    owner: Integer,
 }
 
 #[tokio::main]
 async fn main() {
-    dotenv::dotenv().ok();
-    println!("{}", User::schema());
-    println!("{}", Product::schema());
+    println!("{}", User::SCHEMA);
+    println!("{}", Product::SCHEMA);
 
     let conn = config::db::Database::new().await.conn;
 
@@ -83,19 +83,18 @@ async fn main() {
     .await;
     println!("2: {:#?}", user);
 
-    if let Some(user) = user {
-        let update = User {
-            role: "admin".to_string(),
-            ..user.clone()
-        }
-        .update(&conn)
-        .await;
-        println!("3: {update}");
+    Product {
+        name: "tomato".to_string(),
+        price: 1000.0,
+        description: "".to_string(),
+        owner: user.clone().unwrap().id,
+        ..Default::default()
     }
+    .save(&conn)
+    .await;
 
-    if let Some(user) = User::get(kwargs!(id = 1), &conn).await {
-        user.delete(&conn).await;
-    }
+    let products = Product::all(&conn).await;
+    println!("3: {:#?}", products);
 
     let users = User::all(&conn).await;
     println!("4: {:#?}", users);
