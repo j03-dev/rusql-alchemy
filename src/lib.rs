@@ -102,8 +102,8 @@ pub mod db {
             const NAME: &'static str;
 
             async fn migrate(conn: &Connection) -> bool
-            where
-                Self: Sized,
+                where
+                    Self: Sized,
             {
                 if let Err(err) = conn.execute(Self::SCHEMA, libsql::params![]).await {
                     eprintln!("{}", err);
@@ -114,8 +114,8 @@ pub mod db {
             }
 
             async fn update(&self, conn: &Connection) -> bool
-            where
-                Self: Sized;
+                where
+                    Self: Sized;
 
             async fn set<T: ToString + Send + Sync>(
                 id_field: String,
@@ -142,12 +142,12 @@ pub mod db {
             }
 
             async fn save(&self, conn: &Connection) -> bool
-            where
-                Self: Sized;
+                where
+                    Self: Sized;
 
             async fn create(kw: Kwargs, conn: &Connection) -> bool
-            where
-                Self: Sized,
+                where
+                    Self: Sized,
             {
                 let mut fields = Vec::new();
                 let mut values = Vec::new();
@@ -170,8 +170,8 @@ pub mod db {
             }
 
             async fn get(kw: Kwargs, conn: &Connection) -> Option<Self>
-            where
-                Self: Sized,
+                where
+                    Self: Sized,
             {
                 let mut fields = Vec::new();
                 let mut values = Vec::new();
@@ -197,25 +197,29 @@ pub mod db {
             }
 
             async fn all(conn: &Connection) -> Vec<Self>
-            where
-                Self: Sized,
+                where
+                    Self: Sized,
             {
                 let query = format!("select * from {name}", name = Self::NAME);
 
                 let mut result = Vec::new();
-                if let Ok(mut rows) = conn.query(&query, libsql::params![]).await {
-                    while let Ok(Some(row)) = rows.next() {
-                        if let Ok(model) = libsql::de::from_row(&row) {
-                            result.push(model);
+                match conn.query(&query, libsql::params![]).await {
+                    Ok(mut rows) => {
+                        while let Ok(Some(row)) = rows.next() {
+                            match libsql::de::from_row(&row) {
+                                Ok(model) => result.push(model),
+                                Err(err) => eprintln!("{}", err)
+                            }
                         }
                     }
+                    Err(err) => eprintln!("{}", err)
                 }
                 result
             }
 
             async fn filter(kw: Kwargs, conn: &Connection) -> Vec<Self>
-            where
-                Self: Sized,
+                where
+                    Self: Sized,
             {
                 let mut fields = Vec::new();
                 let mut values = Vec::new();
@@ -241,8 +245,8 @@ pub mod db {
             }
 
             async fn delete(&self, conn: &Connection) -> bool
-            where
-                Self: Sized;
+                where
+                    Self: Sized;
         }
     }
 }
