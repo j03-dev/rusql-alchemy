@@ -29,10 +29,7 @@ pub mod config {
         use libsql::{Builder, Connection};
 
         async fn establish_connection(url: String, token: String) -> Connection {
-            let db = Builder::new_remote_replica("local.db", url, token)
-                .build()
-                .await
-                .unwrap();
+            let db = Builder::new_remote(url, token).build().await.unwrap();
             db.connect().unwrap()
         }
 
