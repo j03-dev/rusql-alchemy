@@ -26,10 +26,10 @@ macro_rules! migrate {
 
 pub mod config {
     pub mod db {
-        use libsql::{Builder, Connection};
+        use libsql::{Connection, Database as LibsqlDatabase};
 
         async fn establish_connection(url: String, token: String) -> Connection {
-            let db = Builder::new_remote(url, token).build().await.unwrap();
+            let db = LibsqlDatabase::open_remote(url, token).unwrap();
             db.connect().unwrap()
         }
 
@@ -186,7 +186,7 @@ pub mod db {
                 values = values.iter().map(|v| v.replace("\"", "")).collect();
 
                 if let Ok(mut rows) = conn.query(&query, values).await {
-                    if let Ok(Some(row)) = rows.next().await {
+                    if let Ok(Some(row)) = rows.next() {
                         libsql::de::from_row(&row).ok()
                     } else {
                         None
@@ -204,7 +204,7 @@ pub mod db {
 
                 let mut result = Vec::new();
                 if let Ok(mut rows) = conn.query(&query, libsql::params![]).await {
-                    while let Ok(Some(row)) = rows.next().await {
+                    while let Ok(Some(row)) = rows.next() {
                         if let Ok(model) = libsql::de::from_row(&row) {
                             result.push(model);
                         }
@@ -231,7 +231,7 @@ pub mod db {
 
                 let mut result = Vec::new();
                 if let Ok(mut rows) = conn.query(&query, values.clone()).await {
-                    while let Ok(Some(row)) = rows.next().await {
+                    while let Ok(Some(row)) = rows.next() {
                         if let Ok(model) = libsql::de::from_row(&row) {
                             result.push(model);
                         }
