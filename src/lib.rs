@@ -6,7 +6,7 @@ macro_rules! kwargs {
             $(
                 args.push(rusql_alchemy::db::models::Arg {
                     key: stringify!($key).to_string(),
-                    value: serde_json::json!($value)
+                    value: rusql_alchemy::to_value($value.clone())
                 });
             )*
             rusql_alchemy::db::models::Kwargs {
@@ -15,6 +15,15 @@ macro_rules! kwargs {
             }
         }
     };
+}
+
+pub fn to_value(value: impl Into<serde_json::Value>) -> serde_json::Value {
+    let json_value = value.into();
+    match json_value {
+        serde_json::Value::Bool(true) => serde_json::json!(1),
+        serde_json::Value::Bool(false) => serde_json::json!(0),
+        _ => json_value,
+    }
 }
 
 #[macro_export]
