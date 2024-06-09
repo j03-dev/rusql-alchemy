@@ -44,12 +44,12 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
                     for nested in &list.nested {
                         if let syn::NestedMeta::Meta(syn::Meta::NameValue(ref nv)) = nested {
                             if nv.path.is_ident("primary_key") {
-                                if let syn::Lit::Bool(ref lit) = nv.lit {
+                                if let Lit::Bool(ref lit) = nv.lit {
                                     the_primary_key = quote! { #field_name.clone() };
                                     is_primary_key = lit.value;
                                 }
                             } else if nv.path.is_ident("auto") {
-                                if let syn::Lit::Bool(ref lit) = nv.lit {
+                                if let Lit::Bool(ref lit) = nv.lit {
                                     is_auto = lit.value;
                                 }
                             } else if nv.path.is_ident("size") {
@@ -57,32 +57,34 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
                                     size = Some(lit.clone());
                                 }
                             } else if nv.path.is_ident("unique") {
-                                if let syn::Lit::Bool(ref lit) = nv.lit {
+                                if let Lit::Bool(ref lit) = nv.lit {
                                     is_unique = lit.value;
                                 }
                             } else if nv.path.is_ident("null") {
-                                if let syn::Lit::Bool(ref lit) = nv.lit {
+                                if let Lit::Bool(ref lit) = nv.lit {
                                     is_nullable = lit.value;
                                 }
                             } else if nv.path.is_ident("default") {
                                 is_default = true;
-                                if let syn::Lit::Str(ref str) = nv.lit {
-                                    if str.value() == "now" {
+                                if let Lit::Str(ref str) = nv.lit {
+                                    default = if str.value() == "now" {
                                         if field_type == "Date" {
-                                            default = quote! { default current_date};
+                                            quote! { default current_date}
                                         } else if field_type == "DateTime" {
-                                            default = quote! { default current_timestamp};
+                                            quote! { default current_timestamp}
+                                        } else {
+                                            panic!("'now' is work only with Date or DateTime");
                                         }
                                     } else {
-                                        default = quote! { default #str }
+                                        quote! { default #str }
                                     }
-                                } else if let syn::Lit::Bool(ref bool) = nv.lit {
-                                    default = quote! {default #bool};
-                                } else if let syn::Lit::Int(ref int) = nv.lit {
+                                } else if let Lit::Bool(ref bool) = nv.lit {
+                                    default = if bool.value { quote! {default 1} } else { quote! {default 0} };
+                                } else if let Lit::Int(ref int) = nv.lit {
                                     default = quote! { default #int }
                                 }
                             } else if nv.path.is_ident("foreign_key") {
-                                if let syn::Lit::Str(ref lit) = nv.lit {
+                                if let Lit::Str(ref lit) = nv.lit {
                                     let fk = lit.value();
                                     let foreign_key_parts: Vec<&str> = fk.split('.').collect();
                                     if foreign_key_parts.len() != 2 {
