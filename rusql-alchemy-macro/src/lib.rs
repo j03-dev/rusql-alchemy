@@ -104,7 +104,7 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
 
         let field_schema = {
             let base_type = match field_type.as_str() {
-                "i32" => quote! { integer },
+                "Integer" | "i8" | "i16" | "i32" | "i64" => quote! { integer },
                 "String" => {
                     if let Some(size) = size {
                         quote! {varchar(#size)}
@@ -112,7 +112,7 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
                         quote! {varchar(255)}
                     }
                 }
-                "Float" => quote! { float },
+                "Float" | "f8" | "f16" | "f32" | "f64" => quote! { float },
                 "Text" => quote! { text },
                 "Date" => quote! { date },
                 "bool" => quote! { bool },

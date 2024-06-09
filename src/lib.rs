@@ -60,6 +60,7 @@ pub mod db {
         use serde::Deserialize;
         use serde_json::Value;
 
+        pub type Integer = i32;
         pub type Date = String;
         pub type DateTime = String;
         pub type Text = String;
@@ -252,7 +253,7 @@ pub mod db {
 pub mod prelude {
     pub use crate::{
         config,
-        db::models::{Date, DateTime, Float, Model, Text},
+        db::models::{Date, DateTime, Float, Integer, Model, Text},
         kwargs, migrate,
     };
     pub use async_trait::async_trait;
