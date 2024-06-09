@@ -92,7 +92,7 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
                                     let foreign_key_field = foreign_key_parts[1];
 
                                     foreign_key = quote! {
-                                        ,foreign key (#field_name) references #foreign_key_table(#foreign_key_field)
+                                         references #foreign_key_table(#foreign_key_field)
                                     };
                                 }
                             }
