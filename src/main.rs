@@ -34,7 +34,6 @@ struct Product {
 
 #[tokio::main]
 async fn main() {
-    dotenv::dotenv().ok();
     println!("{}", User::SCHEMA);
     println!("{}", Product::SCHEMA);
 

@@ -42,6 +42,7 @@ pub mod config {
 
         impl Database {
             pub async fn new() -> Self {
+                dotenv::dotenv().ok();
                 let turso_database_url = std::env::var("DATABASE_URL").unwrap();
                 let turso_auth_token = std::env::var("TOKEN_KEY").unwrap();
                 Self {
