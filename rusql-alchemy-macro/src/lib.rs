@@ -79,7 +79,11 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
                                         quote! { default #str }
                                     }
                                 } else if let Lit::Bool(ref bool) = nv.lit {
-                                    default = if bool.value { quote! {default 1} } else { quote! {default 0} };
+                                    default = if bool.value {
+                                        quote! {default 1}
+                                    } else {
+                                        quote! {default 0}
+                                    };
                                 } else if let Lit::Int(ref int) = nv.lit {
                                     default = quote! { default #int }
                                 }

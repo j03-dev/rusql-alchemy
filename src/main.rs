@@ -48,8 +48,8 @@ async fn main() {
         birth: "01-01-1999".to_string(),
         ..Default::default()
     }
-        .save(&conn)
-        .await;
+    .save(&conn)
+    .await;
 
     User::create(
         kwargs!(
@@ -60,7 +60,7 @@ async fn main() {
         ),
         &conn,
     )
-        .await;
+    .await;
 
     let users = User::all(&conn).await;
     println!("1: {:#?}", users);
@@ -69,7 +69,7 @@ async fn main() {
         kwargs!(email = "24nomeniavo@gmail.com", password = "strongpassword"),
         &conn,
     )
-        .await;
+    .await;
     println!("2: {:#?}", user);
 
     Product {
@@ -79,8 +79,8 @@ async fn main() {
         owner: user.clone().unwrap().id,
         ..Default::default()
     }
-        .save(&conn)
-        .await;
+    .save(&conn)
+    .await;
 
     let products = Product::all(&conn).await;
     println!("3: {:#?}", products);
