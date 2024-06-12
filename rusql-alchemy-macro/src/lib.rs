@@ -162,6 +162,13 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
         schema_fields.push(field_schema);
     }
 
+    let primary_key = {
+        let pk = the_primary_key.to_string().replace(".clone()", "");
+        quote! {
+            const PK: &'static str = #pk;
+        }
+    };
+
     let schema = {
         let fields = schema_fields
             .iter()
@@ -217,6 +224,7 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
         impl Model for #name {
             const NAME: &'static str = stringify!(#name);
             #schema
+            #primary_key
             #create
             #update
             #delete

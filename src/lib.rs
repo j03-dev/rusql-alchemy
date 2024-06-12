@@ -106,9 +106,10 @@ pub mod db {
         }
 
         #[async_trait]
-        pub trait Model: Sync + for<'d> Deserialize<'d> {
+        pub trait Model: Clone + Sync + for<'d> Deserialize<'d> {
             const SCHEMA: &'static str;
             const NAME: &'static str;
+            const PK: &'static str;
 
             async fn migrate(conn: &Connection) -> bool
             where
@@ -178,33 +179,6 @@ pub mod db {
                 conn.execute(&query, values).await.is_ok()
             }
 
-            async fn get(kw: Kwargs, conn: &Connection) -> Option<Self>
-            where
-                Self: Sized,
-            {
-                let mut fields = Vec::new();
-                let mut values = Vec::new();
-
-                for (i, arg) in kw.args.iter().enumerate() {
-                    fields.push(format!("{}=?{}", arg.key, i + 1));
-                    values.push(arg.value.to_string());
-                }
-                let fields = fields.join(kw.operator.unwrap().get());
-                let query = format!("select * from {name} where {fields};", name = Self::NAME);
-
-                values = values.iter().map(|v| v.replace("\"", "")).collect();
-
-                if let Ok(mut rows) = conn.query(&query, values).await {
-                    if let Ok(Some(row)) = rows.next() {
-                        libsql::de::from_row(&row).ok()
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                }
-            }
-
             async fn all(conn: &Connection) -> Vec<Self>
             where
                 Self: Sized,
@@ -231,16 +205,38 @@ pub mod db {
                 Self: Sized,
             {
                 let mut fields = Vec::new();
-                let mut values = Vec::new();
+
+                let mut join_query = None;
 
                 for (i, arg) in kw.args.iter().enumerate() {
-                    fields.push(format!("{}=?{}", arg.key, i + 1));
-                    values.push(arg.value.to_string());
+                    let parts: Vec<&str> = arg.key.split("__").collect();
+                    match parts.as_slice() {
+                        [field_a, table, field_b] if parts.len() == 3 => {
+                            join_query = Some(format!(
+                                "INNER JOIN {table} ON {name}.{pk} = {table}.{field_a}",
+                                name = Self::NAME,
+                                pk = Self::PK
+                            ));
+                            fields.push(format!("{table}.{field_b}=?{}", i + 1));
+                        }
+                        _ => fields.push(format!("{}=?{}", arg.key, i + 1)),
+                    }
                 }
                 let fields = fields.join(kw.operator.unwrap().get());
-                let query = format!("SELECT * FROM {name} WHERE {fields};", name = Self::NAME);
+                let query = if let Some(join) = join_query {
+                    format!(
+                        "SELECT {name}.* FROM {name} {join} WHERE {fields};",
+                        name = Self::NAME
+                    )
+                } else {
+                    format!("SELECT * FROM {name} WHERE {fields};", name = Self::NAME)
+                };
 
-                values = values.iter().map(|v| v.replace("\"", "")).collect();
+                let values: Vec<_> = kw
+                    .args
+                    .iter()
+                    .map(|arg| arg.value.to_string().replace("\"", ""))
+                    .collect();
 
                 let mut result = Vec::new();
                 if let Ok(mut rows) = conn.query(&query, values.clone()).await {
@@ -253,9 +249,36 @@ pub mod db {
                 result
             }
 
+            async fn get(kw: Kwargs, conn: &Connection) -> Option<Self>
+            where
+                Self: Sized,
+            {
+                let result = Self::filter(kw, conn).await;
+                if let Some(r) = result.first() {
+                    return Some(r.to_owned());
+                }
+                None
+            }
+
             async fn delete(&self, conn: &Connection) -> bool
             where
                 Self: Sized;
+
+            async fn count(&self, conn: &Connection) -> usize
+            where
+                Self: Sized,
+            {
+                let query = format!("select count(*) from {name}", name = Self::NAME);
+                let mut results = conn.query(&query, libsql::params![]).await.unwrap();
+
+                let mut count: usize = 0;
+
+                while let Some(row) = results.next().unwrap() {
+                    count = row.get::<i32>(0).unwrap() as usize;
+                }
+
+                count
+            }
         }
     }
 }

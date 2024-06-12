@@ -16,7 +16,7 @@ struct User {
     role: String,
 }
 
-#[derive(Deserialize, Debug, Default, Model)]
+#[derive(Deserialize, Debug, Default, Model, Clone)]
 struct Product {
     #[model(primary_key = true, auto = true, null = false)]
     id: Integer,
@@ -34,9 +34,6 @@ struct Product {
 
 #[tokio::main]
 async fn main() {
-    println!("{}", User::SCHEMA);
-    println!("{}", Product::SCHEMA);
-
     let conn = config::db::Database::new().await.conn;
 
     migrate!([User, Product], &conn);
@@ -90,4 +87,7 @@ async fn main() {
 
     let product = Product::get(kwargs!(is_sel = true), &conn).await;
     println!("5: {:#?}", product);
+
+    let user = User::get(kwargs!(owner__product__is_sel = true), &conn).await;
+    println!("6: {:#?}", user);
 }
