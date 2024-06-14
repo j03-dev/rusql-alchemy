@@ -6,6 +6,13 @@
 
 Just for fun! XD
 
+### Setup `.env` file 
+
+```bash
+DATABASE_URL=
+TOKEN_KEY=
+```
+
 ## Example
 
 ```rust
