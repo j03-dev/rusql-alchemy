@@ -27,7 +27,7 @@ struct User {
     role: String,
 }
 
-#[derive(Deserialize, Debug, Default, Model)]
+#[derive(Deserialize, Debug, Default, Model, Clone)]
 struct Product {
     #[model(primary_key = true, auto = true, null = false)]
     id: Integer,
@@ -45,9 +45,6 @@ struct Product {
 
 #[tokio::main]
 async fn main() {
-    println!("{}", User::SCHEMA);
-    println!("{}", Product::SCHEMA);
-
     let conn = config::db::Database::new().await.conn;
 
     migrate!([User, Product], &conn);
@@ -76,11 +73,25 @@ async fn main() {
     let users = User::all(&conn).await;
     println!("1: {:#?}", users);
 
+    if let Some(user) = User::get(
+        kwargs!(email = "24nomeniavo@gmail.com", password = "strongpassword"),
+        &conn,
+    )
+    .await
+    {
+        User {
+            role: "admin".into(),
+            ..user
+        }
+        .update(&conn)
+        .await;
+    }
     let user = User::get(
         kwargs!(email = "24nomeniavo@gmail.com", password = "strongpassword"),
         &conn,
     )
     .await;
+
     println!("2: {:#?}", user);
 
     Product {
@@ -96,7 +107,9 @@ async fn main() {
     let products = Product::all(&conn).await;
     println!("3: {:#?}", products);
 
-    let users = User::all(&conn).await;
-    println!("4: {:#?}", users);
-}
-```
+    let product = Product::get(kwargs!(is_sel = true), &conn).await;
+    println!("4: {:#?}", product);
+
+    let user = User::get(kwargs!(owner__product__is_sel = true), &conn).await;
+    println!("5: {:#?}", user);
+}```
