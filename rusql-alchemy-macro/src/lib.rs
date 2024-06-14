@@ -176,7 +176,7 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
             .collect::<Vec<_>>()
             .join(", ");
 
-        let schema = format!("create table {name} ({fields});");
+        let schema = format!("create table if not exists {name} ({fields});");
 
         quote! {
             const SCHEMA: &'static str = #schema;
