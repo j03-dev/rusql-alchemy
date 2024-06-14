@@ -147,7 +147,7 @@ pub mod db {
                     "update {name} set {fields} where {id_field}=?{j};",
                     name = Self::NAME
                 );
-                values = values.iter().map(|v| v.replace("\"", "")).collect();
+                values = values.iter().map(|v| v.replace('"', "")).collect();
                 conn.execute(&query, values).await.is_ok()
             }
 
@@ -175,7 +175,7 @@ pub mod db {
                     "insert into {name} ({fields}) values ({placeholder});",
                     name = Self::NAME
                 );
-                values = values.iter().map(|v| v.replace("\"", "")).collect();
+                values = values.iter().map(|v| v.replace('"', "")).collect();
                 conn.execute(&query, values).await.is_ok()
             }
 
@@ -235,7 +235,7 @@ pub mod db {
                 let values: Vec<_> = kw
                     .args
                     .iter()
-                    .map(|arg| arg.value.to_string().replace("\"", ""))
+                    .map(|arg| arg.value.to_string().replace('"', ""))
                     .collect();
 
                 let mut result = Vec::new();
