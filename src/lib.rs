@@ -10,7 +10,7 @@ macro_rules! kwargs {
                 });
             )*
             rusql_alchemy::db::models::Kwargs {
-                operator: Some(rusql_alchemy::db::models::Operator::And),
+                operator: rusql_alchemy::db::models::Operator::And,
                 args
             }
         }
@@ -92,14 +92,14 @@ pub mod db {
         }
 
         pub struct Kwargs {
-            pub operator: Option<Operator>,
+            pub operator: Operator,
             pub args: Vec<Arg>,
         }
 
         impl Kwargs {
             pub fn or(self) -> Self {
                 Self {
-                    operator: Some(Operator::Or),
+                    operator: Operator::Or,
                     args: self.args,
                 }
             }
@@ -222,7 +222,7 @@ pub mod db {
                         _ => fields.push(format!("{}=?{}", arg.key, i + 1)),
                     }
                 }
-                let fields = fields.join(kw.operator.unwrap().get());
+                let fields = fields.join(kw.operator.get());
                 let query = if let Some(join) = join_query {
                     format!(
                         "SELECT {name}.* FROM {name} {join} WHERE {fields};",
