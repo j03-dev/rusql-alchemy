@@ -101,4 +101,9 @@ async fn main() {
 
     let user = User::get(kwargs!(owner__product__is_sel = true), &conn).await;
     println!("5: {:#?}", user);
+
+    println!("is deleted = {}", products.delete(&conn).await);
+
+    let products = Product::all(&conn).await;
+    println!("6: {:#?}", products);
 }

@@ -28,7 +28,7 @@ pub fn to_value(value: impl Into<serde_json::Value>) -> serde_json::Value {
 
 #[macro_export]
 macro_rules! migrate {
-    ([$($struct:ident),*], $conn:expr ) => {
+    ([$($struct:ident),*], $conn:expr) => {
         $( $struct::migrate($conn).await; )*
     };
 }
@@ -115,12 +115,7 @@ pub mod db {
             where
                 Self: Sized,
             {
-                if let Err(err) = conn.execute(Self::SCHEMA, libsql::params![]).await {
-                    eprintln!("{}", err);
-                    false
-                } else {
-                    true
-                }
+                conn.execute(Self::SCHEMA, libsql::params![]).await.is_ok()
             }
 
             async fn update(&self, conn: &Connection) -> bool
@@ -128,7 +123,6 @@ pub mod db {
                 Self: Sized;
 
             async fn set<T: ToString + Send + Sync>(
-                id_field: String,
                 id_value: T,
                 kw: Kwargs,
                 conn: &Connection,
@@ -141,11 +135,12 @@ pub mod db {
                     values.push(arg.value.to_string());
                 }
                 values.push(id_value.to_string());
-                let j = fields.len() + 1;
                 let fields = fields.join(", ");
                 let query = format!(
-                    "update {name} set {fields} where {id_field}=?{j};",
-                    name = Self::NAME
+                    "update {name} set {fields} where {id}=?{index_id};",
+                    id = Self::PK,
+                    name = Self::NAME,
+                    index_id = fields.len() + 1
                 );
                 values = values.iter().map(|v| v.replace('"', "")).collect();
                 conn.execute(&query, values).await.is_ok()
@@ -186,16 +181,12 @@ pub mod db {
                 let query = format!("select * from {name}", name = Self::NAME);
 
                 let mut result = Vec::new();
-                match conn.query(&query, libsql::params![]).await {
-                    Ok(mut rows) => {
-                        while let Ok(Some(row)) = rows.next() {
-                            match libsql::de::from_row(&row) {
-                                Ok(model) => result.push(model),
-                                Err(err) => eprintln!("{}", err),
-                            }
+                if let Ok(mut rows) = conn.query(&query, libsql::params![]).await {
+                    while let Ok(Some(row)) = rows.next() {
+                        if let Ok(model) = libsql::de::from_row(&row) {
+                            result.push(model);
                         }
                     }
-                    Err(err) => eprintln!("{}", err),
                 }
                 result
             }
@@ -280,13 +271,29 @@ pub mod db {
                 count
             }
         }
+
+        #[async_trait]
+        pub trait Delete {
+            async fn delete(&self, conn: &Connection) -> bool;
+        }
+
+        #[async_trait]
+        impl<T> Delete for Vec<T>
+        where
+            T: Model,
+        {
+            async fn delete(&self, conn: &Connection) -> bool {
+                let query = format!("delete from {name}", name = T::NAME);
+                conn.execute(&query, libsql::params![]).await.is_ok()
+            }
+        }
     }
 }
 
 pub mod prelude {
     pub use crate::{
         config,
-        db::models::{Date, DateTime, Float, Integer, Model, Text},
+        db::models::{Date, DateTime, Delete, Float, Integer, Model, Text},
         kwargs, migrate,
     };
     pub use async_trait::async_trait;

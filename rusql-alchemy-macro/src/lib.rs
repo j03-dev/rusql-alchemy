@@ -198,7 +198,6 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
     let update = quote! {
         async fn update(&self, conn: &Connection) -> bool {
             Self::set(
-                stringify!(#the_primary_key).to_string().replace(".clone()", ""),
                 self.#the_primary_key,
                 kwargs!(
                     #(#update_args = self.#update_args),*
