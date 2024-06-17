@@ -110,7 +110,8 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
 
         let field_schema = {
             let base_type = match field_type.as_str() {
-                "Integer" | "i8" | "i16" | "i32" | "i64" => quote! { integer },
+                "Serial" => quote! { serial },
+                "Integer" => quote! { integer },
                 "String" => {
                     if let Some(size) = size {
                         quote! {varchar(#size)}
@@ -118,18 +119,19 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
                         quote! {varchar(255)}
                     }
                 }
-                "Float" | "f8" | "f16" | "f32" | "f64" => quote! { float },
+                "Float" => quote! { float },
                 "Text" => quote! { text },
-                "Date" => quote! { date },
-                "bool" => quote! { bool },
-                "DateTime" => quote! { datetime },
-
-                _ => panic!(""),
+                "Date" => quote! { varchar(10) },
+                "Boolean" | "bool" => quote! { integer },
+                "DateTime" => quote! { varchar(25) },
+                ptype => panic!("{}", ptype),
             };
 
             let primary_key = if is_primary_key {
                 let auto = if is_auto {
                     quote! { autoincrement }
+                } else if field_type.as_str() == "Serial" {
+                    quote! {}
                 } else {
                     create_args.push(quote! { #field_name });
                     quote! {}
@@ -213,14 +215,18 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
             format!("delete from {name} where {the_primary_key}=?1;").replace(".clone()", "");
         quote! {
             async fn delete(&self, conn: &Connection) -> bool {
-                conn.execute(&#query, [self.#the_primary_key]).await.is_ok()
+                sqlx::query(&#query.replace("?", rusql_alchemy::PLACEHOLDER).replace("$", rusql_alchemy::PLACEHOLDER))
+                    .bind(self.#the_primary_key)
+                    .execute(conn)
+                    .await
+                    .is_ok()
             }
         }
     };
 
     let expanded = quote! {
         #[async_trait]
-        impl Model for #name {
+        impl Model<sqlx::any::AnyRow> for #name {
             const NAME: &'static str = stringify!(#name);
             #schema
             #primary_key

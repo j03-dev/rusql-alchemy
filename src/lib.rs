@@ -6,16 +6,31 @@ macro_rules! kwargs {
             $(
                 args.push(rusql_alchemy::db::models::Arg {
                     key: stringify!($key).to_string(),
-                    value: rusql_alchemy::to_value($value.clone())
+                    value: rusql_alchemy::to_value($value.clone()),
+                    r#type: rusql_alchemy::get_type_name($value.clone()).into()
                 });
             )*
             rusql_alchemy::db::models::Kwargs {
                 operator: rusql_alchemy::db::models::Operator::And,
-                args
+                args,
             }
         }
     };
 }
+use std::any::type_name;
+
+pub fn get_type_name<T: Sized>(_: T) -> &'static str {
+    type_name::<T>()
+}
+
+#[cfg(feature = "postgres")]
+pub const PLACEHOLDER: &str = "$";
+
+#[cfg(feature = "mysql")]
+pub const PLACEHOLDER: &str = "?";
+
+#[cfg(feature = "sqlite")]
+pub const PLACEHOLDER: &str = "?";
 
 pub fn to_value(value: impl Into<serde_json::Value>) -> serde_json::Value {
     let json_value = value.into();
@@ -33,13 +48,20 @@ macro_rules! migrate {
     };
 }
 
+pub type Connection = sqlx::Pool<sqlx::Any>;
+
 pub mod config {
     pub mod db {
-        use libsql::{Connection, Database as LibsqlDatabase};
+        use sqlx::any::{install_default_drivers, AnyPoolOptions};
 
-        async fn establish_connection(url: String, token: String) -> Connection {
-            let db = LibsqlDatabase::open_remote(url, token).unwrap();
-            db.connect().unwrap()
+        use crate::Connection;
+        async fn establish_connection(url: String) -> Connection {
+            install_default_drivers();
+            AnyPoolOptions::new()
+                .max_connections(5)
+                .connect(&url)
+                .await
+                .unwrap()
         }
 
         pub struct Database {
@@ -50,9 +72,8 @@ pub mod config {
             pub async fn new() -> Self {
                 dotenv::dotenv().ok();
                 let turso_database_url = std::env::var("DATABASE_URL").unwrap();
-                let turso_auth_token = std::env::var("TOKEN_KEY").unwrap();
                 Self {
-                    conn: establish_connection(turso_database_url, turso_auth_token).await,
+                    conn: establish_connection(turso_database_url).await,
                 }
             }
         }
@@ -61,17 +82,21 @@ pub mod config {
 
 pub mod db {
     pub mod models {
-        use async_trait::async_trait;
-        use libsql::Connection;
-        use serde::Deserialize;
-        use serde_json::Value;
+        use crate::{get_type_name, Connection, PLACEHOLDER};
 
+        use async_trait::async_trait;
+        use serde_json::Value;
+        use sqlx::{any::AnyRow, FromRow, Row};
+
+        pub type Serial = i32;
         pub type Integer = i32;
+        pub type Text = String;
+        pub type Float = f64;
         pub type Date = String;
         pub type DateTime = String;
-        pub type Text = String;
-        pub type Float = f32;
+        pub type Boolean = i32;
 
+        #[derive(Debug)]
         pub enum Operator {
             Or,
             And,
@@ -86,11 +111,14 @@ pub mod db {
             }
         }
 
+        #[derive(Debug)]
         pub struct Arg {
             pub key: String,
             pub value: Value,
+            pub r#type: String,
         }
 
+        #[derive(Debug)]
         pub struct Kwargs {
             pub operator: Operator,
             pub args: Vec<Arg>,
@@ -106,7 +134,7 @@ pub mod db {
         }
 
         #[async_trait]
-        pub trait Model: Clone + Sync + for<'d> Deserialize<'d> {
+        pub trait Model<R: Row>: Clone + Sync + for<'r> FromRow<'r, R> {
             const SCHEMA: &'static str;
             const NAME: &'static str;
             const PK: &'static str;
@@ -115,35 +143,51 @@ pub mod db {
             where
                 Self: Sized,
             {
-                conn.execute(Self::SCHEMA, libsql::params![]).await.is_ok()
+                sqlx::query(Self::SCHEMA).execute(conn).await.is_ok()
             }
 
             async fn update(&self, conn: &Connection) -> bool
             where
                 Self: Sized;
 
-            async fn set<T: ToString + Send + Sync>(
+            async fn set<T: ToString + Clone + Send + Sync>(
                 id_value: T,
                 kw: Kwargs,
                 conn: &Connection,
             ) -> bool {
                 let mut fields = Vec::new();
-                let mut values = Vec::new();
+                let mut args = Vec::new();
 
                 for (i, arg) in kw.args.iter().enumerate() {
-                    fields.push(format!("{}=?{}", arg.key, i + 1));
-                    values.push(arg.value.to_string());
+                    fields.push(format!("{}={PLACEHOLDER}{}", arg.key, i + 1,));
+                    args.push((arg.r#type.clone(), arg.value.to_string()));
                 }
-                values.push(id_value.to_string());
+                args.push((
+                    get_type_name(id_value.clone()).to_string(),
+                    id_value.clone().to_string(),
+                ));
+                let j = fields.len() + 1;
                 let fields = fields.join(", ");
                 let query = format!(
-                    "update {name} set {fields} where {id}=?{index_id};",
+                    "update {name} set {fields} where {id}={PLACEHOLDER}{j};",
                     id = Self::PK,
                     name = Self::NAME,
-                    index_id = fields.len() + 1
                 );
-                values = values.iter().map(|v| v.replace('"', "")).collect();
-                conn.execute(&query, values).await.is_ok()
+                let mut stream = sqlx::query(&query);
+                for (t, v) in args {
+                    match t.as_str() {
+                        "i32" | "bool" => {
+                            stream = stream.bind(v.replace('"', "").parse::<i32>().unwrap());
+                        }
+                        "f64" => {
+                            stream = stream.bind(v.replace('"', "").parse::<f64>().unwrap());
+                        }
+                        _ => {
+                            stream = stream.bind(v.replace('"', ""));
+                        }
+                    }
+                }
+                stream.execute(conn).await.is_ok()
             }
 
             async fn save(&self, conn: &Connection) -> bool
@@ -155,13 +199,13 @@ pub mod db {
                 Self: Sized,
             {
                 let mut fields = Vec::new();
-                let mut values = Vec::new();
+                let mut args = Vec::new();
                 let mut placeholder = Vec::new();
 
                 for (i, arg) in kw.args.iter().enumerate() {
                     fields.push(arg.key.to_owned());
-                    values.push(arg.value.to_string());
-                    placeholder.push(format!("?{}", i + 1));
+                    args.push((arg.r#type.clone(), arg.value.to_string()));
+                    placeholder.push(format!("{PLACEHOLDER}{}", i + 1));
                 }
 
                 let fields = fields.join(", ");
@@ -170,37 +214,46 @@ pub mod db {
                     "insert into {name} ({fields}) values ({placeholder});",
                     name = Self::NAME
                 );
-                values = values.iter().map(|v| v.replace('"', "")).collect();
-                conn.execute(&query, values).await.is_ok()
+                let mut stream = sqlx::query(&query);
+                for (t, v) in args {
+                    match t.as_str() {
+                        "i32" | "bool" => {
+                            stream = stream.bind(v.replace('"', "").parse::<i32>().unwrap());
+                        }
+                        "f64" => {
+                            stream = stream.bind(v.replace('"', "").parse::<f64>().unwrap());
+                        }
+                        _ => {
+                            stream = stream.bind(v.replace('"', ""));
+                        }
+                    }
+                }
+                stream.execute(conn).await.is_ok()
             }
 
             async fn all(conn: &Connection) -> Vec<Self>
             where
-                Self: Sized,
+                Self: Sized + std::marker::Unpin + for<'r> FromRow<'r, AnyRow> + Clone,
             {
                 let query = format!("select * from {name}", name = Self::NAME);
-
-                let mut result = Vec::new();
-                if let Ok(mut rows) = conn.query(&query, libsql::params![]).await {
-                    while let Ok(Some(row)) = rows.next() {
-                        if let Ok(model) = libsql::de::from_row(&row) {
-                            result.push(model);
-                        }
-                    }
-                }
-                result
+                sqlx::query_as::<_, Self>(&query)
+                    .fetch_all(conn)
+                    .await
+                    .map_or(Vec::new(), |r| r)
             }
 
             async fn filter(kw: Kwargs, conn: &Connection) -> Vec<Self>
             where
-                Self: Sized,
+                Self: Sized + std::marker::Unpin + for<'r> FromRow<'r, AnyRow> + Clone,
             {
                 let mut fields = Vec::new();
+                let mut args = Vec::new();
 
                 let mut join_query = None;
 
                 for (i, arg) in kw.args.iter().enumerate() {
                     let parts: Vec<&str> = arg.key.split("__").collect();
+                    args.push((arg.r#type.clone(), arg.value.to_string()));
                     match parts.as_slice() {
                         [field_a, table, field_b] if parts.len() == 3 => {
                             join_query = Some(format!(
@@ -208,9 +261,9 @@ pub mod db {
                                 name = Self::NAME,
                                 pk = Self::PK
                             ));
-                            fields.push(format!("{table}.{field_b}=?{}", i + 1));
+                            fields.push(format!("{table}.{field_b}={PLACEHOLDER}{}", i + 1));
                         }
-                        _ => fields.push(format!("{}=?{}", arg.key, i + 1)),
+                        _ => fields.push(format!("{}={PLACEHOLDER}{}", arg.key, i + 1)),
                     }
                 }
                 let fields = fields.join(kw.operator.get());
@@ -223,26 +276,31 @@ pub mod db {
                     format!("SELECT * FROM {name} WHERE {fields};", name = Self::NAME)
                 };
 
-                let values: Vec<_> = kw
-                    .args
-                    .iter()
-                    .map(|arg| arg.value.to_string().replace('"', ""))
-                    .collect();
-
-                let mut result = Vec::new();
-                if let Ok(mut rows) = conn.query(&query, values.clone()).await {
-                    while let Ok(Some(row)) = rows.next() {
-                        if let Ok(model) = libsql::de::from_row(&row) {
-                            result.push(model);
+                let stream = sqlx::query_as::<_, Self>(&query);
+                let mut stream = stream;
+                for (t, v) in args {
+                    match t.as_str() {
+                        "i32" | "bool" => {
+                            stream = stream.bind(v.replace('"', "").parse::<i32>().unwrap());
+                        }
+                        "f64" => {
+                            stream = stream.bind(v.replace('"', "").parse::<f64>().unwrap());
+                        }
+                        _ => {
+                            stream = stream.bind(v.replace('"', ""));
                         }
                     }
                 }
-                result
+                if let Ok(result) = stream.fetch_all(conn).await {
+                    return result;
+                } else {
+                    return Vec::new();
+                }
             }
 
             async fn get(kw: Kwargs, conn: &Connection) -> Option<Self>
             where
-                Self: Sized,
+                Self: Sized + std::marker::Unpin + for<'r> FromRow<'r, AnyRow> + Clone,
             {
                 let result = Self::filter(kw, conn).await;
                 if let Some(r) = result.first() {
@@ -260,15 +318,10 @@ pub mod db {
                 Self: Sized,
             {
                 let query = format!("select count(*) from {name}", name = Self::NAME);
-                let mut results = conn.query(&query, libsql::params![]).await.unwrap();
-
-                let mut count: usize = 0;
-
-                while let Some(row) = results.next().unwrap() {
-                    count = row.get::<i32>(0).unwrap_or_default() as usize;
-                }
-
-                count
+                sqlx::query(query.as_str())
+                    .fetch_one(conn)
+                    .await
+                    .map_or(0, |r| r.get::<i64, _>(0) as usize)
             }
         }
 
@@ -280,24 +333,29 @@ pub mod db {
         #[async_trait]
         impl<T> Delete for Vec<T>
         where
-            T: Model,
+            T: Model<AnyRow>
+                + Clone
+                + Sync
+                + Send
+                + std::marker::Unpin
+                + for<'r> FromRow<'r, AnyRow>,
         {
             async fn delete(&self, conn: &Connection) -> bool {
                 let query = format!("delete from {name}", name = T::NAME);
-                conn.execute(&query, libsql::params![]).await.is_ok()
+                sqlx::query(query.as_str()).execute(conn).await.is_ok()
             }
         }
     }
 }
 
 pub mod prelude {
+    pub use crate::Connection;
     pub use crate::{
         config,
-        db::models::{Date, DateTime, Delete, Float, Integer, Model, Text},
+        db::models::{Boolean, Date, DateTime, Delete, Float, Integer, Model, Serial, Text},
         kwargs, migrate,
     };
     pub use async_trait::async_trait;
-    pub use libsql::Connection;
     pub use rusql_alchemy_macro::Model;
     pub use serde::{Deserialize, Serialize};
     pub use serde_json;

@@ -1,8 +1,8 @@
 use rusql_alchemy::prelude::*;
-use serde::Deserialize;
+use sqlx::FromRow;
 
-#[derive(Deserialize, Clone, Debug, Default, Model)]
-struct User {
+#[derive(FromRow, Clone, Debug, Default, Model)]
+struct UserTest {
     #[model(primary_key = true, auto = true, null = false)]
     id: Integer,
     #[model(size = 50, unique = true, null = false)]
@@ -11,24 +11,25 @@ struct User {
     email: String,
     #[model(size = 255, null = false)]
     password: String,
-    birth: Date,
     #[model(default = "user")]
     role: String,
+    #[model(null = false)]
+    age: Integer,
+    #[model(null = false)]
+    weight: Float,
 }
 
-#[derive(Deserialize, Debug, Default, Model, Clone)]
-struct Product {
+#[derive(FromRow, Debug, Default, Model, Clone)]
+struct Produit {
     #[model(primary_key = true, auto = true, null = false)]
     id: Integer,
     #[model(size = 50, null = false)]
     name: String,
     price: Float,
     description: Text,
-    #[model(default = "now")]
-    at: DateTime,
     #[model(default = true)]
-    is_sel: bool,
-    #[model(null = false, foreign_key = "User.id")]
+    is_sel: Boolean,
+    #[model(null = false, foreign_key = "usertest.id")]
     owner: Integer,
 }
 
@@ -36,46 +37,51 @@ struct Product {
 async fn main() {
     let conn = config::db::Database::new().await.conn;
 
-    migrate!([User, Product], &conn);
+    migrate!([UserTest, Produit], &conn);
 
-    User {
+    UserTest {
         name: "johnDoe@gmail.com".to_string(),
         email: "21john@gmail.com".to_string(),
         password: "p455w0rd".to_string(),
-        birth: "01-01-1999".to_string(),
+        age: 18,
+        weight: 60.0,
         ..Default::default()
     }
     .save(&conn)
     .await;
 
-    User::create(
+    let users = UserTest::all(&conn).await;
+    println!("{:#?}", users);
+
+    UserTest::create(
         kwargs!(
             name = "joe",
             email = "24nomeniavo@gmail.com",
             password = "strongpassword",
-            birth = "24-03-2001"
+            age = 19,
+            weight = 80.1
         ),
         &conn,
     )
     .await;
 
-    let users = User::all(&conn).await;
+    let users = UserTest::all(&conn).await;
     println!("1: {:#?}", users);
 
-    if let Some(user) = User::get(
+    if let Some(user) = UserTest::get(
         kwargs!(email = "24nomeniavo@gmail.com", password = "strongpassword"),
         &conn,
     )
     .await
     {
-        User {
+        UserTest {
             role: "admin".into(),
             ..user
         }
         .update(&conn)
         .await;
     }
-    let user = User::get(
+    let user = UserTest::get(
         kwargs!(email = "24nomeniavo@gmail.com", password = "strongpassword"),
         &conn,
     )
@@ -83,27 +89,28 @@ async fn main() {
 
     println!("2: {:#?}", user);
 
-    Product {
-        name: "tomato".to_string(),
-        price: 1000.0,
-        description: "".to_string(),
-        owner: user.clone().unwrap().id,
-        ..Default::default()
-    }
-    .save(&conn)
+    Produit::create(
+        kwargs!(
+            name = "tomato".to_string(),
+            price = 1000.0,
+            description = "".to_string(),
+            owner = user.clone().unwrap().id
+        ),
+        &conn,
+    )
     .await;
 
-    let products = Product::all(&conn).await;
+    let products = Produit::all(&conn).await;
     println!("3: {:#?}", products);
 
-    let product = Product::get(kwargs!(is_sel = true), &conn).await;
+    let product = Produit::get(kwargs!(is_sel = true), &conn).await;
     println!("4: {:#?}", product);
 
-    let user = User::get(kwargs!(owner__product__is_sel = true), &conn).await;
+    let user = UserTest::get(kwargs!(owner__produit__is_sel = true), &conn).await;
     println!("5: {:#?}", user);
 
     println!("is deleted = {}", products.delete(&conn).await);
 
-    let products = Product::all(&conn).await;
+    let products = Produit::all(&conn).await;
     println!("6: {:#?}", products);
 }
