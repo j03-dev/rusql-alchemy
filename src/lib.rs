@@ -265,7 +265,7 @@ pub mod db {
                 let mut count: usize = 0;
 
                 while let Some(row) = results.next().unwrap() {
-                    count = row.get::<i32>(0).unwrap() as usize;
+                    count = row.get::<i32>(0).unwrap_or_default() as usize;
                 }
 
                 count
