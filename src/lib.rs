@@ -72,7 +72,6 @@ pub mod config {
             pub async fn new() -> Self {
                 dotenv::dotenv().ok();
                 let turso_database_url = std::env::var("DATABASE_URL").unwrap();
-
                 Self {
                     conn: establish_connection(turso_database_url).await,
                 }
@@ -157,13 +156,13 @@ pub mod db {
                 conn: &Connection,
             ) -> bool {
                 let mut fields = Vec::new();
-                let mut values = Vec::new();
+                let mut args = Vec::new();
 
                 for (i, arg) in kw.args.iter().enumerate() {
                     fields.push(format!("{}={PLACEHOLDER}{}", arg.key, i + 1,));
-                    values.push((arg.r#type.clone(), arg.value.to_string()));
+                    args.push((arg.r#type.clone(), arg.value.to_string()));
                 }
-                values.push((
+                args.push((
                     get_type_name(id_value.clone()).to_string(),
                     id_value.clone().to_string(),
                 ));
@@ -175,7 +174,7 @@ pub mod db {
                     name = Self::NAME,
                 );
                 let mut stream = sqlx::query(&query);
-                for (t, v) in values {
+                for (t, v) in args {
                     match t.as_str() {
                         "i32" | "bool" => {
                             stream = stream.bind(v.replace('"', "").parse::<i32>().unwrap());
@@ -200,12 +199,12 @@ pub mod db {
                 Self: Sized,
             {
                 let mut fields = Vec::new();
-                let mut values = Vec::new();
+                let mut args = Vec::new();
                 let mut placeholder = Vec::new();
 
                 for (i, arg) in kw.args.iter().enumerate() {
                     fields.push(arg.key.to_owned());
-                    values.push((arg.r#type.clone(), arg.value.to_string()));
+                    args.push((arg.r#type.clone(), arg.value.to_string()));
                     placeholder.push(format!("{PLACEHOLDER}{}", i + 1));
                 }
 
@@ -216,7 +215,7 @@ pub mod db {
                     name = Self::NAME
                 );
                 let mut stream = sqlx::query(&query);
-                for (t, v) in values {
+                for (t, v) in args {
                     match t.as_str() {
                         "i32" | "bool" => {
                             stream = stream.bind(v.replace('"', "").parse::<i32>().unwrap());
@@ -248,13 +247,13 @@ pub mod db {
                 Self: Sized + std::marker::Unpin + for<'r> FromRow<'r, AnyRow> + Clone,
             {
                 let mut fields = Vec::new();
-                let mut values = Vec::new();
+                let mut args = Vec::new();
 
                 let mut join_query = None;
 
                 for (i, arg) in kw.args.iter().enumerate() {
                     let parts: Vec<&str> = arg.key.split("__").collect();
-                    values.push((arg.r#type.clone(), arg.value.to_string()));
+                    args.push((arg.r#type.clone(), arg.value.to_string()));
                     match parts.as_slice() {
                         [field_a, table, field_b] if parts.len() == 3 => {
                             join_query = Some(format!(
@@ -279,7 +278,7 @@ pub mod db {
 
                 let stream = sqlx::query_as::<_, Self>(&query);
                 let mut stream = stream;
-                for (t, v) in values {
+                for (t, v) in args {
                     match t.as_str() {
                         "i32" | "bool" => {
                             stream = stream.bind(v.replace('"', "").parse::<i32>().unwrap());
