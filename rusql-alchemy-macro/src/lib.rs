@@ -111,7 +111,7 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
         let field_schema = {
             let base_type = match field_type.as_str() {
                 "Serial" => quote! { serial },
-                "Integer" | "i8" | "i16" | "i32" | "i64" => quote! { integer },
+                "Integer" => quote! { integer },
                 "String" => {
                     if let Some(size) = size {
                         quote! {varchar(#size)}
@@ -119,7 +119,7 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
                         quote! {varchar(255)}
                     }
                 }
-                "Float" | "f8" | "f16" | "f32" | "f64" => quote! { float },
+                "Float" => quote! { float },
                 "Text" => quote! { text },
                 "Date" => quote! { varchar(10) },
                 "Boolean" | "bool" => quote! { integer },
@@ -178,7 +178,7 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
             .collect::<Vec<_>>()
             .join(", ");
 
-        let schema = format!("create table if not exists {name} ({fields});").replace('"', "'");
+        let schema = format!("create table if not exists {name} ({fields});");
 
         quote! {
             const SCHEMA: &'static str = #schema;

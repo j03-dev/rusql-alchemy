@@ -241,7 +241,12 @@ pub mod db {
                         }
                     }
                 }
-                stream.execute(conn).await.is_ok()
+                if let Err(err) = stream.execute(conn).await {
+                    eprintln!("{err}");
+                    false
+                } else {
+                    true
+                }
             }
 
             async fn all(conn: &Connection) -> Vec<Self>
