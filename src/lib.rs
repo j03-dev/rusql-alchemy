@@ -33,13 +33,20 @@ macro_rules! migrate {
     };
 }
 
+pub type Connection = sqlx::Pool<sqlx::Any>;
+
 pub mod config {
     pub mod db {
-        use libsql::{Connection, Database as LibsqlDatabase};
+        use sqlx::any::{install_default_drivers, AnyPoolOptions};
 
-        async fn establish_connection(url: String, token: String) -> Connection {
-            let db = LibsqlDatabase::open_remote(url, token).unwrap();
-            db.connect().unwrap()
+        use crate::Connection;
+        async fn establish_connection(url: String) -> Connection {
+            install_default_drivers();
+            AnyPoolOptions::new()
+                .max_connections(5)
+                .connect(&url)
+                .await
+                .unwrap()
         }
 
         pub struct Database {
@@ -50,9 +57,9 @@ pub mod config {
             pub async fn new() -> Self {
                 dotenv::dotenv().ok();
                 let turso_database_url = std::env::var("DATABASE_URL").unwrap();
-                let turso_auth_token = std::env::var("TOKEN_KEY").unwrap();
+
                 Self {
-                    conn: establish_connection(turso_database_url, turso_auth_token).await,
+                    conn: establish_connection(turso_database_url).await,
                 }
             }
         }
@@ -61,14 +68,13 @@ pub mod config {
 
 pub mod db {
     pub mod models {
+        use crate::Connection;
         use async_trait::async_trait;
-        use libsql::Connection;
-        use serde::Deserialize;
         use serde_json::Value;
+        pub use sqlx::types::chrono::{NaiveDate, NaiveDateTime};
+        use sqlx::{any::AnyRow, FromRow, Row};
 
         pub type Integer = i32;
-        pub type Date = String;
-        pub type DateTime = String;
         pub type Text = String;
         pub type Float = f32;
 
@@ -106,7 +112,7 @@ pub mod db {
         }
 
         #[async_trait]
-        pub trait Model: Clone + Sync + for<'d> Deserialize<'d> {
+        pub trait Model<R: Row>: Clone + Sync + for<'r> FromRow<'r, R> {
             const SCHEMA: &'static str;
             const NAME: &'static str;
             const PK: &'static str;
@@ -115,7 +121,7 @@ pub mod db {
             where
                 Self: Sized,
             {
-                conn.execute(Self::SCHEMA, libsql::params![]).await.is_ok()
+                sqlx::query(Self::SCHEMA).execute(conn).await.is_ok()
             }
 
             async fn update(&self, conn: &Connection) -> bool
@@ -142,8 +148,11 @@ pub mod db {
                     name = Self::NAME,
                     index_id = fields.len() + 1
                 );
-                values = values.iter().map(|v| v.replace('"', "")).collect();
-                conn.execute(&query, values).await.is_ok()
+                let mut sqlx_query = sqlx::query(&query);
+                for value in values {
+                    sqlx_query = sqlx_query.bind(value.replace('"', ""));
+                }
+                sqlx_query.execute(conn).await.is_ok()
             }
 
             async fn save(&self, conn: &Connection) -> bool
@@ -170,37 +179,39 @@ pub mod db {
                     "insert into {name} ({fields}) values ({placeholder});",
                     name = Self::NAME
                 );
-                values = values.iter().map(|v| v.replace('"', "")).collect();
-                conn.execute(&query, values).await.is_ok()
+                let mut sqlx_query = sqlx::query(&query);
+                for value in values {
+                    sqlx_query = sqlx_query.bind(value.replace('"', ""));
+                }
+                sqlx_query.execute(conn).await.is_ok()
             }
 
             async fn all(conn: &Connection) -> Vec<Self>
             where
-                Self: Sized,
+                Self: Sized + std::marker::Unpin + for<'r> FromRow<'r, AnyRow> + Clone,
             {
                 let query = format!("select * from {name}", name = Self::NAME);
-
-                let mut result = Vec::new();
-                if let Ok(mut rows) = conn.query(&query, libsql::params![]).await {
-                    while let Ok(Some(row)) = rows.next() {
-                        if let Ok(model) = libsql::de::from_row(&row) {
-                            result.push(model);
-                        }
+                match sqlx::query_as::<_, Self>(&query).fetch_all(conn).await {
+                    Ok(result) => result,
+                    Err(err) => {
+                        eprintln!("{}", err);
+                        Vec::new()
                     }
                 }
-                result
             }
 
             async fn filter(kw: Kwargs, conn: &Connection) -> Vec<Self>
             where
-                Self: Sized,
+                Self: Sized + std::marker::Unpin + for<'r> FromRow<'r, AnyRow> + Clone,
             {
                 let mut fields = Vec::new();
+                let mut values = Vec::new();
 
                 let mut join_query = None;
 
                 for (i, arg) in kw.args.iter().enumerate() {
                     let parts: Vec<&str> = arg.key.split("__").collect();
+                    values.push(arg.value.to_string());
                     match parts.as_slice() {
                         [field_a, table, field_b] if parts.len() == 3 => {
                             join_query = Some(format!(
@@ -223,26 +234,21 @@ pub mod db {
                     format!("SELECT * FROM {name} WHERE {fields};", name = Self::NAME)
                 };
 
-                let values: Vec<_> = kw
-                    .args
-                    .iter()
-                    .map(|arg| arg.value.to_string().replace('"', ""))
-                    .collect();
-
-                let mut result = Vec::new();
-                if let Ok(mut rows) = conn.query(&query, values.clone()).await {
-                    while let Ok(Some(row)) = rows.next() {
-                        if let Ok(model) = libsql::de::from_row(&row) {
-                            result.push(model);
-                        }
-                    }
+                let stream = sqlx::query_as::<_, Self>(&query);
+                let mut stream = stream;
+                for value in values {
+                    stream = stream.bind(value.replace('"', ""));
                 }
-                result
+                if let Ok(result) = stream.fetch_all(conn).await {
+                    return result;
+                } else {
+                    return Vec::new();
+                }
             }
 
             async fn get(kw: Kwargs, conn: &Connection) -> Option<Self>
             where
-                Self: Sized,
+                Self: Sized + std::marker::Unpin + for<'r> FromRow<'r, AnyRow> + Clone,
             {
                 let result = Self::filter(kw, conn).await;
                 if let Some(r) = result.first() {
@@ -260,15 +266,10 @@ pub mod db {
                 Self: Sized,
             {
                 let query = format!("select count(*) from {name}", name = Self::NAME);
-                let mut results = conn.query(&query, libsql::params![]).await.unwrap();
-
-                let mut count: usize = 0;
-
-                while let Some(row) = results.next().unwrap() {
-                    count = row.get::<i32>(0).unwrap_or_default() as usize;
-                }
-
-                count
+                sqlx::query(query.as_str())
+                    .fetch_one(conn)
+                    .await
+                    .map_or(0, |r| r.get::<i64, _>(0) as usize)
             }
         }
 
@@ -280,24 +281,31 @@ pub mod db {
         #[async_trait]
         impl<T> Delete for Vec<T>
         where
-            T: Model,
+            T: Model<AnyRow>
+                + Clone
+                + Sync
+                + Send
+                + std::marker::Unpin
+                + for<'r> FromRow<'r, AnyRow>,
         {
             async fn delete(&self, conn: &Connection) -> bool {
                 let query = format!("delete from {name}", name = T::NAME);
-                conn.execute(&query, libsql::params![]).await.is_ok()
+                sqlx::query(query.as_str()).execute(conn).await.is_ok()
             }
         }
     }
 }
 
 pub mod prelude {
+    pub use crate::Connection;
     pub use crate::{
         config,
-        db::models::{Date, DateTime, Delete, Float, Integer, Model, Text},
+        db::models::{
+            Delete, Float, Integer, Model, NaiveDate as Date, NaiveDateTime as DateTime, Text,
+        },
         kwargs, migrate,
     };
     pub use async_trait::async_trait;
-    pub use libsql::Connection;
     pub use rusql_alchemy_macro::Model;
     pub use serde::{Deserialize, Serialize};
     pub use serde_json;
