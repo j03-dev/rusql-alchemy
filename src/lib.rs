@@ -6,16 +6,31 @@ macro_rules! kwargs {
             $(
                 args.push(rusql_alchemy::db::models::Arg {
                     key: stringify!($key).to_string(),
-                    value: rusql_alchemy::to_value($value.clone())
+                    value: rusql_alchemy::to_value($value.clone()),
+                    r#type: rusql_alchemy::get_type_name($value.clone()).into()
                 });
             )*
             rusql_alchemy::db::models::Kwargs {
                 operator: rusql_alchemy::db::models::Operator::And,
-                args
+                args,
             }
         }
     };
 }
+use std::any::type_name;
+
+pub fn get_type_name<T: Sized>(_: T) -> &'static str {
+    type_name::<T>()
+}
+
+#[cfg(feature = "postgres")]
+pub const PLACEHOLDER: &str = "$";
+
+#[cfg(feature = "mysql")]
+pub const PLACEHOLDER: &str = "?";
+
+#[cfg(feature = "sqlite")]
+pub const PLACEHOLDER: &str = "?";
 
 pub fn to_value(value: impl Into<serde_json::Value>) -> serde_json::Value {
     let json_value = value.into();
@@ -68,11 +83,13 @@ pub mod config {
 
 pub mod db {
     pub mod models {
-        use crate::Connection;
+        use crate::{get_type_name, Connection, PLACEHOLDER};
+
         use async_trait::async_trait;
         use serde_json::Value;
         use sqlx::{any::AnyRow, FromRow, Row};
 
+        pub type Serial = i32;
         pub type Integer = i32;
         pub type Text = String;
         pub type Float = f64;
@@ -80,6 +97,7 @@ pub mod db {
         pub type DateTime = String;
         pub type Boolean = i32;
 
+        #[derive(Debug)]
         pub enum Operator {
             Or,
             And,
@@ -94,11 +112,14 @@ pub mod db {
             }
         }
 
+        #[derive(Debug)]
         pub struct Arg {
             pub key: String,
             pub value: Value,
+            pub r#type: String,
         }
 
+        #[derive(Debug)]
         pub struct Kwargs {
             pub operator: Operator,
             pub args: Vec<Arg>,
@@ -123,14 +144,20 @@ pub mod db {
             where
                 Self: Sized,
             {
-                sqlx::query(Self::SCHEMA).execute(conn).await.is_ok()
+                match sqlx::query(Self::SCHEMA).execute(conn).await {
+                    Ok(_) => true,
+                    Err(err) => {
+                        eprintln!("{err}");
+                        false
+                    }
+                }
             }
 
             async fn update(&self, conn: &Connection) -> bool
             where
                 Self: Sized;
 
-            async fn set<T: ToString + Send + Sync>(
+            async fn set<T: ToString + Clone + Send + Sync>(
                 id_value: T,
                 kw: Kwargs,
                 conn: &Connection,
@@ -139,22 +166,41 @@ pub mod db {
                 let mut values = Vec::new();
 
                 for (i, arg) in kw.args.iter().enumerate() {
-                    fields.push(format!("{}=?{}", arg.key, i + 1));
-                    values.push(arg.value.to_string());
+                    fields.push(format!("{}={PLACEHOLDER}{}", arg.key, i + 1,));
+                    values.push((arg.r#type.clone(), arg.value.to_string()));
                 }
-                values.push(id_value.to_string());
+                values.push((
+                    get_type_name(id_value.clone()).to_string(),
+                    id_value.clone().to_string(),
+                ));
+                let j = fields.len() + 1;
                 let fields = fields.join(", ");
                 let query = format!(
-                    "update {name} set {fields} where {id}=?{index_id};",
+                    "update {name} set {fields} where {id}={PLACEHOLDER}{j};",
                     id = Self::PK,
                     name = Self::NAME,
-                    index_id = fields.len() + 1
                 );
-                let mut sqlx_query = sqlx::query(&query);
-                for value in values {
-                    sqlx_query = sqlx_query.bind(value.replace('"', ""));
+                let mut stream = sqlx::query(&query);
+                for (t, v) in values {
+                    match t.as_str() {
+                        "i32" => {
+                            stream = stream.bind(v.replace('"', "").parse::<i32>().unwrap());
+                        }
+                        "f64" => {
+                            stream = stream.bind(v.replace('"', "").parse::<f64>().unwrap());
+                        }
+                        _ => {
+                            stream = stream.bind(v.replace('"', ""));
+                        }
+                    }
                 }
-                sqlx_query.execute(conn).await.is_ok()
+                println!("{}", query);
+                if let Err(err) = stream.execute(conn).await {
+                    println!("{}", err);
+                    false
+                } else {
+                    true
+                }
             }
 
             async fn save(&self, conn: &Connection) -> bool
@@ -171,8 +217,8 @@ pub mod db {
 
                 for (i, arg) in kw.args.iter().enumerate() {
                     fields.push(arg.key.to_owned());
-                    values.push(arg.value.to_string());
-                    placeholder.push(format!("?{}", i + 1));
+                    values.push((arg.r#type.clone(), arg.value.to_string()));
+                    placeholder.push(format!("{PLACEHOLDER}{}", i + 1));
                 }
 
                 let fields = fields.join(", ");
@@ -181,11 +227,21 @@ pub mod db {
                     "insert into {name} ({fields}) values ({placeholder});",
                     name = Self::NAME
                 );
-                let mut sqlx_query = sqlx::query(&query);
-                for value in values {
-                    sqlx_query = sqlx_query.bind(value.replace('"', ""));
+                let mut stream = sqlx::query(&query);
+                for (t, v) in values {
+                    match t.as_str() {
+                        "i32" => {
+                            stream = stream.bind(v.replace('"', "").parse::<i32>().unwrap());
+                        }
+                        "f64" => {
+                            stream = stream.bind(v.replace('"', "").parse::<f64>().unwrap());
+                        }
+                        _ => {
+                            stream = stream.bind(v.replace('"', ""));
+                        }
+                    }
                 }
-                sqlx_query.execute(conn).await.is_ok()
+                stream.execute(conn).await.is_ok()
             }
 
             async fn all(conn: &Connection) -> Vec<Self>
@@ -213,7 +269,7 @@ pub mod db {
 
                 for (i, arg) in kw.args.iter().enumerate() {
                     let parts: Vec<&str> = arg.key.split("__").collect();
-                    values.push(arg.value.to_string());
+                    values.push((arg.r#type.clone(), arg.value.to_string()));
                     match parts.as_slice() {
                         [field_a, table, field_b] if parts.len() == 3 => {
                             join_query = Some(format!(
@@ -221,9 +277,9 @@ pub mod db {
                                 name = Self::NAME,
                                 pk = Self::PK
                             ));
-                            fields.push(format!("{table}.{field_b}=?{}", i + 1));
+                            fields.push(format!("{table}.{field_b}={PLACEHOLDER}{}", i + 1));
                         }
-                        _ => fields.push(format!("{}=?{}", arg.key, i + 1)),
+                        _ => fields.push(format!("{}={PLACEHOLDER}{}", arg.key, i + 1)),
                     }
                 }
                 let fields = fields.join(kw.operator.get());
@@ -238,8 +294,18 @@ pub mod db {
 
                 let stream = sqlx::query_as::<_, Self>(&query);
                 let mut stream = stream;
-                for value in values {
-                    stream = stream.bind(value.replace('"', ""));
+                for (t, v) in values {
+                    match t.as_str() {
+                        "i32" => {
+                            stream = stream.bind(v.replace('"', "").parse::<i32>().unwrap());
+                        }
+                        "f64" => {
+                            stream = stream.bind(v.replace('"', "").parse::<f64>().unwrap());
+                        }
+                        _ => {
+                            stream = stream.bind(v.replace('"', ""));
+                        }
+                    }
                 }
                 if let Ok(result) = stream.fetch_all(conn).await {
                     return result;
@@ -302,7 +368,7 @@ pub mod prelude {
     pub use crate::Connection;
     pub use crate::{
         config,
-        db::models::{Boolean, Date, DateTime, Delete, Float, Integer, Model, Text},
+        db::models::{Boolean, Date, DateTime, Delete, Float, Integer, Model, Serial, Text},
         kwargs, migrate,
     };
     pub use async_trait::async_trait;
