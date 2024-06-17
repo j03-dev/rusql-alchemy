@@ -144,13 +144,7 @@ pub mod db {
             where
                 Self: Sized,
             {
-                match sqlx::query(Self::SCHEMA).execute(conn).await {
-                    Ok(_) => true,
-                    Err(err) => {
-                        eprintln!("{err}");
-                        false
-                    }
-                }
+                sqlx::query(Self::SCHEMA).execute(conn).await.is_ok()
             }
 
             async fn update(&self, conn: &Connection) -> bool
@@ -183,7 +177,7 @@ pub mod db {
                 let mut stream = sqlx::query(&query);
                 for (t, v) in values {
                     match t.as_str() {
-                        "i32" => {
+                        "i32" | "bool" => {
                             stream = stream.bind(v.replace('"', "").parse::<i32>().unwrap());
                         }
                         "f64" => {
@@ -194,13 +188,7 @@ pub mod db {
                         }
                     }
                 }
-                println!("{}", query);
-                if let Err(err) = stream.execute(conn).await {
-                    println!("{}", err);
-                    false
-                } else {
-                    true
-                }
+                stream.execute(conn).await.is_ok()
             }
 
             async fn save(&self, conn: &Connection) -> bool
@@ -230,7 +218,7 @@ pub mod db {
                 let mut stream = sqlx::query(&query);
                 for (t, v) in values {
                     match t.as_str() {
-                        "i32" => {
+                        "i32" | "bool" => {
                             stream = stream.bind(v.replace('"', "").parse::<i32>().unwrap());
                         }
                         "f64" => {
@@ -241,12 +229,7 @@ pub mod db {
                         }
                     }
                 }
-                if let Err(err) = stream.execute(conn).await {
-                    eprintln!("{err}");
-                    false
-                } else {
-                    true
-                }
+                stream.execute(conn).await.is_ok()
             }
 
             async fn all(conn: &Connection) -> Vec<Self>
@@ -254,13 +237,10 @@ pub mod db {
                 Self: Sized + std::marker::Unpin + for<'r> FromRow<'r, AnyRow> + Clone,
             {
                 let query = format!("select * from {name}", name = Self::NAME);
-                match sqlx::query_as::<_, Self>(&query).fetch_all(conn).await {
-                    Ok(result) => result,
-                    Err(err) => {
-                        eprintln!("{}", err);
-                        Vec::new()
-                    }
-                }
+                sqlx::query_as::<_, Self>(&query)
+                    .fetch_all(conn)
+                    .await
+                    .map_or(Vec::new(), |r| r)
             }
 
             async fn filter(kw: Kwargs, conn: &Connection) -> Vec<Self>
@@ -301,7 +281,7 @@ pub mod db {
                 let mut stream = stream;
                 for (t, v) in values {
                     match t.as_str() {
-                        "i32" => {
+                        "i32" | "bool" => {
                             stream = stream.bind(v.replace('"', "").parse::<i32>().unwrap());
                         }
                         "f64" => {
