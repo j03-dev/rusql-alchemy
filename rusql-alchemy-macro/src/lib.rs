@@ -120,11 +120,10 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
                 }
                 "Float" | "f8" | "f16" | "f32" | "f64" => quote! { float },
                 "Text" => quote! { text },
-                "Date" => quote! { date },
-                "bool" => quote! { bool },
-                "DateTime" => quote! { datetime },
-
-                _ => panic!(""),
+                "Date" => quote! { varchar(10) },
+                "Boolean" | "bool" => quote! { integer },
+                "DateTime" => quote! { varchar(25) },
+                ptype => panic!("{}", ptype),
             };
 
             let primary_key = if is_primary_key {

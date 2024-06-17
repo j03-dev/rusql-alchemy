@@ -71,12 +71,14 @@ pub mod db {
         use crate::Connection;
         use async_trait::async_trait;
         use serde_json::Value;
-        pub use sqlx::types::chrono::{NaiveDate, NaiveDateTime};
         use sqlx::{any::AnyRow, FromRow, Row};
 
         pub type Integer = i32;
         pub type Text = String;
-        pub type Float = f32;
+        pub type Float = f64;
+        pub type Date = String;
+        pub type DateTime = String;
+        pub type Boolean = i32;
 
         pub enum Operator {
             Or,
@@ -300,9 +302,7 @@ pub mod prelude {
     pub use crate::Connection;
     pub use crate::{
         config,
-        db::models::{
-            Delete, Float, Integer, Model, NaiveDate as Date, NaiveDateTime as DateTime, Text,
-        },
+        db::models::{Boolean, Date, DateTime, Delete, Float, Integer, Model, Text},
         kwargs, migrate,
     };
     pub use async_trait::async_trait;

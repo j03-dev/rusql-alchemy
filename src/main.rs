@@ -23,6 +23,10 @@ struct Product {
     name: String,
     price: Float,
     description: Text,
+    #[model(default = "now")]
+    at: DateTime,
+    #[model(default = true)]
+    is_sel: Boolean,
     #[model(null = false, foreign_key = "User.id")]
     owner: Integer,
 }
@@ -82,14 +86,15 @@ async fn main() {
 
     println!("2: {:#?}", user);
 
-    Product {
-        name: "tomato".to_string(),
-        price: 1000.0,
-        description: "".to_string(),
-        owner: user.clone().unwrap().id,
-        ..Default::default()
-    }
-    .save(&conn)
+    Product::create(
+        kwargs!(
+            name = "tomato".to_string(),
+            price = 1000.0,
+            description = "".to_string(),
+            owner = user.clone().unwrap().id
+        ),
+        &conn,
+    )
     .await;
 
     let products = Product::all(&conn).await;
