@@ -1,0 +1,13 @@
+[package]
+name = "test-postgres"
+version = "0.1.0"
+edition = "2021"
+workspace = ".."
+
+[dependencies.rusql-alchemy]
+path = "../.."
+features = ["postgres"]
+
+[dependencies]
+sqlx = "^0.7.0"
+tokio = { version = "^1.38.0", features = ["full"]}
