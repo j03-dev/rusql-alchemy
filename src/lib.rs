@@ -41,6 +41,24 @@ pub fn to_value(value: impl Into<serde_json::Value>) -> serde_json::Value {
     }
 }
 
+macro_rules! binds {
+    ($args: expr, $stream:expr) => {
+        for (t, v) in $args {
+            match t.as_str() {
+                "i32" | "bool" => {
+                    $stream = $stream.bind(v.replace('"', "").parse::<i32>().unwrap());
+                }
+                "f64" => {
+                    $stream = $stream.bind(v.replace('"', "").parse::<f64>().unwrap());
+                }
+                _ => {
+                    $stream = $stream.bind(v.replace('"', ""));
+                }
+            }
+        }
+    };
+}
+
 #[macro_export]
 macro_rules! migrate {
     ([$($struct:ident),*], $conn:expr) => {
@@ -55,6 +73,7 @@ pub mod config {
         use sqlx::any::{install_default_drivers, AnyPoolOptions};
 
         use crate::Connection;
+
         async fn establish_connection(url: String) -> Connection {
             install_default_drivers();
             AnyPoolOptions::new()
@@ -71,9 +90,9 @@ pub mod config {
         impl Database {
             pub async fn new() -> Self {
                 dotenv::dotenv().ok();
-                let turso_database_url = std::env::var("DATABASE_URL").unwrap();
+                let database_url = std::env::var("DATABASE_URL").unwrap();
                 Self {
-                    conn: establish_connection(turso_database_url).await,
+                    conn: establish_connection(database_url).await,
                 }
             }
         }
@@ -159,7 +178,7 @@ pub mod db {
                 let mut args = Vec::new();
 
                 for (i, arg) in kw.args.iter().enumerate() {
-                    fields.push(format!("{}={PLACEHOLDER}{}", arg.key, i + 1,));
+                    fields.push(format!("{}={PLACEHOLDER}{}", arg.key, i + 1, ));
                     args.push((arg.r#type.clone(), arg.value.to_string()));
                 }
                 args.push((
@@ -174,19 +193,7 @@ pub mod db {
                     name = Self::NAME,
                 );
                 let mut stream = sqlx::query(&query);
-                for (t, v) in args {
-                    match t.as_str() {
-                        "i32" | "bool" => {
-                            stream = stream.bind(v.replace('"', "").parse::<i32>().unwrap());
-                        }
-                        "f64" => {
-                            stream = stream.bind(v.replace('"', "").parse::<f64>().unwrap());
-                        }
-                        _ => {
-                            stream = stream.bind(v.replace('"', ""));
-                        }
-                    }
-                }
+                binds!(args, stream);
                 stream.execute(conn).await.is_ok()
             }
 
@@ -215,19 +222,7 @@ pub mod db {
                     name = Self::NAME
                 );
                 let mut stream = sqlx::query(&query);
-                for (t, v) in args {
-                    match t.as_str() {
-                        "i32" | "bool" => {
-                            stream = stream.bind(v.replace('"', "").parse::<i32>().unwrap());
-                        }
-                        "f64" => {
-                            stream = stream.bind(v.replace('"', "").parse::<f64>().unwrap());
-                        }
-                        _ => {
-                            stream = stream.bind(v.replace('"', ""));
-                        }
-                    }
-                }
+                binds!(args, stream);
                 stream.execute(conn).await.is_ok()
             }
 
@@ -278,24 +273,8 @@ pub mod db {
 
                 let stream = sqlx::query_as::<_, Self>(&query);
                 let mut stream = stream;
-                for (t, v) in args {
-                    match t.as_str() {
-                        "i32" | "bool" => {
-                            stream = stream.bind(v.replace('"', "").parse::<i32>().unwrap());
-                        }
-                        "f64" => {
-                            stream = stream.bind(v.replace('"', "").parse::<f64>().unwrap());
-                        }
-                        _ => {
-                            stream = stream.bind(v.replace('"', ""));
-                        }
-                    }
-                }
-                if let Ok(result) = stream.fetch_all(conn).await {
-                    return result;
-                } else {
-                    return Vec::new();
-                }
+                binds!(args, stream);
+                stream.fetch_all(conn).await.map_or(Vec::new(), |r| r)
             }
 
             async fn get(kw: Kwargs, conn: &Connection) -> Option<Self>
@@ -334,11 +313,11 @@ pub mod db {
         impl<T> Delete for Vec<T>
         where
             T: Model<AnyRow>
-                + Clone
-                + Sync
-                + Send
-                + std::marker::Unpin
-                + for<'r> FromRow<'r, AnyRow>,
+            + Clone
+            + Sync
+            + Send
+            + std::marker::Unpin
+            + for<'r> FromRow<'r, AnyRow>,
         {
             async fn delete(&self, conn: &Connection) -> bool {
                 let query = format!("delete from {name}", name = T::NAME);
