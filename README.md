@@ -1,6 +1,6 @@
 # Rusql Alchemy
 
-## Rusql Alchemy is ORM for `Turso` Database
+## Rusql Alchemy is Django ORM like library for Rust
 
 ### Why ?
 
