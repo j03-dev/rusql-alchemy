@@ -6,118 +6,163 @@
 
 Just for fun! XD
 
-### Setup `.env` file 
+## Sqlite
 
+### Setup `.env` file
 ```bash
-DATABASE_URL=
-TOKEN_KEY=
+DATABASE_URL=sqlite://<dabasase.db>
+```
+### Setup `Cargo.toml`
+```toml
+[dependencies.rusql-alchemy]
+git = "https://github.com/j03-dev/rusql-alchemy"
+branch="main"
+features = ["sqlite"]
+```
+### Model
+```rust
+use rusql_alchemy::prelude::*;
+
+#[derive(Debug, Model, FromRow)]
+struct User {
+    #[model(primary_key=true, auto=true, null=false)]
+    id: Integer,
+    #[model(unique=true, null=false)]
+    name: String,
+    #[model(null=false)]
+    age: Integer,
+    #[model(default="user")]
+    role: String
+}
+```
+## Postgres
+
+### Setup `.env` file
+
+``` bash
+DATABASE_URL=postgres://<user>:<password>@<hostname>/<dbname>
 ```
 
-## Example
+### Setup `Cargo.toml`
+```toml
+[dependencies.rusql-alchemy]
+git = "https://github.com/j03-dev/rusql-alchemy"
+branch="main"
+features = ["postgres"]
+```
+### Model: In postgres primary key should be `Serial` type
+```rust
+use rusql_alchemy::prelude::*;
+
+#[derive(Debug, Model, FromRow)]
+struct User {
+    #[model(primary_key=true)]
+    id: Serial,
+    #[model(unique=true, null=false)]
+    name: String,
+    #[model(null=false)]
+    age: Integer,
+    #[model(default="user")]
+    role: String
+}
+```
+
+## Migrate
 
 ```rust
 use rusql_alchemy::prelude::*;
-use serde::Deserialize;
-
-#[derive(Deserialize, Clone, Debug, Default, Model)]
-struct User {
-    #[model(primary_key = true, auto = true, null = false)]
-    id: Integer,
-    #[model(size = 50, unique = true, null = false)]
-    name: String,
-    #[model(size = 255, unique = true, null = true)]
-    email: String,
-    #[model(size = 255, null = false)]
-    password: String,
-    birth: Date,
-    #[model(default = "user")]
-    role: String,
-}
-
-#[derive(Deserialize, Debug, Default, Model, Clone)]
-struct Product {
-    #[model(primary_key = true, auto = true, null = false)]
-    id: Integer,
-    #[model(size = 50, null = false)]
-    name: String,
-    price: Float,
-    description: Text,
-    #[model(default = "now")]
-    at: DateTime,
-    #[model(default = true)]
-    is_sel: bool,
-    #[model(null = false, foreign_key = "User.id")]
-    owner: Integer,
-}
 
 #[tokio::main]
 async fn main() {
     let conn = config::db::Database::new().await.conn;
+    migrate([Use], &conn);
+}
+```
+## Query
 
-    migrate!([User, Product], &conn);
+### Insert
+```rust
+#[tokio::main]
+async fn main() {
+    let conn = config::db::Database::new().await.conn;
 
-    User {
+    UserTest {
         name: "johnDoe@gmail.com".to_string(),
         email: "21john@gmail.com".to_string(),
         password: "p455w0rd".to_string(),
-        birth: "01-01-1999".to_string(),
+        age: 18,
+        weight: 60.0,
         ..Default::default()
     }
-    .save(&conn)
-    .await;
+        .save(&conn)
+        .await;
 
-    User::create(
+    let users = UserTest::all(&conn).await;
+    println!("{:#?}", users);
+
+    UserTest::create(
         kwargs!(
             name = "joe",
             email = "24nomeniavo@gmail.com",
             password = "strongpassword",
-            birth = "24-03-2001"
+            age = 19,
+            weight = 80.1
         ),
         &conn,
     )
     .await;
+}
+```
+### Select
+```rust
+#[tokio::main]
+async fn main() {
+    let conn = config::db::Database::new().await.conn;
 
-    let users = User::all(&conn).await;
-    println!("1: {:#?}", users);
+    let users = UserTest::all(&conn).await;
+    println!("{:#?}", users);
 
-    if let Some(user) = User::get(
+    let user = UserTest::get(
+        kwargs!(email = "24nomeniavo@gmail.com", password = "strongpassword"),
+        &conn,
+    ).await;
+    println!("{:#?}", user);
+
+    let users = UserTest::filter(kwargs!(role = "user"), &conn).await;
+    println!("{:#?}", users);
+}
+```
+### Update
+```rust
+#[tokio::main]
+async fn main() {
+    let conn = config::db::Database::new().await.conn;
+    if let Some(user) = UserTest::get(
         kwargs!(email = "24nomeniavo@gmail.com", password = "strongpassword"),
         &conn,
     )
     .await
     {
-        User {
+        UserTest {
             role: "admin".into(),
             ..user
         }
         .update(&conn)
         .await;
     }
-    let user = User::get(
-        kwargs!(email = "24nomeniavo@gmail.com", password = "strongpassword"),
-        &conn,
-    )
-    .await;
+}
+```
+### Delete
+```rust
+#[tokio::main]
+async fn main() {
+    let conn = config::db::Database::new().await.conn;
 
-    println!("2: {:#?}", user);
-
-    Product {
-        name: "tomato".to_string(),
-        price: 1000.0,
-        description: "".to_string(),
-        owner: user.clone().unwrap().id,
-        ..Default::default()
+    if let Some(user) = UserTest::get(kwargs!(role = "admin"), &conn).await {
+        user.delete(&conn).await; // delete one
     }
-    .save(&conn)
-    .await;
-
-    let products = Product::all(&conn).await;
-    println!("3: {:#?}", products);
-
-    let product = Product::get(kwargs!(is_sel = true), &conn).await;
-    println!("4: {:#?}", product);
-
-    let user = User::get(kwargs!(owner__product__is_sel = true), &conn).await;
-    println!("5: {:#?}", user);
+    
+    let users = UserTest::all(&conn).await;
+    user.delete(&conn).await; // delete all
 }
 ```

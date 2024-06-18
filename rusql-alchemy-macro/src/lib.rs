@@ -76,6 +76,7 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
                                             panic!("'now' is work only with Date or DateTime");
                                         }
                                     } else {
+                                        let str = format!("'{str}'", str = str.value());
                                         quote! { default #str }
                                     }
                                 } else if let Lit::Bool(ref bool) = nv.lit {
@@ -123,8 +124,8 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
                 "Text" => quote! { text },
                 "Date" => quote! { varchar(10) },
                 "Boolean" | "bool" => quote! { integer },
-                "DateTime" => quote! { varchar(25) },
-                ptype => panic!("{}", ptype),
+                "DateTime" => quote! { varchar(40) },
+                p_type => panic!("{}", p_type),
             };
 
             let primary_key = if is_primary_key {
@@ -178,7 +179,7 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
             .collect::<Vec<_>>()
             .join(", ");
 
-        let schema = format!("create table if not exists {name} ({fields});");
+        let schema = format!("create table if not exists {name} ({fields});").replace('"', "");
 
         quote! {
             const SCHEMA: &'static str = #schema;

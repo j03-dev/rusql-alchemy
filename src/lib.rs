@@ -162,7 +162,13 @@ pub mod db {
             where
                 Self: Sized,
             {
-                sqlx::query(Self::SCHEMA).execute(conn).await.is_ok()
+                println!("{:#?}", Self::SCHEMA);
+                if let Err(err) = sqlx::query(Self::SCHEMA).execute(conn).await {
+                    eprintln!("{err}");
+                    false
+                } else {
+                    true
+                }
             }
 
             async fn update(&self, conn: &Connection) -> bool
@@ -178,7 +184,7 @@ pub mod db {
                 let mut args = Vec::new();
 
                 for (i, arg) in kw.args.iter().enumerate() {
-                    fields.push(format!("{}={PLACEHOLDER}{}", arg.key, i + 1, ));
+                    fields.push(format!("{}={PLACEHOLDER}{}", arg.key, i + 1));
                     args.push((arg.r#type.clone(), arg.value.to_string()));
                 }
                 args.push((
@@ -313,11 +319,11 @@ pub mod db {
         impl<T> Delete for Vec<T>
         where
             T: Model<AnyRow>
-            + Clone
-            + Sync
-            + Send
-            + std::marker::Unpin
-            + for<'r> FromRow<'r, AnyRow>,
+                + Clone
+                + Sync
+                + Send
+                + std::marker::Unpin
+                + for<'r> FromRow<'r, AnyRow>,
         {
             async fn delete(&self, conn: &Connection) -> bool {
                 let query = format!("delete from {name}", name = T::NAME);
@@ -336,6 +342,5 @@ pub mod prelude {
     };
     pub use async_trait::async_trait;
     pub use rusql_alchemy_macro::Model;
-    pub use serde::{Deserialize, Serialize};
-    pub use serde_json;
+    pub use sqlx::FromRow;
 }
