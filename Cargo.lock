@@ -1008,6 +1008,8 @@ dependencies = [
 [[package]]
 name = "rusql-alchemy-macro"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0a2974f9fada931caa8795dd479d362936abef5321628aaaeb1bb1edb8614b48"
 dependencies = [
  "proc-macro2",
  "quote",

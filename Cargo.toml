@@ -3,13 +3,9 @@ name = "rusql-alchemy"
 version = "0.1.0"
 edition = "2021"
 
-[workspace]
-members = ["rusql-alchemy-macro"]
-
-[dependencies.rusql-alchemy-macro]
-path = "rusql-alchemy-macro"
 
 [features]
+default = ["sqlite"]
 sqlite = ["sqlx/sqlite"]
 mysql = ["sqlx/mysql"]
 postgres = ["sqlx/postgres"]
@@ -21,3 +17,5 @@ serde = "^1.0.203"
 serde_json = "^1.0.117"
 sqlx = { version = "^0.7", features = ["runtime-tokio-rustls", "any"] }
 tokio = { version = "^1.38.0", features = ["macros", "rt-multi-thread"] }
+rusql-alchemy-macro = "0.1.0"
+

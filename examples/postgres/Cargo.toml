@@ -3,9 +3,11 @@ name = "test-postgres"
 version = "0.1.0"
 edition = "2021"
 workspace = ".."
+publish = false
 
 [dependencies.rusql-alchemy]
 path = "../.."
+default-features = false
 features = ["postgres"]
 
 [dependencies]
