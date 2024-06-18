@@ -1,5 +1,4 @@
 **/target
-.env
 .idea
 .helix
 *.db
