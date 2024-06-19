@@ -187,12 +187,7 @@ pub mod db {
                 let mut args = Vec::new();
 
                 for (i, arg) in kw.args.iter().enumerate() {
-                    let field = format!(
-                        "{arg_key}={placeholder}{index}",
-                        arg_key = arg.key,
-                        placeholder = get_placeholder(),
-                        index = i + 1
-                    );
+                    let field = format!("{arg_key}={ph}{index}", arg_key = arg.key, index = i + 1);
                     fields.push(field);
                     args.push((arg.r#type.clone(), arg.value.to_string()));
                 }
@@ -275,7 +270,7 @@ pub mod db {
                             ));
                             fields.push(format!("{table}.{field_b}={ph}{index}", index = i + 1));
                         }
-                        _ => fields.push(format!("{}={ph}{}", arg.key, i + 1,)),
+                        _ => fields.push(format!("{arg_key}={ph}{index}", arg_key = arg.key, index = i + 1,)),
                     }
                 }
                 let fields = fields.join(kw.operator.get());
