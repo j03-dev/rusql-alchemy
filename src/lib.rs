@@ -23,14 +23,16 @@ pub fn get_type_name<T: Sized>(_: T) -> &'static str {
     type_name::<T>()
 }
 
-#[cfg(feature = "postgres")]
-pub const PLACEHOLDER: &str = "$";
-
-#[cfg(feature = "mysql")]
-pub const PLACEHOLDER: &str = "?";
-
-#[cfg(feature = "sqlite")]
-pub const PLACEHOLDER: &str = "?";
+pub fn get_placeholder() -> &'static str {
+    let database_url = std::env::var("DATABASE_URL").unwrap();
+    if database_url.starts_with("sqlite") || database_url.starts_with("mysql") {
+        "?"
+    } else if database_url.starts_with("postgres") {
+        "$"
+    } else {
+        panic!("Unsupported database type");
+    }
+}
 
 pub fn to_value(value: impl Into<serde_json::Value>) -> serde_json::Value {
     let json_value = value.into();
@@ -101,7 +103,7 @@ pub mod config {
 
 pub mod db {
     pub mod models {
-        use crate::{get_type_name, Connection, PLACEHOLDER};
+        use crate::{get_placeholder, get_type_name, Connection};
 
         use async_trait::async_trait;
         use serde_json::Value;
@@ -180,21 +182,28 @@ pub mod db {
                 kw: Kwargs,
                 conn: &Connection,
             ) -> bool {
+                let ph = get_placeholder();
                 let mut fields = Vec::new();
                 let mut args = Vec::new();
 
                 for (i, arg) in kw.args.iter().enumerate() {
-                    fields.push(format!("{}={PLACEHOLDER}{}", arg.key, i + 1));
+                    let field = format!(
+                        "{arg_key}={placeholder}{index}",
+                        arg_key = arg.key,
+                        placeholder = get_placeholder(),
+                        index = i + 1
+                    );
+                    fields.push(field);
                     args.push((arg.r#type.clone(), arg.value.to_string()));
                 }
                 args.push((
                     get_type_name(id_value.clone()).to_string(),
                     id_value.clone().to_string(),
                 ));
-                let j = fields.len() + 1;
+                let index_id = fields.len() + 1;
                 let fields = fields.join(", ");
                 let query = format!(
-                    "update {name} set {fields} where {id}={PLACEHOLDER}{j};",
+                    "update {name} set {fields} where {id}={ph}{index_id};",
                     id = Self::PK,
                     name = Self::NAME,
                 );
@@ -211,6 +220,7 @@ pub mod db {
             where
                 Self: Sized,
             {
+                let ph = get_placeholder();
                 let mut fields = Vec::new();
                 let mut args = Vec::new();
                 let mut placeholder = Vec::new();
@@ -218,7 +228,7 @@ pub mod db {
                 for (i, arg) in kw.args.iter().enumerate() {
                     fields.push(arg.key.to_owned());
                     args.push((arg.r#type.clone(), arg.value.to_string()));
-                    placeholder.push(format!("{PLACEHOLDER}{}", i + 1));
+                    placeholder.push(format!("{ph}{index}", index = i + 1,));
                 }
 
                 let fields = fields.join(", ");
@@ -247,6 +257,7 @@ pub mod db {
             where
                 Self: Sized + std::marker::Unpin + for<'r> FromRow<'r, AnyRow> + Clone,
             {
+                let ph = get_placeholder();
                 let mut fields = Vec::new();
                 let mut args = Vec::new();
 
@@ -262,9 +273,9 @@ pub mod db {
                                 name = Self::NAME,
                                 pk = Self::PK
                             ));
-                            fields.push(format!("{table}.{field_b}={PLACEHOLDER}{}", i + 1));
+                            fields.push(format!("{table}.{field_b}={ph}{index}", index = i + 1));
                         }
-                        _ => fields.push(format!("{}={PLACEHOLDER}{}", arg.key, i + 1)),
+                        _ => fields.push(format!("{}={ph}{}", arg.key, i + 1,)),
                     }
                 }
                 let fields = fields.join(kw.operator.get());

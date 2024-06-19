@@ -1008,6 +1008,7 @@ dependencies = [
 [[package]]
 name = "rusql-alchemy-macro"
 version = "0.1.0"
+source = "git+https://github.com/russenger/rusql-alchemy-macro?branch=main#41f9b79782545e3289b4f0f6183583729f0e4d2f"
 dependencies = [
  "proc-macro2",
  "quote",
