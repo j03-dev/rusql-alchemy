@@ -1,3 +1,5 @@
+use std::any::type_name;
+
 #[macro_export]
 macro_rules! kwargs {
     ($($key:ident = $value:expr),*) => {
@@ -17,7 +19,6 @@ macro_rules! kwargs {
         }
     };
 }
-use std::any::type_name;
 
 pub fn get_type_name<T: Sized>(_: T) -> &'static str {
     type_name::<T>()
@@ -92,7 +93,8 @@ pub mod config {
         impl Database {
             pub async fn new() -> Self {
                 dotenv::dotenv().ok();
-                let database_url = std::env::var("DATABASE_URL").unwrap();
+                let database_url =
+                    std::env::var("DATABASE_URL").expect("-> Pls set the DATABASE_ULR in `.env`");
                 Self {
                     conn: establish_connection(database_url).await,
                 }
