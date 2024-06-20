@@ -1,15 +1,51 @@
+use serde_json::Value;
 use sqlx::{any::AnyRow, FromRow, Row};
 
-use crate::{get_placeholder, get_type_name, prelude::Kwargs, Connection};
+use crate::{get_placeholder, get_type_name, Connection};
 
-pub(crate) trait Base {
-    const SCHEMA: &'static str;
-    const NAME: &'static str;
-    const PK: &'static str;
+#[derive(Debug)]
+pub enum Operator {
+    Or,
+    And,
+}
+
+impl Operator {
+    pub fn get(&self) -> &'static str {
+        match self {
+            Self::Or => " or ",
+            Self::And => " and ",
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct Arg {
+    pub key: String,
+    pub value: Value,
+    pub r#type: String,
+}
+
+#[derive(Debug)]
+pub struct Kwargs {
+    pub operator: Operator,
+    pub args: Vec<Arg>,
+}
+
+impl Kwargs {
+    pub fn or(self) -> Self {
+        Self {
+            operator: Operator::Or,
+            args: self.args,
+        }
+    }
 }
 
 #[async_trait::async_trait]
-pub(crate) trait Migratable: Base {
+pub trait Model {
+    const SCHEMA: &'static str;
+    const NAME: &'static str;
+    const PK: &'static str;
+
     async fn migrate(conn: &Connection) -> bool
     where
         Self: Sized,
@@ -21,14 +57,11 @@ pub(crate) trait Migratable: Base {
             true
         }
     }
-}
 
-#[async_trait::async_trait]
-pub(crate) trait Creatable: Base {
     async fn save(&self, conn: &Connection) -> bool
     where
         Self: Sized;
-    
+
     async fn create(kw: Kwargs, conn: &Connection) -> bool
     where
         Self: Sized,
@@ -54,10 +87,7 @@ pub(crate) trait Creatable: Base {
         binds!(args, stream);
         stream.execute(conn).await.is_ok()
     }
-}
 
-#[async_trait::async_trait]
-pub(crate) trait Updatable: Base {
     async fn update(&self, conn: &Connection) -> bool
     where
         Self: Sized;
@@ -91,39 +121,10 @@ pub(crate) trait Updatable: Base {
         binds!(args, stream);
         stream.execute(conn).await.is_ok()
     }
-    
+
     async fn delete(&self, conn: &Connection) -> bool
     where
         Self: Sized;
-}
-
-#[async_trait::async_trait]
-pub(crate) trait Queryable: Base {
-    async fn create(kw: Kwargs, conn: &Connection) -> bool
-    where
-        Self: Sized,
-    {
-        let ph = get_placeholder();
-        let mut fields = Vec::new();
-        let mut args = Vec::new();
-        let mut placeholder = Vec::new();
-
-        for (i, arg) in kw.args.iter().enumerate() {
-            fields.push(arg.key.to_owned());
-            args.push((arg.r#type.clone(), arg.value.to_string()));
-            placeholder.push(format!("{ph}{index}", index = i + 1,));
-        }
-
-        let fields = fields.join(", ");
-        let placeholder = placeholder.join(", ");
-        let query = format!(
-            "insert into {name} ({fields}) values ({placeholder});",
-            name = Self::NAME
-        );
-        let mut stream = sqlx::query(&query);
-        binds!(args, stream);
-        stream.execute(conn).await.is_ok()
-    }
 
     async fn all(conn: &Connection) -> Vec<Self>
     where
@@ -133,7 +134,7 @@ pub(crate) trait Queryable: Base {
         sqlx::query_as::<_, Self>(&query)
             .fetch_all(conn)
             .await
-            .map_or(Vec::new(), |r| r)
+            .unwrap_or_default()
     }
 
     async fn filter(kw: Kwargs, conn: &Connection) -> Vec<Self>
@@ -175,10 +176,9 @@ pub(crate) trait Queryable: Base {
             format!("SELECT * FROM {name} WHERE {fields};", name = Self::NAME)
         };
 
-        let stream = sqlx::query_as::<_, Self>(&query);
-        let mut stream = stream;
+        let mut stream = sqlx::query_as::<_, Self>(&query);
         binds!(args, stream);
-        stream.fetch_all(conn).await.map_or(Vec::new(), |r| r)
+        stream.fetch_all(conn).await.unwrap_or_default()
     }
 
     async fn get(kw: Kwargs, conn: &Connection) -> Option<Self>
@@ -192,7 +192,7 @@ pub(crate) trait Queryable: Base {
         None
     }
 
-    async fn count(&self, conn: &Connection) -> usize
+    async fn count(&self, conn: &Connection) -> i64
     where
         Self: Sized,
     {
@@ -200,14 +200,12 @@ pub(crate) trait Queryable: Base {
         sqlx::query(query.as_str())
             .fetch_one(conn)
             .await
-            .map_or(0, |r| r.get::<i64, _>(0) as usize)
+            .map_or(0, |r| r.get(0))
     }
 }
 
-pub(crate) trait Model: Migratable + Creatable + Updatable + Queryable {}
-
 #[async_trait::async_trait]
-pub(crate) trait Delete {
+pub trait Delete {
     async fn delete(&self, conn: &Connection) -> bool;
 }
 

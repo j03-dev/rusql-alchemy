@@ -37,7 +37,7 @@ struct Product {
 
 #[tokio::main]
 async fn main() {
-    let conn = config::db::Database::new().await.conn;
+    let conn = Database::new().await.conn;
 
     migrate!([UserTest, Product], &conn);
 
