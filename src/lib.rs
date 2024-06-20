@@ -109,7 +109,9 @@ pub mod db {
         use serde_json::Value;
         use sqlx::{any::AnyRow, FromRow, Row};
 
+        #[cfg(feature = "postgres")]
         pub type Serial = i32;
+
         pub type Integer = i32;
         pub type Text = String;
         pub type Float = f64;
@@ -270,7 +272,11 @@ pub mod db {
                             ));
                             fields.push(format!("{table}.{field_b}={ph}{index}", index = i + 1));
                         }
-                        _ => fields.push(format!("{arg_key}={ph}{index}", arg_key = arg.key, index = i + 1,)),
+                        _ => fields.push(format!(
+                            "{arg_key}={ph}{index}",
+                            arg_key = arg.key,
+                            index = i + 1,
+                        )),
                     }
                 }
                 let fields = fields.join(kw.operator.get());
@@ -340,10 +346,13 @@ pub mod db {
 }
 
 pub mod prelude {
+    #[cfg(feature = "postgres")]
+    pub use crate::db::models::Serial;
+
     pub use crate::Connection;
     pub use crate::{
         config,
-        db::models::{Boolean, Date, DateTime, Delete, Float, Integer, Model, Serial, Text},
+        db::models::{Boolean, Date, DateTime, Delete, Float, Integer, Model, Text},
         kwargs, migrate,
     };
     pub use async_trait::async_trait;
