@@ -86,7 +86,7 @@ async fn main() {
 async fn main() {
     let conn = config::db::Database::new().await.conn;
 
-    UserTest {
+    User_ {
         name: "johnDoe@gmail.com".to_string(),
         email: "21john@gmail.com".to_string(),
         password: "p455w0rd".to_string(),
@@ -97,10 +97,10 @@ async fn main() {
         .save(&conn)
         .await;
 
-    let users = UserTest::all(&conn).await;
+    let users = User_::all(&conn).await;
     println!("{:#?}", users);
 
-    UserTest::create(
+    User_::create(
         kwargs!(
             name = "joe",
             email = "24nomeniavo@gmail.com",
@@ -119,16 +119,16 @@ async fn main() {
 async fn main() {
     let conn = config::db::Database::new().await.conn;
 
-    let users = UserTest::all(&conn).await;
+    let users = User_::all(&conn).await;
     println!("{:#?}", users);
 
-    let user = UserTest::get(
+    let user = User_::get(
         kwargs!(email = "24nomeniavo@gmail.com", password = "strongpassword"),
         &conn,
     ).await;
     println!("{:#?}", user);
 
-    let users = UserTest::filter(kwargs!(role = "user"), &conn).await;
+    let users = User_::filter(kwargs!(role = "user"), &conn).await;
     println!("{:#?}", users);
 }
 ```
@@ -137,13 +137,13 @@ async fn main() {
 #[tokio::main]
 async fn main() {
     let conn = config::db::Database::new().await.conn;
-    if let Some(user) = UserTest::get(
+    if let Some(user) = User_::get(
         kwargs!(email = "24nomeniavo@gmail.com", password = "strongpassword"),
         &conn,
     )
     .await
     {
-        UserTest {
+        User_ {
             role: "admin".into(),
             ..user
         }
@@ -158,11 +158,11 @@ async fn main() {
 async fn main() {
     let conn = config::db::Database::new().await.conn;
 
-    if let Some(user) = UserTest::get(kwargs!(role = "admin"), &conn).await {
+    if let Some(user) = User_::get(kwargs!(role = "admin"), &conn).await {
         user.delete(&conn).await; // delete one
     }
     
-    let users = UserTest::all(&conn).await;
+    let users = User_::all(&conn).await;
     user.delete(&conn).await; // delete all
 }
 ```

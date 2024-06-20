@@ -2,7 +2,7 @@ use rusql_alchemy::prelude::*;
 use sqlx::FromRow;
 
 #[derive(FromRow, Clone, Debug, Default, Model)]
-struct UserTest {
+struct User_ {
     #[model(primary_key = true)]
     id: Serial, // in postgresql, serial is auto increment
     #[model(size = 50, unique = true, null = false)]
@@ -29,7 +29,7 @@ struct Product {
     description: Text,
     #[model(default = true)]
     is_sel: Boolean,
-    #[model(null = false, foreign_key = "UserTest.id")]
+    #[model(null = false, foreign_key = "User_.id")]
     owner: Integer,
     #[model(default = "now")]
     at: DateTime,
@@ -39,9 +39,9 @@ struct Product {
 async fn main() {
     let conn = Database::new().await.conn;
 
-    migrate!([UserTest, Product], &conn);
+    migrate!([User_, Product], &conn);
 
-    UserTest {
+    User_ {
         name: "johnDoe@gmail.com".to_string(),
         email: "21john@gmail.com".to_string(),
         password: "p455w0rd".to_string(),
@@ -52,10 +52,10 @@ async fn main() {
         .save(&conn)
         .await;
 
-    let users = UserTest::all(&conn).await;
+    let users = User_::all(&conn).await;
     println!("{:#?}", users);
 
-    UserTest::create(
+    User_::create(
         kwargs!(
             name = "joe",
             email = "24nomeniavo@gmail.com",
@@ -67,23 +67,23 @@ async fn main() {
     )
         .await;
 
-    let users = UserTest::all(&conn).await;
+    let users = User_::all(&conn).await;
     println!("1: {:#?}", users);
 
-    if let Some(user) = UserTest::get(
+    if let Some(user) = User_::get(
         kwargs!(email = "24nomeniavo@gmail.com", password = "strongpassword"),
         &conn,
     )
         .await
     {
-        UserTest {
+        User_ {
             role: "admin".into(),
             ..user
         }
             .update(&conn)
             .await;
     }
-    let user = UserTest::get(
+    let user = User_::get(
         kwargs!(email = "24nomeniavo@gmail.com", password = "strongpassword"),
         &conn,
     )
@@ -108,7 +108,7 @@ async fn main() {
     let product = Product::get(kwargs!(is_sel = true), &conn).await;
     println!("4: {:#?}", product);
 
-    let user = UserTest::get(kwargs!(owner__product__is_sel = true), &conn).await;
+    let user = User_::get(kwargs!(owner__product__is_sel = true), &conn).await;
     println!("5: {:#?}", user);
 
     println!("is deleted = {}", products.delete(&conn).await);
