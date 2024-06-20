@@ -1,111 +1,45 @@
-use std::any::type_name;
+#[macro_use]
+mod macros;
+pub mod prelude;
+mod types;
+mod utils;
+mod models;
 
-#[macro_export]
-macro_rules! kwargs {
-    ($($key:ident = $value:expr),*) => {
-        {
-            let mut args = Vec::new();
-            $(
-                args.push(rusql_alchemy::db::models::Arg {
-                    key: stringify!($key).to_string(),
-                    value: rusql_alchemy::to_value($value.clone()),
-                    r#type: rusql_alchemy::get_type_name($value.clone()).into()
-                });
-            )*
-            rusql_alchemy::db::models::Kwargs {
-                operator: rusql_alchemy::db::models::Operator::And,
-                args,
-            }
-        }
-    };
-}
-
-pub fn get_type_name<T: Sized>(_: T) -> &'static str {
-    type_name::<T>()
-}
-
-pub fn get_placeholder() -> &'static str {
-    let database_url = std::env::var("DATABASE_URL").unwrap();
-    if database_url.starts_with("sqlite") || database_url.starts_with("mysql") {
-        "?"
-    } else if database_url.starts_with("postgres") {
-        "$"
-    } else {
-        panic!("Unsupported database type");
-    }
-}
-
-pub fn to_value(value: impl Into<serde_json::Value>) -> serde_json::Value {
-    let json_value = value.into();
-    match json_value {
-        serde_json::Value::Bool(true) => serde_json::json!(1),
-        serde_json::Value::Bool(false) => serde_json::json!(0),
-        _ => json_value,
-    }
-}
-
-macro_rules! binds {
-    ($args: expr, $stream:expr) => {
-        for (t, v) in $args {
-            match t.as_str() {
-                "i32" | "bool" => {
-                    $stream = $stream.bind(v.replace('"', "").parse::<i32>().unwrap());
-                }
-                "f64" => {
-                    $stream = $stream.bind(v.replace('"', "").parse::<f64>().unwrap());
-                }
-                _ => {
-                    $stream = $stream.bind(v.replace('"', ""));
-                }
-            }
-        }
-    };
-}
-
-#[macro_export]
-macro_rules! migrate {
-    ([$($struct:ident),*], $conn:expr) => {
-        $( $struct::migrate($conn).await; )*
-    };
-}
+pub use utils::*;
 
 pub type Connection = sqlx::Pool<sqlx::Any>;
 
-pub mod config {
-    pub mod db {
-        use sqlx::any::{install_default_drivers, AnyPoolOptions};
+pub mod db {
+    use super::Connection;
+    use sqlx::any::{install_default_drivers, AnyPoolOptions};
 
-        use crate::Connection;
+    async fn establish_connection(url: String) -> Connection {
+        install_default_drivers();
+        AnyPoolOptions::new()
+            .max_connections(5)
+            .connect(&url)
+            .await
+            .unwrap()
+    }
 
-        async fn establish_connection(url: String) -> Connection {
-            install_default_drivers();
-            AnyPoolOptions::new()
-                .max_connections(5)
-                .connect(&url)
-                .await
-                .unwrap()
-        }
+    pub struct Database {
+        pub conn: Connection,
+    }
 
-        pub struct Database {
-            pub conn: Connection,
-        }
-
-        impl Database {
-            pub async fn new() -> Self {
-                dotenv::dotenv().ok();
-                let database_url =
-                    std::env::var("DATABASE_URL").expect("-> Pls set the DATABASE_ULR in `.env`");
-                Self {
-                    conn: establish_connection(database_url).await,
-                }
+    impl Database {
+        pub async fn new() -> Self {
+            dotenv::dotenv().ok();
+            let database_url =
+                std::env::var("DATABASE_URL").expect("-> Pls set the DATABASE_ULR in `.env`");
+            Self {
+                conn: establish_connection(database_url).await,
             }
         }
     }
-}
 
-pub mod db {
     pub mod models {
-        use crate::{get_placeholder, get_type_name, Connection};
+        use crate::utils::{get_placeholder, get_type_name};
+        use crate::Connection;
 
         use async_trait::async_trait;
         use serde_json::Value;
@@ -128,7 +62,7 @@ pub mod db {
         }
 
         impl Operator {
-            fn get(&self) -> &'static str {
+            pub fn get(&self) -> &'static str {
                 match self {
                     Self::Or => " or ",
                     Self::And => " and ",
@@ -345,19 +279,4 @@ pub mod db {
             }
         }
     }
-}
-
-pub mod prelude {
-    #[cfg(feature = "postgres")]
-    pub use crate::db::models::Serial;
-
-    pub use crate::Connection;
-    pub use crate::{
-        config,
-        db::models::{Boolean, Date, DateTime, Delete, Float, Integer, Model, Text},
-        kwargs, migrate,
-    };
-    pub use async_trait::async_trait;
-    pub use rusql_alchemy_macro::Model;
-    pub use sqlx::FromRow;
 }
