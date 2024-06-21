@@ -16,8 +16,8 @@ DATABASE_URL=sqlite://<dabasase.db>
 ```toml
 [dependencies.rusql-alchemy]
 git = "https://github.com/j03-dev/rusql-alchemy"
-branch="main"
-features = ["sqlite"]
+branch= "main"
+features = ["sqlite"] # the default features is sqlite
 ```
 ### Model
 ```rust
@@ -55,7 +55,7 @@ features = ["postgres"]
 use rusql_alchemy::prelude::*;
 
 #[derive(Debug, Model, FromRow)]
-struct User {
+struct User_ {
     #[model(primary_key=true)]
     id: Serial,
     #[model(unique=true, null=false)]
@@ -84,7 +84,7 @@ async fn main() {
 ```rust
 #[tokio::main]
 async fn main() {
-    let conn = config::db::Database::new().await.conn;
+    let conn = Database::new().await.conn;
 
     User_ {
         name: "johnDoe@gmail.com".to_string(),
@@ -136,7 +136,7 @@ async fn main() {
 ```rust
 #[tokio::main]
 async fn main() {
-    let conn = config::db::Database::new().await.conn;
+    let conn = Database::new().await.conn;
     if let Some(user) = User_::get(
         kwargs!(email = "24nomeniavo@gmail.com", password = "strongpassword"),
         &conn,
