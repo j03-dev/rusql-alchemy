@@ -141,8 +141,8 @@ pub trait Model {
         let fields = fields.join(", ");
         let placeholder = placeholder.join(", ");
         let query = format!(
-            "insert into {name} ({fields}) values ({placeholder});",
-            name = Self::NAME
+            "insert into {table_name} ({fields}) values ({placeholder});",
+            table_name = Self::NAME
         );
         let mut stream = sqlx::query(&query);
         binds!(args, stream);
@@ -212,9 +212,9 @@ pub trait Model {
         let index_id = fields.len() + 1;
         let fields = fields.join(", ");
         let query = format!(
-            "update {name} set {fields} where {id}={ph}{index_id};",
+            "update {table_name} set {fields} where {id}={ph}{index_id};",
             id = Self::PK,
-            name = Self::NAME,
+            table_name = Self::NAME,
         );
         let mut stream = sqlx::query(&query);
         binds!(args, stream);
@@ -255,7 +255,7 @@ pub trait Model {
     where
         Self: Sized + Unpin + for<'r> FromRow<'r, AnyRow> + Clone,
     {
-        let query = format!("select * from {name}", name = Self::NAME);
+        let query = format!("select * from {table_name}", table_name = Self::NAME);
         sqlx::query_as::<_, Self>(&query)
             .fetch_all(conn)
             .await
@@ -295,8 +295,8 @@ pub trait Model {
             match parts.as_slice() {
                 [field_a, table, field_b] if parts.len() == 3 => {
                     join_query = Some(format!(
-                        "INNER JOIN {table} ON {name}.{pk} = {table}.{field_a}",
-                        name = Self::NAME,
+                        "INNER JOIN {table} ON {table_name}.{pk} = {table}.{field_a}",
+                        table_name = Self::NAME,
                         pk = Self::PK
                     ));
                     fields.push(format!("{table}.{field_b}={ph}{index}", index = i + 1));
@@ -311,11 +311,14 @@ pub trait Model {
         let fields = fields.join(kw.operator.get());
         let query = if let Some(join) = join_query {
             format!(
-                "SELECT {name}.* FROM {name} {join} WHERE {fields};",
-                name = Self::NAME
+                "SELECT {table_name}.* FROM {table_name} {join} WHERE {fields};",
+                table_name = Self::NAME
             )
         } else {
-            format!("SELECT * FROM {name} WHERE {fields};", name = Self::NAME)
+            format!(
+                "SELECT * FROM {table_name} WHERE {fields};",
+                table_name = Self::NAME
+            )
         };
 
         let mut stream = sqlx::query_as::<_, Self>(&query);
@@ -364,7 +367,7 @@ pub trait Model {
     where
         Self: Sized,
     {
-        let query = format!("select count(*) from {name}", name = Self::NAME);
+        let query = format!("select count(*) from {table_name}", table_name = Self::NAME);
         sqlx::query(query.as_str())
             .fetch_one(conn)
             .await
@@ -429,7 +432,7 @@ where
     ///
     /// In the above example, all records from the `Product` table will be deleted.
     async fn delete(&self, conn: &Connection) -> bool {
-        let query = format!("delete from {name}", name = T::NAME);
+        let query = format!("delete from {table_name}", table_name = T::NAME);
         sqlx::query(query.as_str()).execute(conn).await.is_ok()
     }
 }
