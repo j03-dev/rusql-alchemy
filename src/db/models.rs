@@ -18,11 +18,22 @@ impl Operator {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Arg {
-    pub key: String,
+    pub field: String,
     pub value: Value,
     pub r#type: String,
+    pub comparaison_operator: String,
+}
+
+impl Arg {
+    pub fn to_query(&self, placeholder: &str, index: usize) -> String {
+        format!(
+            "{field}{cmp}{placeholder}{index}",
+            field = self.field,
+            cmp = self.comparaison_operator
+        )
+    }
 }
 
 #[derive(Debug)]
@@ -133,7 +144,7 @@ pub trait Model {
         let mut placeholder = Vec::new();
 
         for (i, arg) in kw.args.iter().enumerate() {
-            fields.push(arg.key.to_owned());
+            fields.push(arg.field.to_owned());
             args.push((arg.r#type.clone(), arg.value.to_string()));
             placeholder.push(format!("{ph}{index}", index = i + 1,));
         }
@@ -201,8 +212,7 @@ pub trait Model {
         let mut args = Vec::new();
 
         for (i, arg) in kw.args.iter().enumerate() {
-            let field = format!("{arg_key}={ph}{index}", arg_key = arg.key, index = i + 1);
-            fields.push(field);
+            fields.push(arg.to_query(ph, i + 1));
             args.push((arg.r#type.clone(), arg.value.to_string()));
         }
         args.push((
@@ -287,39 +297,15 @@ pub trait Model {
         let mut fields = Vec::new();
         let mut args = Vec::new();
 
-        let mut join_query = None;
-
         for (i, arg) in kw.args.iter().enumerate() {
-            let parts: Vec<&str> = arg.key.split("__").collect();
+            fields.push(arg.to_query(ph, i + 1));
             args.push((arg.r#type.clone(), arg.value.to_string()));
-            match parts.as_slice() {
-                [field_a, table, field_b] if parts.len() == 3 => {
-                    join_query = Some(format!(
-                        "INNER JOIN {table} ON {table_name}.{pk} = {table}.{field_a}",
-                        table_name = Self::NAME,
-                        pk = Self::PK
-                    ));
-                    fields.push(format!("{table}.{field_b}={ph}{index}", index = i + 1));
-                }
-                _ => fields.push(format!(
-                    "{arg_key}={ph}{index}",
-                    arg_key = arg.key,
-                    index = i + 1,
-                )),
-            }
         }
         let fields = fields.join(kw.operator.get());
-        let query = if let Some(join) = join_query {
-            format!(
-                "SELECT {table_name}.* FROM {table_name} {join} WHERE {fields};",
-                table_name = Self::NAME
-            )
-        } else {
-            format!(
-                "SELECT * FROM {table_name} WHERE {fields};",
-                table_name = Self::NAME
-            )
-        };
+        let query = format!(
+            "SELECT * FROM {table_name} WHERE {fields};",
+            table_name = Self::NAME
+        );
 
         let mut stream = sqlx::query_as::<_, Self>(&query);
         binds!(args, stream);
