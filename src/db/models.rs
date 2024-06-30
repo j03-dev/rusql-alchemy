@@ -1,5 +1,4 @@
 use lazy_static::lazy_static;
-use serde_json::Value;
 use sqlx::{any::AnyRow, FromRow, Row};
 
 use crate::{get_placeholder, get_type_name, Connection};
@@ -12,7 +11,7 @@ lazy_static! {
 pub enum Condition {
     FieldCondition {
         field: String,
-        value: Value,
+        value: String,
         value_type: String,
         comparaison_operator: String,
     },
@@ -72,7 +71,7 @@ impl Query for Vec<Condition> {
             } = condition
             {
                 index += 1;
-                args.push((value.to_string().clone(), value_type.clone()));
+                args.push((value.clone(), value_type.clone()));
                 fields.push(field.clone());
                 let placeholder = PLACEHOLDER.to_string();
                 placeholders.push(format!("{placeholder}{index}",));
@@ -96,7 +95,7 @@ impl Query for Vec<Condition> {
             } = condition
             {
                 index += 1;
-                args.push((value.to_string().clone(), value_type.clone()));
+                args.push((value.clone(), value_type.clone()));
                 // (field + = + placeholder + index)
                 let placeholder = PLACEHOLDER.to_string();
                 placeholders.push(format!("{field}={placeholder}{index}",));
@@ -119,7 +118,7 @@ impl Query for Vec<Condition> {
                     comparaison_operator,
                 } => {
                     index += 1;
-                    args.push((value.to_string().clone(), value_type.clone()));
+                    args.push((value.clone(), value_type.clone()));
                     // (field + = + placeholder + index)
                     let placeholder = PLACEHOLDER.to_string();
                     placeholders

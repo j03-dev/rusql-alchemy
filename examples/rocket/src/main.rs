@@ -23,7 +23,6 @@ struct User_ {
 async fn list_user(app_state: &State<AppState>) -> Value {
     let conn = app_state.conn.clone();
     let users = User_::all(&conn).await;
-
     json!(users)
 }
 

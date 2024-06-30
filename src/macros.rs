@@ -7,7 +7,7 @@ macro_rules! kwargs {
             $(
                 args.push(Condition::FieldCondition {
                     field: stringify!($field).to_string(),
-                    value: rusql_alchemy::to_value($value.clone()),
+                    value: rusql_alchemy::to_string($value.clone()),
                     value_type: rusql_alchemy::get_type_name($value.clone()).into(),
                     comparaison_operator: "=".to_string(),
                 });
@@ -20,7 +20,7 @@ macro_rules! kwargs {
             vec![
                 Condition::FieldCondition {
                     field: stringify!($field).to_string(),
-                    value: rusql_alchemy::to_value($value.clone()),
+                    value: rusql_alchemy::to_string($value.clone()),
                     value_type: rusql_alchemy::get_type_name($value.clone()).into(),
                     comparaison_operator: "=".to_string(),
                 }
@@ -32,7 +32,7 @@ macro_rules! kwargs {
             vec![
                 Condition::FieldCondition {
                     field: stringify!($field).to_string(),
-                    value: rusql_alchemy::to_value($value.clone()),
+                    value: rusql_alchemy::to_string($value.clone()),
                     value_type: rusql_alchemy::get_type_name($value.clone()).into(),
                     comparaison_operator: "!=".to_string(),
                 }
@@ -44,7 +44,7 @@ macro_rules! kwargs {
             vec![
                 Condition::FieldCondition {
                     field: stringify!($field).to_string(),
-                    value: rusql_alchemy::to_value($value.clone()),
+                    value: rusql_alchemy::to_string($value.clone()),
                     value_type: rusql_alchemy::get_type_name($value.clone()).into(),
                     comparaison_operator: "<".to_string(),
                 }
@@ -56,7 +56,7 @@ macro_rules! kwargs {
             vec![
                 Condition::FieldCondition {
                     field: stringify!($field).to_string(),
-                    value: rusql_alchemy::to_value($value.clone()),
+                    value: rusql_alchemy::to_string($value.clone()),
                     value_type: rusql_alchemy::get_type_name($value.clone()).into(),
                     comparaison_operator: "<=".to_string(),
                 }
@@ -68,7 +68,7 @@ macro_rules! kwargs {
              vec![
                  Condition::FieldCondition {
                     field: stringify!($field).to_string(),
-                    value: rusql_alchemy::to_value($value.clone()),
+                    value: rusql_alchemy::to_string($value.clone()),
                     value_type: rusql_alchemy::get_type_name($value.clone()).into(),
                     comparaison_operator: ">".to_string(),
                  }
@@ -80,7 +80,7 @@ macro_rules! kwargs {
               vec![
                   Condition::FieldCondition {
                     field: stringify!($field).to_string(),
-                    value: rusql_alchemy::to_value($value.clone()),
+                    value: rusql_alchemy::to_string($value.clone()),
                     value_type: rusql_alchemy::get_type_name($value.clone()).into(),
                     comparaison_operator: ">=".to_string(),
                   }
