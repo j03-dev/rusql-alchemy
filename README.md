@@ -16,8 +16,8 @@ DATABASE_URL=sqlite://<dabasase.db>
 ```toml
 [dependencies.rusql-alchemy]
 git = "https://github.com/j03-dev/rusql-alchemy"
-branch="main"
-features = ["sqlite"]
+branch= "main"
+features = ["sqlite"] # the default features is sqlite
 ```
 ### Model
 ```rust
@@ -55,7 +55,7 @@ features = ["postgres"]
 use rusql_alchemy::prelude::*;
 
 #[derive(Debug, Model, FromRow)]
-struct User {
+struct User_ {
     #[model(primary_key=true)]
     id: Serial,
     #[model(unique=true, null=false)]
@@ -74,7 +74,7 @@ use rusql_alchemy::prelude::*;
 
 #[tokio::main]
 async fn main() {
-    let conn = config::db::Database::new().await.conn;
+    let conn = Database::new().await.conn;
     migrate([Use], &conn);
 }
 ```
@@ -84,9 +84,9 @@ async fn main() {
 ```rust
 #[tokio::main]
 async fn main() {
-    let conn = config::db::Database::new().await.conn;
+    let conn = Database::new().await.conn;
 
-    UserTest {
+    User_ {
         name: "johnDoe@gmail.com".to_string(),
         email: "21john@gmail.com".to_string(),
         password: "p455w0rd".to_string(),
@@ -97,10 +97,10 @@ async fn main() {
         .save(&conn)
         .await;
 
-    let users = UserTest::all(&conn).await;
+    let users = User_::all(&conn).await;
     println!("{:#?}", users);
 
-    UserTest::create(
+    User_::create(
         kwargs!(
             name = "joe",
             email = "24nomeniavo@gmail.com",
@@ -119,16 +119,16 @@ async fn main() {
 async fn main() {
     let conn = config::db::Database::new().await.conn;
 
-    let users = UserTest::all(&conn).await;
+    let users = User_::all(&conn).await;
     println!("{:#?}", users);
 
-    let user = UserTest::get(
-        kwargs!(email = "24nomeniavo@gmail.com", password = "strongpassword"),
+    let user = User_::get(
+        kwargs!(email == "24nomeniavo@gmail.com").and(kwargs!(password == "strongpassword")),
         &conn,
     ).await;
     println!("{:#?}", user);
 
-    let users = UserTest::filter(kwargs!(role = "user"), &conn).await;
+    let users = User_::filter(kwargs!(age <= 18), &conn).await;
     println!("{:#?}", users);
 }
 ```
@@ -136,19 +136,15 @@ async fn main() {
 ```rust
 #[tokio::main]
 async fn main() {
-    let conn = config::db::Database::new().await.conn;
-    if let Some(user) = UserTest::get(
-        kwargs!(email = "24nomeniavo@gmail.com", password = "strongpassword"),
+    let conn = Database::new().await.conn;
+    if let Some(mut user) = User_::get(
+        kwargs!(email == "24nomeniavo@gmail.com").and(kwargs!(password == "strongpassword")),
         &conn,
     )
     .await
     {
-        UserTest {
-            role: "admin".into(),
-            ..user
-        }
-        .update(&conn)
-        .await;
+        user.role = "admin".into();
+        user.update(&conn).await;
     }
 }
 ```
@@ -158,11 +154,11 @@ async fn main() {
 async fn main() {
     let conn = config::db::Database::new().await.conn;
 
-    if let Some(user) = UserTest::get(kwargs!(role = "admin"), &conn).await {
+    if let Some(user) = User_::get(kwargs!(role == "admin"), &conn).await {
         user.delete(&conn).await; // delete one
     }
     
-    let users = UserTest::all(&conn).await;
+    let users = User_::all(&conn).await;
     user.delete(&conn).await; // delete all
 }
 ```

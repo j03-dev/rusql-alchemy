@@ -2,7 +2,7 @@ use rusql_alchemy::prelude::*;
 use sqlx::FromRow;
 
 #[derive(FromRow, Clone, Debug, Default, Model)]
-struct UserTest {
+struct User {
     #[model(primary_key = true, auto = true, null = false)]
     id: Integer,
     #[model(size = 50, unique = true, null = false)]
@@ -29,7 +29,7 @@ struct Product {
     description: Text,
     #[model(default = true)]
     is_sel: Boolean,
-    #[model(null = false, foreign_key = "UserTest.id")]
+    #[model(null = false, foreign_key = "User.id")]
     owner: Integer,
     #[model(default = "now")]
     at: DateTime,
@@ -37,11 +37,11 @@ struct Product {
 
 #[tokio::main]
 async fn main() {
-    let conn = config::db::Database::new().await.conn;
+    let conn = Database::new().await.conn;
 
-    migrate!([UserTest, Product], &conn);
+    migrate!([User, Product], &conn);
 
-    UserTest {
+    User {
         name: "johnDoe@gmail.com".to_string(),
         email: "21john@gmail.com".to_string(),
         password: "p455w0rd".to_string(),
@@ -49,13 +49,13 @@ async fn main() {
         weight: 60.0,
         ..Default::default()
     }
-        .save(&conn)
-        .await;
+    .save(&conn)
+    .await;
 
-    let users = UserTest::all(&conn).await;
+    let users = User::all(&conn).await;
     println!("{:#?}", users);
 
-    UserTest::create(
+    User::create(
         kwargs!(
             name = "joe",
             email = "24nomeniavo@gmail.com",
@@ -65,29 +65,25 @@ async fn main() {
         ),
         &conn,
     )
-        .await;
+    .await;
 
-    let users = UserTest::all(&conn).await;
+    let users = User::all(&conn).await;
     println!("1: {:#?}", users);
 
-    if let Some(user) = UserTest::get(
-        kwargs!(email = "24nomeniavo@gmail.com", password = "strongpassword"),
+    if let Some(mut user) = User::get(
+        kwargs!(email == "24nomeniavo@gmail.com").and(kwargs!(password == "strongpassword")),
         &conn,
     )
-        .await
+    .await
     {
-        UserTest {
-            role: "admin".into(),
-            ..user
-        }
-            .update(&conn)
-            .await;
+        user.role = "admin".into();
+        user.update(&conn).await;
     }
-    let user = UserTest::get(
-        kwargs!(email = "24nomeniavo@gmail.com", password = "strongpassword"),
+    let user = User::get(
+        kwargs!(email == "24nomeniavo@gmail.com").and(kwargs!(password == "strongpassword")),
         &conn,
     )
-        .await;
+    .await;
 
     println!("2: {:#?}", user);
 
@@ -100,19 +96,18 @@ async fn main() {
         ),
         &conn,
     )
-        .await;
+    .await;
 
     let products = Product::all(&conn).await;
     println!("3: {:#?}", products);
 
-    let product = Product::get(kwargs!(is_sel = true), &conn).await;
+    let product = Product::get(kwargs!(is_sel == true), &conn).await;
     println!("4: {:#?}", product);
 
-    let user = UserTest::get(kwargs!(owner__product__is_sel = true), &conn).await;
-    println!("5: {:#?}", user);
-
-    println!("is deleted = {}", products.delete(&conn).await);
-
     let products = Product::all(&conn).await;
-    println!("6: {:#?}", products);
+    println!("5: {:#?}", products);
+    products.delete(&conn).await;
+
+    let users = User::filter(kwargs!(age <= 18), &conn).await;
+    println!("6: {:#?}", users);
 }
