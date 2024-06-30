@@ -5,6 +5,7 @@ pub mod prelude;
 pub mod types;
 mod utils;
 
+pub use db::models::PLACEHOLDER;
 pub use utils::*;
 
 pub type Connection = sqlx::Pool<sqlx::Any>;

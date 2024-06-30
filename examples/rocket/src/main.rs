@@ -3,7 +3,7 @@ extern crate rocket;
 
 use rocket::serde::json::{json, Value};
 use rocket::State;
-use rusql_alchemy::prelude::{config::db::Database, *};
+use rusql_alchemy::prelude::*;
 use serde::Serialize;
 
 #[derive(Clone)]
@@ -23,16 +23,14 @@ struct User_ {
 async fn list_user(app_state: &State<AppState>) -> Value {
     let conn = app_state.conn.clone();
     let users = User_::all(&conn).await;
-    
-    ///  User_::get(kwargs!(Q!(user_id__eq : 5) & Q!(password__eq: "strongpassword")));
-   
+
     json!(users)
 }
 
 #[main]
 async fn main() {
     let conn = Database::new().await.conn;
-    migrate!([User_], &conn);
+    // migrate!([User_], &conn);
     rocket::build()
         .mount("/", routes![list_user])
         .manage(AppState { conn })

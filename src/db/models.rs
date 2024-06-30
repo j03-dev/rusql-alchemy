@@ -1,53 +1,136 @@
+use lazy_static::lazy_static;
 use serde_json::Value;
 use sqlx::{any::AnyRow, FromRow, Row};
 
 use crate::{get_placeholder, get_type_name, Connection};
 
-#[derive(Debug)]
-pub enum Operator {
-    Or,
-    And,
-}
-
-impl Operator {
-    pub fn get(&self) -> &'static str {
-        match self {
-            Self::Or => " or ",
-            Self::And => " and ",
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct Arg {
-    pub field: String,
-    pub value: Value,
-    pub r#type: String,
-    pub comparaison_operator: String,
-}
-
-impl Arg {
-    pub fn to_query(&self, placeholder: &str, index: usize) -> String {
-        format!(
-            "{field}{cmp}{placeholder}{index}",
-            field = self.field,
-            cmp = self.comparaison_operator
-        )
-    }
+lazy_static! {
+    pub static ref PLACEHOLDER: &'static str = get_placeholder().unwrap_or("?");
 }
 
 #[derive(Debug)]
-pub struct Kwargs {
-    pub operator: Operator,
-    pub args: Vec<Arg>,
+pub enum Condition {
+    FieldCondition {
+        field: String,
+        value: Value,
+        value_type: String,
+        comparaison_operator: String,
+    },
+    LogicalOperator {
+        operator: String,
+    },
 }
 
-impl Kwargs {
-    pub fn or(self) -> Self {
-        Self {
-            operator: Operator::Or,
-            args: self.args,
+pub trait Or {
+    fn or(self, conditions: Vec<Condition>) -> Vec<Condition>;
+}
+
+pub trait And {
+    fn and(self, conditions: Vec<Condition>) -> Vec<Condition>;
+}
+
+impl Or for Vec<Condition> {
+    fn or(mut self, conditions: Vec<Condition>) -> Vec<Condition> {
+        self.push(Condition::LogicalOperator {
+            operator: "or".to_string(),
+        });
+        self.extend(conditions);
+        self
+    }
+}
+
+impl And for Vec<Condition> {
+    fn and(mut self, conditions: Vec<Condition>) -> Vec<Condition> {
+        self.push(Condition::LogicalOperator {
+            operator: "and".to_string(),
+        });
+        self.extend(conditions);
+        self
+    }
+}
+
+pub trait Query {
+    fn to_update_query(&self) -> (String, Vec<(String, String)>);
+    fn to_select_query(&self) -> (String, Vec<(String, String)>);
+    fn to_insert_query(&self) -> (String, String, Vec<(String, String)>);
+}
+
+impl Query for Vec<Condition> {
+    //                              sql_query, [(value, type)]
+    fn to_insert_query(&self) -> (String, String, Vec<(String, String)>) {
+        let mut args = Vec::new();
+        let mut fields = Vec::new();
+        let mut placeholders = Vec::new();
+        let mut index = 0;
+        for condition in self {
+            if let Condition::FieldCondition {
+                field,
+                value,
+                value_type,
+                #[allow(unused_variables)]
+                comparaison_operator,
+            } = condition
+            {
+                index += 1;
+                args.push((value.to_string().clone(), value_type.clone()));
+                fields.push(field.clone());
+                let placeholder = PLACEHOLDER.to_string();
+                placeholders.push(format!("{placeholder}{index}",));
+            }
         }
+        (fields.join(", "), placeholders.join(", "), args)
+    }
+
+    //                               (placeholders, args)
+    fn to_update_query(&self) -> (String, Vec<(String, String)>) {
+        let mut args = Vec::new();
+        let mut placeholders = Vec::new();
+        let mut index = 0;
+        for condition in self {
+            if let Condition::FieldCondition {
+                field,
+                value,
+                value_type,
+                #[allow(unused_variables)]
+                comparaison_operator,
+            } = condition
+            {
+                index += 1;
+                args.push((value.to_string().clone(), value_type.clone()));
+                // (field + = + placeholder + index)
+                let placeholder = PLACEHOLDER.to_string();
+                placeholders.push(format!("{field}={placeholder}{index}",));
+            }
+        }
+        (placeholders.join(", "), args)
+    }
+
+    //                               (placeholders, args)
+    fn to_select_query(&self) -> (String, Vec<(String, String)>) {
+        let mut args = Vec::new();
+        let mut placeholders = Vec::new();
+        let mut index = 0;
+        for condition in self {
+            match condition {
+                Condition::FieldCondition {
+                    field,
+                    value,
+                    value_type,
+                    comparaison_operator,
+                } => {
+                    index += 1;
+                    args.push((value.to_string().clone(), value_type.clone()));
+                    // (field + = + placeholder + index)
+                    let placeholder = PLACEHOLDER.to_string();
+                    placeholders
+                        .push(format!("{field}{comparaison_operator}{placeholder}{index}",));
+                }
+                Condition::LogicalOperator { operator } => {
+                    placeholders.push(operator.to_owned());
+                }
+            }
+        }
+        (placeholders.join(" "), args)
     }
 }
 
@@ -134,25 +217,14 @@ pub trait Model {
     /// ).await;
     /// println!("Create success: {}", success);
     /// ```
-    async fn create(kw: Kwargs, conn: &Connection) -> bool
+    async fn create(kw: Vec<Condition>, conn: &Connection) -> bool
     where
         Self: Sized,
     {
-        let ph = get_placeholder();
-        let mut fields = Vec::new();
-        let mut args = Vec::new();
-        let mut placeholder = Vec::new();
+        let (fields, placeholders, args) = kw.to_insert_query();
 
-        for (i, arg) in kw.args.iter().enumerate() {
-            fields.push(arg.field.to_owned());
-            args.push((arg.r#type.clone(), arg.value.to_string()));
-            placeholder.push(format!("{ph}{index}", index = i + 1,));
-        }
-
-        let fields = fields.join(", ");
-        let placeholder = placeholder.join(", ");
         let query = format!(
-            "insert into {table_name} ({fields}) values ({placeholder});",
+            "insert into {table_name} ({fields}) values ({placeholders});",
             table_name = Self::NAME
         );
         let mut stream = sqlx::query(&query);
@@ -204,28 +276,23 @@ pub trait Model {
     /// ```
     async fn set<T: ToString + Clone + Send + Sync>(
         id_value: T,
-        kw: Kwargs,
+        kw: Vec<Condition>,
         conn: &Connection,
     ) -> bool {
-        let ph = get_placeholder();
-        let mut fields = Vec::new();
-        let mut args = Vec::new();
+        let (placeholders, mut args) = kw.to_update_query();
 
-        for (i, arg) in kw.args.iter().enumerate() {
-            fields.push(arg.to_query(ph, i + 1));
-            args.push((arg.r#type.clone(), arg.value.to_string()));
-        }
         args.push((
-            get_type_name(id_value.clone()).to_string(),
             id_value.clone().to_string(),
+            get_type_name(id_value.clone()).to_string(),
         ));
-        let index_id = fields.len() + 1;
-        let fields = fields.join(", ");
+        let index_id = args.len();
+        let placeholder = PLACEHOLDER.to_string();
         let query = format!(
-            "update {table_name} set {fields} where {id}={ph}{index_id};",
+            "update {table_name} set {placeholders} where {id}={placeholder}{index_id};",
             id = Self::PK,
             table_name = Self::NAME,
         );
+
         let mut stream = sqlx::query(&query);
         binds!(args, stream);
         stream.execute(conn).await.is_ok()
@@ -289,19 +356,12 @@ pub trait Model {
     /// ).await;
     /// println!("{:#?}", users);
     /// ```
-    async fn filter(kw: Kwargs, conn: &Connection) -> Vec<Self>
+    async fn filter(kw: Vec<Condition>, conn: &Connection) -> Vec<Self>
     where
         Self: Sized + Unpin + for<'r> FromRow<'r, AnyRow> + Clone,
     {
-        let ph = get_placeholder();
-        let mut fields = Vec::new();
-        let mut args = Vec::new();
+        let (fields, args) = kw.to_select_query();
 
-        for (i, arg) in kw.args.iter().enumerate() {
-            fields.push(arg.to_query(ph, i + 1));
-            args.push((arg.r#type.clone(), arg.value.to_string()));
-        }
-        let fields = fields.join(kw.operator.get());
         let query = format!(
             "SELECT * FROM {table_name} WHERE {fields};",
             table_name = Self::NAME
@@ -329,7 +389,7 @@ pub trait Model {
     /// ).await;
     /// println!("{:#?}", user);
     /// ```
-    async fn get(kw: Kwargs, conn: &Connection) -> Option<Self>
+    async fn get(kw: Vec<Condition>, conn: &Connection) -> Option<Self>
     where
         Self: Sized + Unpin + for<'r> FromRow<'r, AnyRow> + Clone,
     {
