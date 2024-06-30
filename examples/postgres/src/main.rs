@@ -70,18 +70,14 @@ async fn main() {
     let users = User_::all(&conn).await;
     println!("1: {:#?}", users);
 
-    if let Some(user) = User_::get(
+    if let Some(mut user) = User_::get(
         kwargs!(email == "24nomeniavo@gmail.com").and(kwargs!(password == "strongpassword")),
         &conn,
     )
     .await
     {
-        User_ {
-            role: "admin".into(),
-            ..user
-        }
-        .update(&conn)
-        .await;
+        user.role = "admin".into();
+        user.update(&conn).await;
     }
     let user = User_::get(
         kwargs!(email == "24nomeniavo@gmail.com").and(kwargs!(password == "strongpassword")),

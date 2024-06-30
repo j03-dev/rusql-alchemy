@@ -123,12 +123,12 @@ async fn main() {
     println!("{:#?}", users);
 
     let user = User_::get(
-        kwargs!(email = "24nomeniavo@gmail.com", password = "strongpassword"),
+        kwargs!(email == "24nomeniavo@gmail.com").and(kwargs!(password == "strongpassword")),
         &conn,
     ).await;
     println!("{:#?}", user);
 
-    let users = User_::filter(kwargs!(role = "user"), &conn).await;
+    let users = User_::filter(kwargs!(age <= 18), &conn).await;
     println!("{:#?}", users);
 }
 ```
@@ -137,18 +137,14 @@ async fn main() {
 #[tokio::main]
 async fn main() {
     let conn = Database::new().await.conn;
-    if let Some(user) = User_::get(
-        kwargs!(email = "24nomeniavo@gmail.com", password = "strongpassword"),
+    if let Some(mut user) = User_::get(
+        kwargs!(email == "24nomeniavo@gmail.com").and(kwargs!(password == "strongpassword")),
         &conn,
     )
     .await
     {
-        User_ {
-            role: "admin".into(),
-            ..user
-        }
-        .update(&conn)
-        .await;
+        user.role = "admin".into();
+        user.update(&conn).await;
     }
 }
 ```
@@ -158,7 +154,7 @@ async fn main() {
 async fn main() {
     let conn = config::db::Database::new().await.conn;
 
-    if let Some(user) = User_::get(kwargs!(role = "admin"), &conn).await {
+    if let Some(user) = User_::get(kwargs!(role == "admin"), &conn).await {
         user.delete(&conn).await; // delete one
     }
     
