@@ -48,6 +48,7 @@ DATABASE_URL=postgres://<user>:<password>@<hostname>/<dbname>
 [dependencies.rusql-alchemy]
 git = "https://github.com/j03-dev/rusql-alchemy"
 branch="main"
+default-features = false
 features = ["postgres"]
 ```
 ### Model: In postgres primary key should be `Serial` type
