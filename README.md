@@ -83,6 +83,8 @@ async fn main() {
 
 ### Insert
 ```rust
+use rusql_alchemy::prelude::*;
+
 #[tokio::main]
 async fn main() {
     let conn = Database::new().await.conn;
@@ -116,6 +118,8 @@ async fn main() {
 ```
 ### Select
 ```rust
+use rusql_alchemy::prelude::*;
+
 #[tokio::main]
 async fn main() {
     let conn = config::db::Database::new().await.conn;
@@ -135,9 +139,12 @@ async fn main() {
 ```
 ### Update
 ```rust
+use rusql_alchemy::prelude::*;
+
 #[tokio::main]
 async fn main() {
     let conn = Database::new().await.conn;
+
     if let Some(mut user) = User_::get(
         kwargs!(email == "24nomeniavo@gmail.com").and(kwargs!(password == "strongpassword")),
         &conn,
@@ -151,15 +158,17 @@ async fn main() {
 ```
 ### Delete
 ```rust
+use rusql_alchemy::prelude::*;
+
 #[tokio::main]
 async fn main() {
-    let conn = config::db::Database::new().await.conn;
+    let conn = Database::new().await.conn;
 
     if let Some(user) = User_::get(kwargs!(role == "admin"), &conn).await {
         user.delete(&conn).await; // delete one
     }
     
     let users = User_::all(&conn).await;
-    user.delete(&conn).await; // delete all
+    users.delete(&conn).await; // delete all
 }
 ```

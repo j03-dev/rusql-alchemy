@@ -11,6 +11,6 @@ default-features = false
 features = ["postgres"]
 
 [dependencies]
-sqlx = "^0.7.0"
+sqlx = "^0.8.0"
 rocket = { version = "^0.5.0", features = ["json"] }
 serde = { version = "^1.0.203", features = ["derive"] }

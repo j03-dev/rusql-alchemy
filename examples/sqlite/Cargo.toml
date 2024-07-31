@@ -11,4 +11,4 @@ features = ["sqlite"]
 
 [dependencies]
 tokio = { version = "^1.38.0", features = ["full"] }
-sqlx = "^0.7.0"
+sqlx = "^0.8.0"

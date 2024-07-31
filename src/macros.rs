@@ -9,7 +9,7 @@ macro_rules! kwargs {
                     field: stringify!($field).to_string(),
                     value: rusql_alchemy::to_string($value.clone()),
                     value_type: rusql_alchemy::get_type_name($value.clone()).into(),
-                    comparaison_operator: "=".to_string(),
+                    comparison_operator: "=".to_string(),
                 });
             )*
             args
@@ -22,7 +22,7 @@ macro_rules! kwargs {
                     field: stringify!($field).to_string(),
                     value: rusql_alchemy::to_string($value.clone()),
                     value_type: rusql_alchemy::get_type_name($value.clone()).into(),
-                    comparaison_operator: "=".to_string(),
+                    comparison_operator: "=".to_string(),
                 }
             ]
         }
@@ -34,7 +34,7 @@ macro_rules! kwargs {
                     field: stringify!($field).to_string(),
                     value: rusql_alchemy::to_string($value.clone()),
                     value_type: rusql_alchemy::get_type_name($value.clone()).into(),
-                    comparaison_operator: "!=".to_string(),
+                    comparison_operator: "!=".to_string(),
                 }
             ]
         }
@@ -46,7 +46,7 @@ macro_rules! kwargs {
                     field: stringify!($field).to_string(),
                     value: rusql_alchemy::to_string($value.clone()),
                     value_type: rusql_alchemy::get_type_name($value.clone()).into(),
-                    comparaison_operator: "<".to_string(),
+                    comparison_operator: "<".to_string(),
                 }
             ]
         }
@@ -58,7 +58,7 @@ macro_rules! kwargs {
                     field: stringify!($field).to_string(),
                     value: rusql_alchemy::to_string($value.clone()),
                     value_type: rusql_alchemy::get_type_name($value.clone()).into(),
-                    comparaison_operator: "<=".to_string(),
+                    comparison_operator: "<=".to_string(),
                 }
             ]
         }
@@ -70,7 +70,7 @@ macro_rules! kwargs {
                     field: stringify!($field).to_string(),
                     value: rusql_alchemy::to_string($value.clone()),
                     value_type: rusql_alchemy::get_type_name($value.clone()).into(),
-                    comparaison_operator: ">".to_string(),
+                    comparison_operator: ">".to_string(),
                  }
              ]
          }
@@ -82,7 +82,7 @@ macro_rules! kwargs {
                     field: stringify!($field).to_string(),
                     value: rusql_alchemy::to_string($value.clone()),
                     value_type: rusql_alchemy::get_type_name($value.clone()).into(),
-                    comparaison_operator: ">=".to_string(),
+                    comparison_operator: ">=".to_string(),
                   }
               ]
           }

@@ -13,7 +13,7 @@ pub enum Condition {
         field: String,
         value: String,
         value_type: String,
-        comparaison_operator: String,
+        comparison_operator: String,
     },
     LogicalOperator {
         operator: String,
@@ -55,31 +55,6 @@ pub trait Query {
 }
 
 impl Query for Vec<Condition> {
-    //                              sql_query, [(value, type)]
-    fn to_insert_query(&self) -> (String, String, Vec<(String, String)>) {
-        let mut args = Vec::new();
-        let mut fields = Vec::new();
-        let mut placeholders = Vec::new();
-        let mut index = 0;
-        for condition in self {
-            if let Condition::FieldCondition {
-                field,
-                value,
-                value_type,
-                #[allow(unused_variables)]
-                comparaison_operator,
-            } = condition
-            {
-                index += 1;
-                args.push((value.clone(), value_type.clone()));
-                fields.push(field.clone());
-                let placeholder = PLACEHOLDER.to_string();
-                placeholders.push(format!("{placeholder}{index}",));
-            }
-        }
-        (fields.join(", "), placeholders.join(", "), args)
-    }
-
     //                               (placeholders, args)
     fn to_update_query(&self) -> (String, Vec<(String, String)>) {
         let mut args = Vec::new();
@@ -91,7 +66,7 @@ impl Query for Vec<Condition> {
                 value,
                 value_type,
                 #[allow(unused_variables)]
-                comparaison_operator,
+                comparison_operator,
             } = condition
             {
                 index += 1;
@@ -115,14 +90,14 @@ impl Query for Vec<Condition> {
                     field,
                     value,
                     value_type,
-                    comparaison_operator,
+                    comparison_operator,
                 } => {
                     index += 1;
                     args.push((value.clone(), value_type.clone()));
                     // (field + = + placeholder + index)
                     let placeholder = PLACEHOLDER.to_string();
                     placeholders
-                        .push(format!("{field}{comparaison_operator}{placeholder}{index}",));
+                        .push(format!("{field}{comparison_operator}{placeholder}{index}",));
                 }
                 Condition::LogicalOperator { operator } => {
                     placeholders.push(operator.to_owned());
@@ -130,6 +105,31 @@ impl Query for Vec<Condition> {
             }
         }
         (placeholders.join(" "), args)
+    }
+
+    //                              sql_query, [(value, type)]
+    fn to_insert_query(&self) -> (String, String, Vec<(String, String)>) {
+        let mut args = Vec::new();
+        let mut fields = Vec::new();
+        let mut placeholders = Vec::new();
+        let mut index = 0;
+        for  condition in self{
+            if let Condition::FieldCondition {
+                field,
+                value,
+                value_type,
+                #[allow(unused_variables)]
+                comparison_operator,
+            } = condition
+            {
+                index += 1;
+                args.push((value.clone(), value_type.clone()));
+                fields.push(field.clone());
+                let placeholder = PLACEHOLDER.to_string();
+                placeholders.push(format!("{placeholder}{index}"));
+            }
+        }
+        (fields.join(", "), placeholders.join(", "), args)
     }
 }
 
