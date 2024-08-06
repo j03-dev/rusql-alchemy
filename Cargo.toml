@@ -1,6 +1,6 @@
 [package]
 name = "rusql-alchemy"
-version = "0.2.0"
+version = "0.3.0-rc"
 edition = "2021"
 description = "Rust Alchemy is Django ORM like lib for Rust"
 license = "Apache-2.0"
