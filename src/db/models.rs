@@ -1,30 +1,43 @@
+//! RusQL Alchemy: A Rust ORM library for SQL databases
+//!
+//! This module provides traits and implementations for database operations,
+//! including querying, inserting, updating, and deleting records.
+
 use lazy_static::lazy_static;
 use sqlx::{any::AnyRow, FromRow, Row};
 
 use crate::{get_placeholder, get_type_name, Connection};
 
 lazy_static! {
-    pub static ref PLACEHOLDER: &'static str = get_placeholder().unwrap_or("?");
+    /// The placeholder string for SQL queries, determined by the database type.
+    pub static ref PLACEHOLDER: &'static str = get_placeholder().expect(
+        "DATABASE_URL is not set, make sur the database is 'sqlite', 'postgres' or 'mysql'"
+    );
 }
 
+/// Represents a condition in a database query.
 #[derive(Debug)]
 pub enum Condition {
+    /// A condition on a specific field.
     FieldCondition {
         field: String,
         value: String,
         value_type: String,
         comparison_operator: String,
     },
-    LogicalOperator {
-        operator: String,
-    },
+    /// A logical operator (AND/OR) for combining conditions.
+    LogicalOperator { operator: String },
 }
 
+/// Trait for adding OR conditions to a vector of conditions.
 pub trait Or {
+    /// Adds OR conditions to the existing conditions.
     fn or(self, conditions: Vec<Condition>) -> Vec<Condition>;
 }
 
+/// Trait for adding AND conditions to a vector of conditions.
 pub trait And {
+    /// Adds AND conditions to the existing conditions.
     fn and(self, conditions: Vec<Condition>) -> Vec<Condition>;
 }
 
@@ -48,14 +61,18 @@ impl And for Vec<Condition> {
     }
 }
 
+/// Trait for generating SQL queries from conditions.
 pub trait Query {
+    /// Generates an UPDATE query from the conditions.
     fn to_update_query(&self) -> (String, Vec<(String, String)>);
+    /// Generates a SELECT query from the conditions.
     fn to_select_query(&self) -> (String, Vec<(String, String)>);
+    /// Generates an INSERT query from the conditions.
     fn to_insert_query(&self) -> (String, String, Vec<(String, String)>);
 }
 
 impl Query for Vec<Condition> {
-    //                               (placeholders, args)
+    //                               (placeholders, args:[(value, type)])])
     fn to_update_query(&self) -> (String, Vec<(String, String)>) {
         let mut args = Vec::new();
         let mut placeholders = Vec::new();
@@ -96,8 +113,7 @@ impl Query for Vec<Condition> {
                     args.push((value.clone(), value_type.clone()));
                     // (field + = + placeholder + index)
                     let placeholder = PLACEHOLDER.to_string();
-                    placeholders
-                        .push(format!("{field}{comparison_operator}{placeholder}{index}",));
+                    placeholders.push(format!("{field}{comparison_operator}{placeholder}{index}",));
                 }
                 Condition::LogicalOperator { operator } => {
                     placeholders.push(operator.to_owned());
@@ -107,19 +123,18 @@ impl Query for Vec<Condition> {
         (placeholders.join(" "), args)
     }
 
-    //                              sql_query, [(value, type)]
+    //                              fields, placeholders, args:[(value, type)]
     fn to_insert_query(&self) -> (String, String, Vec<(String, String)>) {
         let mut args = Vec::new();
         let mut fields = Vec::new();
         let mut placeholders = Vec::new();
         let mut index = 0;
-        for  condition in self{
+        for condition in self {
             if let Condition::FieldCondition {
                 field,
                 value,
                 value_type,
-                #[allow(unused_variables)]
-                comparison_operator,
+                ..
             } = condition
             {
                 index += 1;
@@ -133,6 +148,7 @@ impl Query for Vec<Condition> {
     }
 }
 
+/// Trait for database model operations.
 #[async_trait::async_trait]
 pub trait Model {
     // The SQL schema of the model
@@ -242,7 +258,7 @@ pub trait Model {
     /// # Example
     /// ```
     /// if let Some(mut user) = User::get(
-    ///     kwargs!(email = "24nomeniavo@gmail.com", password = "strongpassword"),
+    ///     kwargs!(email = "24nomeniavo@gmail.com").and(kwargs!(password = "strongpassword")),
     ///     &conn,
     /// ).await {
     ///     user.role = "admin".to_string();
@@ -350,7 +366,7 @@ pub trait Model {
     /// # Example
     /// ```
     /// let users = User::filter(
-    ///     kwargs!(age__gte = 18, weight__lte = 80.0),
+    ///     kwargs!(age <= 18).and(kwargs!(weight == 80.0)),
     ///     &conn,
     /// ).await;
     /// println!("{:#?}", users);
@@ -383,7 +399,7 @@ pub trait Model {
     /// # Example
     /// ```
     /// let user = User::get(
-    ///     kwargs!(email = "24nomeniavo@gmail.com", password = "strongpassword"),
+    ///     kwargs!(email = "24nomeniavo@gmail.com").and(kwargs!(password = "strongpassword")),
     ///     &conn,
     /// ).await;
     /// println!("{:#?}", user);
@@ -420,11 +436,11 @@ pub trait Model {
     }
 }
 
+/// Trait for deleting database records.
 #[async_trait::async_trait]
 pub trait Delete {
     async fn delete(&self, conn: &Connection) -> bool;
 }
-
 #[async_trait::async_trait]
 impl<T> Delete for Vec<T>
 where
