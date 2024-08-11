@@ -82,8 +82,7 @@ impl Query for Vec<Condition> {
                 field,
                 value,
                 value_type,
-                #[allow(unused_variables)]
-                comparison_operator,
+                ..
             } = condition
             {
                 index += 1;
@@ -399,7 +398,7 @@ pub trait Model {
     /// # Example
     /// ```
     /// let user = User::get(
-    ///     kwargs!(email = "24nomeniavo@gmail.com").and(kwargs!(password = "strongpassword")),
+    ///     kwargs!(email == "24nomeniavo@gmail.com").and(kwargs!(password == "strongpassword")),
     ///     &conn,
     /// ).await;
     /// println!("{:#?}", user);

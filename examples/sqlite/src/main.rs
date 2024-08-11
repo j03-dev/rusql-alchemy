@@ -76,7 +76,7 @@ async fn main() {
     )
     .await
     {
-        user.role = "admin".into();
+        user.role = "test".into();
         user.update(&conn).await;
     }
     let user = User::get(
