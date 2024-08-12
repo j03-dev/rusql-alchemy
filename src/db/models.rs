@@ -347,15 +347,10 @@ pub trait Model {
         Self: Sized + Unpin + for<'r> FromRow<'r, AnyRow> + Clone,
     {
         let query = format!("select * from {table_name}", table_name = Self::NAME);
-        println!("query {query}");
-
-        match sqlx::query_as::<_, Self>(&query).fetch_all(conn).await {
-            Ok(result) => result,
-            Err(err) => {
-                println!("{err:?}");
-                Default::default()
-            }
-        }
+        sqlx::query_as::<_, Self>(&query)
+            .fetch_all(conn)
+            .await
+            .unwrap_or_default()
     }
 
     /// Filters instances of the model based on the provided parameters.
@@ -388,15 +383,7 @@ pub trait Model {
 
         let mut stream = sqlx::query_as::<_, Self>(&query);
         binds!(args, stream);
-
-        println!("query = {query}");
-        match stream.fetch_all(conn).await {
-            Ok(result) => result,
-            Err(err) => {
-                println!("{err:?}");
-                Default::default()
-            }
-        }
+        stream.fetch_all(conn).await.unwrap_or_default()
     }
 
     /// Retrieves the first instance of the model matching the filter criteria.
