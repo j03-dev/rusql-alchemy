@@ -257,7 +257,7 @@ pub trait Model {
     /// # Example
     /// ```
     /// if let Some(mut user) = User::get(
-    ///     kwargs!(email = "24nomeniavo@gmail.com").and(kwargs!(password = "strongpassword")),
+    ///     kwargs!(email == "24nomeniavo@gmail.com").and(kwargs!(password == "strongpassword")),
     ///     &conn,
     /// ).await {
     ///     user.role = "admin".to_string();
