@@ -11,8 +11,8 @@ struct User {
     email: String,
     #[model(size = 255, null = false)]
     password: String,
-    #[model(default = "user")]
-    role: String,
+    #[model(default = false)]
+    admin: Boolean,
     #[model(null = false)]
     age: Integer,
     #[model(null = false)]
@@ -76,7 +76,7 @@ async fn main() {
     )
     .await
     {
-        user.role = "test".into();
+        user.admin = Boolean::r#true();
         user.update(&conn).await;
     }
     let user = User::get(
