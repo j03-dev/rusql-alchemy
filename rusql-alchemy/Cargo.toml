@@ -1,0 +1,28 @@
+[package]
+name = "rusql-alchemy"
+version = "0.4.1-rc"
+edition = "2021"
+description = "Rust Alchemy is Django ORM like lib for Rust"
+license = "Apache-2.0"
+documentation = "https://docs.rs/russenger/latest/rusql-alchemy/"
+homepage = "https://github.com/russenger/rusql-alchemy"
+repository = "https://github.com/russenger/rusql-alchemy"
+authors = ["FITAHIANA Nomeniavo Joe <24nomeniavo@gmail.com>"]
+keywords = ["orm", "rust", "django-orm", "lib"]
+
+
+[features]
+default = ["sqlite"]
+sqlite = ["sqlx/sqlite"]
+mysql = ["sqlx/mysql"]
+postgres = ["sqlx/postgres"]
+
+[dependencies]
+async-trait.workspace = true
+dotenv.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+rusql-alchemy-macro.workspace = true
+lazy_static.workspace = true
+sqlx = { workspace = true, features = ["runtime-tokio-rustls", "any"] }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

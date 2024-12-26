@@ -5,10 +5,7 @@ edition = "2021"
 workspace = ".."
 publish = false
 
-[dependencies.rusql-alchemy]
-path = "../.."
-features = ["sqlite"]
-
 [dependencies]
-tokio = { version = "^1.38.0", features = ["full"] }
-sqlx = "^0.8.0"
+rusql-alchemy  = { workspace = true , features = ["sqlite"] }
+sqlx.workspace = true
+tokio = { workspace = true, features = ["full"] }

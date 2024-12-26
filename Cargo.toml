@@ -1,28 +1,18 @@
-[package]
-name = "rusql-alchemy"
-version = "0.3.0"
+[workspace]
+resolver = "2"
+members = ["rusql-alchemy", "rusql-alchemy-macro"]
+
+
+[workspace.package]
+version = "0.4.1-rc"
 edition = "2021"
-description = "Rust Alchemy is Django ORM like lib for Rust"
-license = "Apache-2.0"
-documentation = "https://docs.rs/russenger/latest/rusql-alchemy/"
-homepage = "https://github.com/russenger/rusql-alchemy"
-repository = "https://github.com/russenger/rusql-alchemy"
-authors = ["FITAHIANA Nomeniavo Joe <24nomeniavo@gmail.com>"]
-keywords = ["orm", "rust", "django-orm", "lib"]
 
-
-[features]
-default = ["sqlite"]
-sqlite = ["sqlx/sqlite"]
-mysql = ["sqlx/mysql"]
-postgres = ["sqlx/postgres"]
-
-[dependencies]
+[workspace.dependencies]
 async-trait = "^0.1.81"
 dotenv = "^0.15.0"
 serde = "^1.0.208"
 serde_json = "^1.0.125"
-sqlx = { version = "^0.8", features = ["runtime-tokio-rustls", "any"] }
-tokio = { version = "^1.39.3", features = ["macros", "rt-multi-thread"] }
-rusql-alchemy-macro = "0.3.0"
+rusql-alchemy-macro = { version = "0.4.1-rc", path = "rusql-alchemy-macro" }
 lazy_static = "1.5.0"
+sqlx = "^0.8"
+tokio = "^1.39.3"
