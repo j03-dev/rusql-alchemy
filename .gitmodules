@@ -1,0 +1,3 @@
+[submodule "rusql-alchemy-macro"]
+	path = rusql-alchemy-macro
+	url = https://github.com/russenger/rusql-alchemy-macro
