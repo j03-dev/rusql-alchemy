@@ -6,7 +6,8 @@ workspace = ".."
 
 
 [dependencies]
-rocket = { version = "^0.5.0", features = ["json"] }
-serde = { version = "^1.0.203", features = ["derive"] }
-rusql-alchemy  = { workspace = true , features = ["postgres"] }
+anyhow.workspace = true
+rocket = { workspace = true, features = ["json"] }
+serde = { workspace = true, features = ["derive"] }
+rusql-alchemy = { workspace = true, features = ["postgres"] }
 sqlx.workspace = true

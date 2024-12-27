@@ -3,6 +3,9 @@ resolver = "2"
 members = ["sqlite", "postgres", "rocket"]
 
 [workspace.dependencies]
-rusql-alchemy.path = "../.."
+rocket = "^0.5.0"
+serde = "^1.0.203"
+rusql-alchemy.path = "../rusql-alchemy"
 sqlx = "^0.8.0"
 tokio = "^1.38.0"
+anyhow = "1.0.95"

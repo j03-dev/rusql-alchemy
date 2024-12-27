@@ -45,6 +45,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5c6cb57a04249c6480766f7f7cef5467412af1490f8d1e243141daddada3264f"
 
 [[package]]
+name = "anyhow"
+version = "1.0.95"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "34ac096ce696dc2fcabef30516bb13c0a68a11d30131d3df6f04711467681b04"
+
+[[package]]
 name = "async-stream"
 version = "0.3.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1357,6 +1363,7 @@ dependencies = [
 name = "rocket-alchemy"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "rocket",
  "rusql-alchemy",
  "serde",
@@ -1429,8 +1436,9 @@ dependencies = [
 
 [[package]]
 name = "rusql-alchemy"
-version = "0.3.0"
+version = "0.4.1-rc"
 dependencies = [
+ "anyhow",
  "async-trait",
  "dotenv",
  "lazy_static",
@@ -1443,9 +1451,7 @@ dependencies = [
 
 [[package]]
 name = "rusql-alchemy-macro"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ba00f08bb60676bf05837c649903749978a05b5e4de7fbd374d120ab5a55a931"
+version = "0.4.1-rc"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1699,6 +1705,7 @@ dependencies = [
 name = "sqlite"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "rusql-alchemy",
  "sqlx",
  "tokio",
@@ -1974,6 +1981,7 @@ dependencies = [
 name = "test-postgres"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "rusql-alchemy",
  "sqlx",
  "tokio",
