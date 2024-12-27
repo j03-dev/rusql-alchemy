@@ -15,6 +15,8 @@ pub mod types;
 pub use db::models::PLACEHOLDER;
 pub use utils::*;
 
+use anyhow::Result;
+
 mod utils;
 
 /// Alias for the database connection pool.
@@ -22,13 +24,13 @@ pub type Connection = sqlx::Pool<sqlx::Any>;
 
 use sqlx::any::{install_default_drivers, AnyPoolOptions};
 
-async fn establish_connection(url: String) -> Connection {
+async fn establish_connection(url: String) -> Result<Connection> {
     install_default_drivers();
-    AnyPoolOptions::new()
+    let conn = AnyPoolOptions::new()
         .max_connections(5)
         .connect(&url)
-        .await
-        .unwrap()
+        .await?;
+    Ok(conn)
 }
 
 /// Represents a database.
@@ -53,12 +55,10 @@ impl Database {
     ///     let db = Database::new().await;
     /// }
     /// ```
-    pub async fn new() -> Self {
+    pub async fn new() -> Result<Self> {
         dotenv::dotenv().ok();
-        let database_url =
-            std::env::var("DATABASE_URL").expect("-> Pls set the DATABASE_ULR in `.env`");
-        Self {
-            conn: establish_connection(database_url).await,
-        }
+        let database_url = std::env::var("DATABASE_URL")?;
+        let conn = establish_connection(database_url).await?;
+        Ok(Self { conn })
     }
 }

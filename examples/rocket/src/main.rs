@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate rocket;
 
+use anyhow::{Context, Result};
 use rocket::serde::json::{json, Value};
 use rocket::State;
 use rusql_alchemy::prelude::*;
@@ -15,7 +16,8 @@ struct AppState {
 struct User_ {
     #[model(primary_key = true)]
     id: Serial,
-    #[model(unique = true, null = false, size = 50)]
+
+    #[model(unique = true, size = 50)]
     username: String,
 }
 
@@ -27,13 +29,15 @@ async fn list_user(app_state: &State<AppState>) -> Value {
 }
 
 #[main]
-async fn main() {
-    let conn = Database::new().await.conn;
-    // migrate!([User_], &conn);
+async fn main() -> Result<()> {
+    let conn = Database::new().await?.conn;
+    migrate!([User_], &conn);
     rocket::build()
         .mount("/", routes![list_user])
         .manage(AppState { conn })
         .launch()
         .await
-        .expect("failed to launch rocket instance");
+        .context("failed to launch rocket instance")?;
+
+    Ok(())
 }

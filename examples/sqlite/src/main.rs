@@ -1,21 +1,25 @@
+use anyhow::Result;
 use rusql_alchemy::prelude::*;
 use sqlx::FromRow;
 
 #[derive(FromRow, Clone, Debug, Default, Model)]
 struct User {
-    #[model(primary_key = true, auto = true, null = false)]
+    #[model(primary_key = true, auto = true)]
     id: Integer,
-    #[model(size = 50, unique = true, null = false)]
+
+    #[model(size = 50, unique = true)]
     name: String,
-    #[model(size = 255, unique = true, null = true)]
-    email: String,
-    #[model(size = 255, null = false)]
+
+    #[model(size = 255, unique = true)]
+    email: Option<String>,
+
+    #[model(size = 255)]
     password: String,
-    #[model(default = false)]
+
     admin: Boolean,
-    #[model(null = false)]
+
     age: Integer,
-    #[model(null = false)]
+
     weight: Float,
 }
 
@@ -23,27 +27,33 @@ struct User {
 struct Product {
     #[model(primary_key = true, auto = true, null = false)]
     id: Integer,
+
     #[model(size = 50, null = false)]
     name: String,
+
     price: Float,
-    description: Text,
+
+    description: Option<Text>,
+
     #[model(default = true)]
     is_sel: Boolean,
-    #[model(null = false, foreign_key = "User.id")]
+
+    #[model(foreign_key = "User.id")]
     owner: Integer,
+
     #[model(default = "now")]
     at: DateTime,
 }
 
 #[tokio::main]
-async fn main() {
-    let conn = Database::new().await.conn;
+async fn main() -> Result<()> {
+    let conn = Database::new().await?.conn;
 
     migrate!([User, Product], &conn);
 
     User {
         name: "johnDoe@gmail.com".to_string(),
-        email: "21john@gmail.com".to_string(),
+        email: Some("21john@gmail.com".to_string()),
         password: "p455w0rd".to_string(),
         age: 18,
         weight: 60.0,
@@ -91,7 +101,6 @@ async fn main() {
         kwargs!(
             name = "tomato".to_string(),
             price = 1000.0,
-            description = "".to_string(),
             owner = user.clone().unwrap().id
         ),
         &conn,
@@ -110,4 +119,6 @@ async fn main() {
 
     let users = User::filter(kwargs!(age <= 18), &conn).await;
     println!("6: {:#?}", users);
+
+    Ok(())
 }
