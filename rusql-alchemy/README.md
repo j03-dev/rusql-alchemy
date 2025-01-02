@@ -32,6 +32,7 @@ struct User {
     name: String,
 
     age: Integer,
+
     #[model(default="user")]
     role: String
 }
