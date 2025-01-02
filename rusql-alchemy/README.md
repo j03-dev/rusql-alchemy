@@ -57,7 +57,7 @@ features = ["postgres"]
 ```rust
 use rusql_alchemy::prelude::*;
 
-#[derive(Debug, Model, FromRow)]
+#[derive(Model, FromRow, Debug, Default)]
 struct User_ {
     #[model(primary_key=true)]
     id: Serial,
@@ -65,21 +65,26 @@ struct User_ {
     #[model(unique=true)]
     name: String,
 
+    email: Option<String>,
+
     age: Integer,
 
     #[model(default="user")]
-    role: String
+    role: String,
+
+    weight: Float,
 }
 ```
 
 ## Migrate
 
 ```rust
+use anyhow::Result;
 use rusql_alchemy::prelude::*;
 
 #[tokio::main]
-async fn main() {
-    let conn = Database::new().await.conn;
+async fn main() -> Result<()> {
+    let conn = Database::new().await?.conn;
     migrate([Use], &conn);
 }
 ```
@@ -87,15 +92,15 @@ async fn main() {
 
 ### Insert
 ```rust
+use anyhow::Result;
 use rusql_alchemy::prelude::*;
 
 #[tokio::main]
-async fn main() {
-    let conn = Database::new().await.conn;
+async fn main() -> Result<()> {
+    let conn = Database::new().await?.conn;
 
     User_ {
-        name: "johnDoe@gmail.com".to_string(),
-        email: "21john@gmail.com".to_string(),
+        name: "johnDoe".to_string(),
         password: "p455w0rd".to_string(),
         age: 18,
         weight: 60.0,
@@ -144,10 +149,11 @@ async fn main() {
 ### Update
 ```rust
 use rusql_alchemy::prelude::*;
+use anyhow::Result;
 
 #[tokio::main]
-async fn main() {
-    let conn = Database::new().await.conn;
+async fn main() -> Result<()> {
+    let conn = Database::new().await?.conn;
 
     if let Some(mut user) = User_::get(
         kwargs!(email == "24nomeniavo@gmail.com").and(kwargs!(password == "strongpassword")),
