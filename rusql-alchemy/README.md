@@ -25,11 +25,12 @@ use rusql_alchemy::prelude::*;
 
 #[derive(Debug, Model, FromRow)]
 struct User {
-    #[model(primary_key=true, auto=true, null=false)]
+    #[model(primary_key=true, auto=true)]
     id: Integer,
-    #[model(unique=true, null=false)]
+
+    #[model(unique=true)]
     name: String,
-    #[model(null=false)]
+
     age: Integer,
     #[model(default="user")]
     role: String
@@ -59,10 +60,12 @@ use rusql_alchemy::prelude::*;
 struct User_ {
     #[model(primary_key=true)]
     id: Serial,
-    #[model(unique=true, null=false)]
+
+    #[model(unique=true)]
     name: String,
-    #[model(null=false)]
+
     age: Integer,
+
     #[model(default="user")]
     role: String
 }

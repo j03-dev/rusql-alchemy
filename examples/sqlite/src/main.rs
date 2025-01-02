@@ -25,10 +25,10 @@ struct User {
 
 #[derive(FromRow, Debug, Default, Model, Clone)]
 struct Product {
-    #[model(primary_key = true, auto = true, null = false)]
+    #[model(primary_key = true, auto = true)]
     id: Integer,
 
-    #[model(size = 50, null = false)]
+    #[model(size = 50)]
     name: String,
 
     price: Float,

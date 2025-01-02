@@ -463,15 +463,15 @@ where
     /// #
     /// # #[derive(FromRow, Debug, Default, Model, Clone)]
     /// # struct Product {
-    /// #     #[model(primary_key = true, auto = true, null = false)]
+    /// #     #[model(primary_key = true, auto = true)]
     /// #     id: Integer,
-    /// #     #[model(size = 50, null = false)]
+    /// #     #[model(size = 50)]
     /// #     name: String,
     /// #     price: Float,
     /// #     description: Text,
     /// #     #[model(default = true)]
     /// #     is_sel: Boolean,
-    /// #     #[model(null = false, foreign_key = "User.id")]
+    /// #     #[model(foreign_key = "User.id")]
     /// #     owner: Integer,
     /// #     #[model(default = "now")]
     /// #     at: DateTime,
