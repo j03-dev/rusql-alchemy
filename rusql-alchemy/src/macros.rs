@@ -177,6 +177,6 @@ macro_rules! binds {
 #[macro_export]
 macro_rules! migrate {
     ([$($struct:ident),*], $conn:expr) => {
-        $( $struct::migrate($conn).await; )*
+        $( $struct::migrate($conn).await?; )*
     };
 }

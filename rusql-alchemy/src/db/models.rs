@@ -4,6 +4,7 @@
 //! including querying, inserting, updating, and deleting records.
 
 use lazy_static::lazy_static;
+use sqlformat::{FormatOptions, QueryParams};
 use sqlx::{any::AnyRow, FromRow, Row};
 
 use crate::{get_placeholder, get_type_name, Connection};
@@ -170,17 +171,23 @@ pub trait Model {
     /// let success = User::migrate(&conn).await;
     /// println!("Migration success: {}", success);
     /// ```
-    async fn migrate(conn: &Connection) -> bool
+    async fn migrate(conn: &Connection) -> Result<(), sqlx::Error>
     where
         Self: Sized,
     {
-        println!("{:?}", Self::SCHEMA);
-        if let Err(err) = sqlx::query(Self::SCHEMA).execute(conn).await {
-            eprintln!("Error during the migration\n->{err}");
-            false
-        } else {
-            true
-        }
+        let formatted_sql = sqlformat::format(
+            Self::SCHEMA,
+            &QueryParams::None,
+            &FormatOptions {
+                uppercase: Some(true),
+                lines_between_queries: 2,
+                ..FormatOptions::default()
+            },
+        );
+
+        println!("{}", formatted_sql);
+        sqlx::query(Self::SCHEMA).execute(conn).await?;
+        Ok(())
     }
 
     /// Saves the current model instance to the database.
@@ -204,7 +211,7 @@ pub trait Model {
     /// let success = user.save(&conn).await;
     /// println!("Save success: {}", success);
     /// ```
-    async fn save(&self, conn: &Connection) -> bool
+    async fn save(&self, conn: &Connection) -> Result<(), sqlx::Error>
     where
         Self: Sized;
 
@@ -231,7 +238,7 @@ pub trait Model {
     /// ).await;
     /// println!("Create success: {}", success);
     /// ```
-    async fn create(kw: Vec<Condition>, conn: &Connection) -> bool
+    async fn create(kw: Vec<Condition>, conn: &Connection) -> Result<(), sqlx::Error>
     where
         Self: Sized,
     {
@@ -243,7 +250,8 @@ pub trait Model {
         );
         let mut stream = sqlx::query(&query);
         binds!(args, stream);
-        stream.execute(conn).await.is_ok()
+        stream.execute(conn).await?;
+        Ok(())
     }
 
     /// Updates the current model instance in the database.
@@ -265,7 +273,7 @@ pub trait Model {
     ///     println!("Update success: {}", success);
     /// }
     /// ```
-    async fn update(&self, conn: &Connection) -> bool
+    async fn update(&self, conn: &Connection) -> Result<(), sqlx::Error>
     where
         Self: Sized;
 
@@ -292,7 +300,7 @@ pub trait Model {
         id_value: T,
         kw: Vec<Condition>,
         conn: &Connection,
-    ) -> bool {
+    ) -> Result<(), sqlx::Error> {
         let (placeholders, mut args) = kw.to_update_query();
 
         args.push((
@@ -309,7 +317,8 @@ pub trait Model {
 
         let mut stream = sqlx::query(&query);
         binds!(args, stream);
-        stream.execute(conn).await.is_ok()
+        stream.execute(conn).await?;
+        Ok(())
     }
 
     /// Deletes the current model instance from the database.
@@ -325,7 +334,7 @@ pub trait Model {
     /// let success = user.delete(&conn).await;
     /// println!("Delete success: {}", success);
     /// ```
-    async fn delete(&self, conn: &Connection) -> bool
+    async fn delete(&self, conn: &Connection) -> Result<(), sqlx::Error>
     where
         Self: Sized;
 
@@ -342,15 +351,12 @@ pub trait Model {
     /// let users = User::all(&conn).await;
     /// println!("{:#?}", users);
     /// ```
-    async fn all(conn: &Connection) -> Vec<Self>
+    async fn all(conn: &Connection) -> Result<Vec<Self>, sqlx::Error>
     where
         Self: Sized + Unpin + for<'r> FromRow<'r, AnyRow> + Clone,
     {
         let query = format!("select * from {table_name}", table_name = Self::NAME);
-        sqlx::query_as::<_, Self>(&query)
-            .fetch_all(conn)
-            .await
-            .unwrap_or_default()
+        Ok(sqlx::query_as::<_, Self>(&query).fetch_all(conn).await?)
     }
 
     /// Filters instances of the model based on the provided parameters.
@@ -370,7 +376,7 @@ pub trait Model {
     /// ).await;
     /// println!("{:#?}", users);
     /// ```
-    async fn filter(kw: Vec<Condition>, conn: &Connection) -> Vec<Self>
+    async fn filter(kw: Vec<Condition>, conn: &Connection) -> Result<Vec<Self>, sqlx::Error>
     where
         Self: Sized + Unpin + for<'r> FromRow<'r, AnyRow> + Clone,
     {
@@ -383,7 +389,7 @@ pub trait Model {
 
         let mut stream = sqlx::query_as::<_, Self>(&query);
         binds!(args, stream);
-        stream.fetch_all(conn).await.unwrap_or_default()
+        Ok(stream.fetch_all(conn).await?)
     }
 
     /// Retrieves the first instance of the model matching the filter criteria.
@@ -403,11 +409,11 @@ pub trait Model {
     /// ).await;
     /// println!("{:#?}", user);
     /// ```
-    async fn get(kw: Vec<Condition>, conn: &Connection) -> Option<Self>
+    async fn get(kw: Vec<Condition>, conn: &Connection) -> Result<Option<Self>, sqlx::Error>
     where
         Self: Sized + Unpin + for<'r> FromRow<'r, AnyRow> + Clone,
     {
-        Self::filter(kw, conn).await.first().cloned()
+        Ok(Self::filter(kw, conn).await?.first().cloned())
     }
 
     /// Counts the number of instances of the model in the database.
@@ -438,7 +444,7 @@ pub trait Model {
 /// Trait for deleting database records.
 #[async_trait::async_trait]
 pub trait Delete {
-    async fn delete(&self, conn: &Connection) -> bool;
+    async fn delete(&self, conn: &Connection) -> Result<(), sqlx::Error>;
 }
 #[async_trait::async_trait]
 impl<T> Delete for Vec<T>
@@ -491,8 +497,9 @@ where
     /// ```
     ///
     /// In the above example, all records from the `Product` table will be deleted.
-    async fn delete(&self, conn: &Connection) -> bool {
+    async fn delete(&self, conn: &Connection) -> Result<(), sqlx::Error> {
         let query = format!("delete from {table_name}", table_name = T::NAME);
-        sqlx::query(query.as_str()).execute(conn).await.is_ok()
+        sqlx::query(query.as_str()).execute(conn).await?;
+        Ok(())
     }
 }

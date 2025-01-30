@@ -27,3 +27,4 @@ lazy_static.workspace = true
 sqlx = { workspace = true, features = ["runtime-tokio-rustls", "any"] }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 anyhow.workspace = true
+sqlformat.workspace = true

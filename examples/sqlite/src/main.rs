@@ -16,6 +16,7 @@ struct User {
     #[model(size = 255)]
     password: String,
 
+    #[model(default = false)]
     admin: Boolean,
 
     age: Integer,
@@ -35,7 +36,7 @@ struct Product {
 
     description: Option<Text>,
 
-    #[model(default = true)]
+    #[model(default = false)]
     is_sel: Boolean,
 
     #[model(foreign_key = "User.id")]
@@ -60,10 +61,10 @@ async fn main() -> Result<()> {
         ..Default::default()
     }
     .save(&conn)
-    .await;
+    .await?;
 
-    let users = User::all(&conn).await;
-    println!("{:#?}", users);
+    let users = User::all(&conn).await?;
+    println!("0: {:#?}", users);
 
     User::create(
         kwargs!(
@@ -75,7 +76,7 @@ async fn main() -> Result<()> {
         ),
         &conn,
     )
-    .await;
+    .await?;
 
     let users = User::all(&conn).await;
     println!("1: {:#?}", users);
@@ -84,16 +85,16 @@ async fn main() -> Result<()> {
         kwargs!(email == "24nomeniavo@gmail.com").and(kwargs!(password == "strongpassword")),
         &conn,
     )
-    .await
+    .await?
     {
         user.admin = Boolean::r#true();
-        user.update(&conn).await;
+        user.update(&conn).await?;
     }
     let user = User::get(
         kwargs!(email == "24nomeniavo@gmail.com").and(kwargs!(password == "strongpassword")),
         &conn,
     )
-    .await;
+    .await?;
 
     println!("2: {:#?}", user);
 
@@ -105,7 +106,7 @@ async fn main() -> Result<()> {
         ),
         &conn,
     )
-    .await;
+    .await?;
 
     let products = Product::all(&conn).await;
     println!("3: {:#?}", products);
@@ -113,9 +114,9 @@ async fn main() -> Result<()> {
     let product = Product::get(kwargs!(is_sel == true), &conn).await;
     println!("4: {:#?}", product);
 
-    let products = Product::all(&conn).await;
+    let products = Product::all(&conn).await?;
     println!("5: {:#?}", products);
-    products.delete(&conn).await;
+    products.delete(&conn).await?;
 
     let users = User::filter(kwargs!(age <= 18), &conn).await;
     println!("6: {:#?}", users);
