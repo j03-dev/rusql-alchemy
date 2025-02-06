@@ -48,11 +48,11 @@ struct Product {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let conn = Database::new().await?.conn;
+    let database = Database::new().await?;
 
-    for model in inventory::iter::<MigrationRegistrar> {
-        (model.migrate_fn)(conn.clone()).await?;
-    }
+    database.migrate().await?;
+
+    let conn = database.conn;
 
     User_ {
         name: "johnDoe@gmail.com".to_string(),

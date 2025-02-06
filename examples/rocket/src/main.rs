@@ -30,15 +30,15 @@ async fn list_user(app_state: &State<AppState>) -> Value {
 
 #[main]
 async fn main() -> Result<()> {
-    let conn = Database::new().await?.conn;
+    let database = Database::new().await?;
 
-    for model in inventory::iter::<MigrationRegistrar> {
-        (model.migrate_fn)(conn.clone()).await?;
-    }
+    database.migrate().await?;
 
     rocket::build()
         .mount("/", routes![list_user])
-        .manage(AppState { conn })
+        .manage(AppState {
+            conn: database.conn.clone(),
+        })
         .launch()
         .await
         .context("failed to launch rocket instance")?;

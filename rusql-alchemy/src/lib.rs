@@ -61,6 +61,13 @@ impl Database {
         let conn = establish_connection(database_url).await?;
         Ok(Self { conn })
     }
+
+    pub async fn migrate(&self) -> Result<()> {
+        for model in inventory::iter::<MigrationRegistrar> {
+            (model.migrate_fn)(self.conn.clone()).await?;
+        }
+        Ok(())
+    }
 }
 
 pub struct MigrationRegistrar {
