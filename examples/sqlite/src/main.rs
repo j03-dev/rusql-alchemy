@@ -50,7 +50,9 @@ struct Product {
 async fn main() -> Result<()> {
     let conn = Database::new().await?.conn;
 
-    migrate!([User, Product], &conn);
+    for model in inventory::iter::<MigrationRegistrar> {
+        (model.migrate_fn)(conn.clone()).await?;
+    }
 
     User {
         name: "johnDoe@gmail.com".to_string(),

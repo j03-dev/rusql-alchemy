@@ -62,3 +62,12 @@ impl Database {
         Ok(Self { conn })
     }
 }
+
+pub struct MigrationRegistrar {
+    pub migrate_fn: fn(
+        Connection,
+    ) -> std::pin::Pin<
+        Box<dyn std::future::Future<Output = Result<(), sqlx::Error>> + Send + 'static>,
+    >,
+}
+inventory::collect!(MigrationRegistrar);

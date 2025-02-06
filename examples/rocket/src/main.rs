@@ -31,7 +31,11 @@ async fn list_user(app_state: &State<AppState>) -> Value {
 #[main]
 async fn main() -> Result<()> {
     let conn = Database::new().await?.conn;
-    migrate!([User_], &conn);
+
+    for model in inventory::iter::<MigrationRegistrar> {
+        (model.migrate_fn)(conn.clone()).await?;
+    }
+
     rocket::build()
         .mount("/", routes![list_user])
         .manage(AppState { conn })

@@ -917,6 +917,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c8fae54786f62fb2918dcfae3d568594e50eb9b5c25bf04371af6fe7516452fb"
 
 [[package]]
+name = "inventory"
+version = "0.3.19"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "54b12ebb6799019b044deaf431eadfe23245b259bba5a2c0796acec3943a3cdb"
+dependencies = [
+ "rustversion",
+]
+
+[[package]]
 name = "is-terminal"
 version = "0.4.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1557,11 +1566,12 @@ dependencies = [
 
 [[package]]
 name = "rusql-alchemy"
-version = "0.4.2-rc"
+version = "0.4.3-rc"
 dependencies = [
  "anyhow",
  "async-trait",
  "dotenv",
+ "inventory",
  "lazy_static",
  "rusql-alchemy-macro",
  "serde",

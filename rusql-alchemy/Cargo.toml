@@ -1,6 +1,6 @@
 [package]
 name = "rusql-alchemy"
-version = "0.4.2-rc"
+version = "0.4.3-rc"
 edition = "2021"
 description = "Rust Alchemy is Django ORM like lib for Rust"
 license = "Apache-2.0"
@@ -28,3 +28,5 @@ sqlx = { workspace = true, features = ["runtime-tokio-rustls", "any"] }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 anyhow.workspace = true
 sqlformat.workspace = true
+
+inventory.workspace = true
