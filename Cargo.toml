@@ -27,5 +27,6 @@ sqlformat = "0.3.5"
 inventory = "0.3"
 
 # Local database utilities (development)
-rusql-alchemy.path = "rusql-alchemy"
-rusql-alchemy-macro.path = "rusql-alchemy-macro" 
+rusql-alchemy = { version = "0.4.3-rc", path = "rusql-alchemy" }
+rusql-alchemy-macro = { version = "0.4.3-rc", path = "rusql-alchemy-macro" }
+
