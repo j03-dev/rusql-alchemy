@@ -84,8 +84,9 @@ use rusql_alchemy::prelude::*;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let conn = Database::new().await?.conn;
-    migrate([Use], &conn);
+    let database = Database::new().await?;
+    database.migrate().await?;
+    Ok(())
 }
 ```
 ## Query
