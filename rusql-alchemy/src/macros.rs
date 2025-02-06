@@ -156,27 +156,3 @@ macro_rules! binds {
         }
     };
 }
-
-/// A macro to run the `migrate` function for multiple structs asynchronously.
-///
-/// This macro accepts a list of structs and a connection, and calls the `migrate` function
-/// on each struct with the given connection.
-///
-/// # Arguments
-///
-/// * `[$($struct:ident),*]` - A list of structs to migrate.
-/// * `$conn:expr` - The connection to be used for migration.
-///
-/// # Example
-///
-/// ```
-/// migrate!([User, Product, Order], conn);
-/// ```
-///
-/// This will call `User::migrate(conn).await`, `Product::migrate(conn).await`, and `Order::migrate(conn).await`.
-#[macro_export]
-macro_rules! migrate {
-    ([$($struct:ident),*], $conn:expr) => {
-        $( $struct::migrate($conn).await?; )*
-    };
-}

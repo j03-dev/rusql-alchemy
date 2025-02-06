@@ -171,25 +171,31 @@ pub trait Model {
     /// let success = User::migrate(&conn).await;
     /// println!("Migration success: {}", success);
     /// ```
-    async fn migrate(conn: &Connection) -> Result<(), sqlx::Error>
+
+    fn migrate(
+        conn: Connection,
+    ) -> std::pin::Pin<
+        Box<dyn std::future::Future<Output = Result<(), sqlx::Error>> + Send + 'static>,
+    >
     where
         Self: Sized,
     {
-        let formatted_sql = sqlformat::format(
-            Self::SCHEMA,
-            &QueryParams::None,
-            &FormatOptions {
-                uppercase: Some(true),
-                lines_between_queries: 2,
-                ..FormatOptions::default()
-            },
-        );
+        Box::pin(async move {
+            let formatted_sql = sqlformat::format(
+                Self::SCHEMA,
+                &QueryParams::None,
+                &FormatOptions {
+                    uppercase: Some(true),
+                    lines_between_queries: 2,
+                    ..FormatOptions::default()
+                },
+            );
 
-        println!("{}", formatted_sql);
-        sqlx::query(Self::SCHEMA).execute(conn).await?;
-        Ok(())
+            println!("{}", formatted_sql);
+            sqlx::query(Self::SCHEMA).execute(&conn).await?;
+            Ok(())
+        })
     }
-
     /// Saves the current model instance to the database.
     ///
     /// # Arguments
