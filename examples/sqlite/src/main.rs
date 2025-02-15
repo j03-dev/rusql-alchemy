@@ -89,7 +89,7 @@ async fn main() -> Result<()> {
     )
     .await?
     {
-        user.admin = Boolean::r#true();
+        user.admin = True;
         user.update(&conn).await?;
     }
     let user = User::get(
