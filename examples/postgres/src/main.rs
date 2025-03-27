@@ -4,45 +4,49 @@ use sqlx::FromRow;
 
 #[derive(FromRow, Clone, Debug, Default, Model)]
 struct User_ {
-    #[model(primary_key = true)]
+    #[field(primary_key = true)]
     id: Serial, // in postgresql, serial is auto increment
 
-    #[model(size = 50, unique = true)]
+    #[field(size = 50, unique = true)]
     name: String,
 
-    #[model(size = 255, unique = true)]
+    #[field(size = 255, unique = true)]
     email: Option<String>,
 
-    #[model(size = 255)]
+    #[field(size = 255)]
     password: String,
 
-    #[model(default = "user")]
+    #[field(default = "user")]
     role: String,
 
+    #[field]
     age: Integer,
 
+    #[field]
     weight: Float,
 }
 
 #[derive(FromRow, Debug, Default, Model, Clone)]
 struct Product {
-    #[model(primary_key = true)]
+    #[field(primary_key = true)]
     id: Serial, // in postgresql, serial is auto increment
 
-    #[model(size = 50)]
+    #[field(size = 50)]
     name: String,
 
+    #[field]
     price: Float,
 
+    #[field]
     description: Option<Text>,
 
-    #[model(default = true)]
+    #[field(default = true)]
     is_sel: Boolean,
 
-    #[model(foreign_key = "User_.id")]
+    #[field(foreign_key = User_.id)]
     owner: Integer,
 
-    #[model(default = "now")]
+    #[field(default = "now")]
     at: DateTime,
 }
 

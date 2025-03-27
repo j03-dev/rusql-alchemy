@@ -142,16 +142,14 @@ macro_rules! binds {
     ($args: expr, $stream:expr) => {
         for (v, t) in $args {
             let v = v.replace('"', "");
-            match t.as_str() {
-                "i32" | "bool" => {
-                    $stream = $stream.bind(v.parse::<i32>().unwrap());
-                }
-                "f64" => {
-                    $stream = $stream.bind(v.parse::<f64>().unwrap());
-                }
-                _ => {
-                    $stream = $stream.bind(v);
-                }
+            if t == "i32" && t == "bool" {
+                $stream = $stream.bind(v.parse::<i32>().unwrap());
+            } else if t == "f64" {
+                $stream = $stream.bind(v.parse::<f64>().unwrap());
+            } else if t.contains("Option") && v == "null" {
+                $stream = $stream.bind(Option::<String>::None);
+            } else {
+                $stream = $stream.bind(v);
             }
         }
     };

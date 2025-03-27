@@ -22,7 +22,7 @@ async-trait.workspace = true
 dotenv.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-rusql-alchemy-macro.workspace = true
+rusql-alchemy-derive.workspace = true
 lazy_static.workspace = true
 sqlx = { workspace = true, features = ["runtime-tokio-rustls", "any"] }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

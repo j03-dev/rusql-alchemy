@@ -11,6 +11,8 @@ pub mod prelude;
 /// This module contains the custom types used in the crate.
 pub mod types;
 
+use std::{future::Future, pin::Pin};
+
 /// The placeholder for the database query.
 pub use db::models::PLACEHOLDER;
 pub use utils::*;
@@ -70,11 +72,11 @@ impl Database {
     }
 }
 
+type MigrateFn =
+    fn(Connection) -> Pin<Box<dyn Future<Output = Result<(), sqlx::Error>> + Send + 'static>>;
+
 pub struct MigrationRegistrar {
-    pub migrate_fn: fn(
-        Connection,
-    ) -> std::pin::Pin<
-        Box<dyn std::future::Future<Output = Result<(), sqlx::Error>> + Send + 'static>,
-    >,
+    pub migrate_fn: MigrateFn,
 }
+
 inventory::collect!(MigrationRegistrar);

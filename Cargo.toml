@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["rusql-alchemy", "rusql-alchemy-macro", "examples/*"]
+members = ["rusql-alchemy", "rusql-alchemy-derive", "examples/*"]
 
 
 [workspace.dependencies]
@@ -28,5 +28,4 @@ inventory = "0.3"
 
 # Local database utilities (development)
 rusql-alchemy = { version = "0.4.3-rc", path = "rusql-alchemy" }
-rusql-alchemy-macro = { version = "0.4.3-rc", path = "rusql-alchemy-macro" }
-
+rusql-alchemy-derive = { version = "1.0.0", path = "rusql-alchemy-derive" }

@@ -1,0 +1,18 @@
+[package]
+name = "rusql-alchemy-derive"
+version = "1.0.0"
+edition = "2021"
+license = "Apache-2.0"
+description = "macro for rusql-alchemy"
+homepage = "https://github.com/russenger/rusql-alchemey-macro"
+repository = "https://github.com/russenger/rusql-alchemy-macro"
+authors = ["FITAHIANA Nomeniavo Joe <24nomeniavo@gmail.com>"]
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2 = "1.0.85"
+quote = "1.0.36"
+syn = { version = "2.0", features = ["full"] }
+deluxe = "0.5"

@@ -171,7 +171,6 @@ pub trait Model {
     /// let success = User::migrate(&conn).await;
     /// println!("Migration success: {}", success);
     /// ```
-
     fn migrate(
         conn: Connection,
     ) -> std::pin::Pin<

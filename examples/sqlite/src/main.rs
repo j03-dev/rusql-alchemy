@@ -4,45 +4,46 @@ use sqlx::FromRow;
 
 #[derive(FromRow, Clone, Debug, Default, Model)]
 struct User {
-    #[model(primary_key = true, auto = true)]
+    #[field(primary_key = true, auto = true)]
     id: Integer,
 
-    #[model(size = 50, unique = true)]
+    #[field(size = 50, unique = true)]
     name: String,
 
-    #[model(size = 255, unique = true)]
+    #[field(size = 255, unique = true)]
     email: Option<String>,
 
-    #[model(size = 255)]
+    #[field(size = 255)]
     password: String,
 
-    #[model(default = false)]
+    age: Option<Integer>,
+
+    #[field(default = false)]
     admin: Boolean,
 
-    age: Integer,
-
-    weight: Float,
+    #[field(default = "user")]
+    role: Option<String>,
 }
 
 #[derive(FromRow, Debug, Default, Model, Clone)]
 struct Product {
-    #[model(primary_key = true, auto = true)]
+    #[field(primary_key = true, auto = true)]
     id: Integer,
 
-    #[model(size = 50)]
+    #[field(size = 50)]
     name: String,
 
     price: Float,
 
     description: Option<Text>,
 
-    #[model(default = false)]
+    #[field(default = false)]
     is_sel: Boolean,
 
-    #[model(foreign_key = "User.id")]
+    #[field(foreign_key = User.id)]
     owner: Integer,
 
-    #[model(default = "now")]
+    #[field(default = "now")]
     at: DateTime,
 }
 
@@ -58,12 +59,11 @@ async fn main() -> Result<()> {
         name: "johnDoe@gmail.com".to_string(),
         email: Some("21john@gmail.com".to_string()),
         password: "p455w0rd".to_string(),
-        age: 18,
-        weight: 60.0,
         ..Default::default()
     }
     .save(&conn)
-    .await?;
+    .await
+    .ok();
 
     let users = User::all(&conn).await?;
     println!("0: {:#?}", users);
@@ -72,13 +72,12 @@ async fn main() -> Result<()> {
         kwargs!(
             name = "joe",
             email = "24nomeniavo@gmail.com",
-            password = "strongpassword",
-            age = 19,
-            weight = 80.1
+            password = "strongpassword"
         ),
         &conn,
     )
-    .await?;
+    .await
+    .ok();
 
     let users = User::all(&conn).await;
     println!("1: {:#?}", users);
@@ -90,15 +89,13 @@ async fn main() -> Result<()> {
     .await?
     {
         user.admin = True;
-        user.update(&conn).await?;
+        user.update(&conn).await.ok();
     }
     let user = User::get(
         kwargs!(email == "24nomeniavo@gmail.com").and(kwargs!(password == "strongpassword")),
         &conn,
     )
     .await?;
-
-    println!("2: {:#?}", user);
 
     Product::create(
         kwargs!(
@@ -108,7 +105,8 @@ async fn main() -> Result<()> {
         ),
         &conn,
     )
-    .await?;
+    .await
+    .ok();
 
     let products = Product::all(&conn).await;
     println!("3: {:#?}", products);
@@ -118,7 +116,7 @@ async fn main() -> Result<()> {
 
     let products = Product::all(&conn).await?;
     println!("5: {:#?}", products);
-    products.delete(&conn).await?;
+    products.delete(&conn).await.ok();
 
     let users = User::filter(kwargs!(age <= 18), &conn).await;
     println!("6: {:#?}", users);

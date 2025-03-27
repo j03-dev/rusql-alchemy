@@ -14,10 +14,10 @@ struct AppState {
 
 #[derive(Model, FromRow, Clone, Serialize)]
 struct User_ {
-    #[model(primary_key = true)]
+    #[field(primary_key = true)]
     id: Serial,
 
-    #[model(unique = true, size = 50)]
+    #[field(unique = true, size = 50)]
     username: String,
 }
 
