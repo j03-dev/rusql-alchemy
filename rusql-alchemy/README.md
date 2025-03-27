@@ -19,21 +19,21 @@ git = "https://github.com/j03-dev/rusql-alchemy"
 branch= "main"
 features = ["sqlite"] # the default features is sqlite
 ```
-### Model
+### field
 ```rust
 use rusql_alchemy::prelude::*;
 
-#[derive(Debug, Model, FromRow)]
+#[derive(Debug, field, FromRow)]
 struct User {
-    #[model(primary_key=true, auto=true)]
+    #[field(primary_key=true, auto=true)]
     id: Integer,
 
-    #[model(unique=true)]
+    #[field(unique=true)]
     name: String,
 
     age: Integer,
 
-    #[model(default="user")]
+    #[field(default="user")]
     role: String
 }
 ```
@@ -53,23 +53,23 @@ branch="main"
 default-features = false
 features = ["postgres"]
 ```
-### Model: In postgres primary key should be `Serial` type
+### field: In postgres primary key should be `Serial` type
 ```rust
 use rusql_alchemy::prelude::*;
 
-#[derive(Model, FromRow, Debug, Default)]
+#[derive(field, FromRow, Debug, Default)]
 struct User_ {
-    #[model(primary_key=true)]
+    #[field(primary_key=true)]
     id: Serial,
 
-    #[model(unique=true)]
+    #[field(unique=true)]
     name: String,
 
     email: Option<String>,
 
     age: Integer,
 
-    #[model(default="user")]
+    #[field(default="user")]
     role: String,
 
     weight: Float,
@@ -178,7 +178,7 @@ async fn main() {
     if let Some(user) = User_::get(kwargs!(role == "admin"), &conn).await {
         user.delete(&conn).await; // delete one
     }
-    
+
     let users = User_::all(&conn).await;
     users.delete(&conn).await; // delete all
 }
