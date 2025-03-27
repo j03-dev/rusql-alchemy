@@ -37,7 +37,7 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
     } = process_fields(fields);
 
     let primary_key = {
-        let pk = the_primary_key.to_string().replace(".clone()", "");
+        let pk = the_primary_key.to_string();
         quote! {
             const PK: &'static str = #pk;
         }
@@ -88,9 +88,8 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
 
     let delete = {
         let query = format!("delete from {name} where {the_primary_key}=?1;");
-        let query = query.replace(".clone()", "");
         quote! {
-            async fn delete(&self, conn: &Connection) -> Result<(),sqlx::Error> {
+            async fn delete(&self, conn: &Connection) -> Result<(), sqlx::Error> {
                 let placeholder = rusql_alchemy::PLACEHOLDER.to_string();
                 sqlx::query(&#query.replace("?", &placeholder).replace("$", &placeholder))
                     .bind(self.#the_primary_key)
@@ -176,7 +175,7 @@ fn process_fields(fields: &syn::punctuated::Punctuated<Field, syn::Token![,]>) -
         };
 
         if attrs.primary_key.unwrap_or(false) {
-            the_primary_key = quote! { #field_name.clone() };
+            the_primary_key = quote! { #field_name };
         }
 
         let default = match &attrs.default {
