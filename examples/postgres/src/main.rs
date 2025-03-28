@@ -2,7 +2,7 @@ use anyhow::Result;
 use rusql_alchemy::prelude::*;
 use sqlx::FromRow;
 
-#[derive(FromRow, Clone, Debug, Default, Model)]
+#[derive(FromRow, Clone, Debug, Model)]
 struct User_ {
     #[field(primary_key = true)]
     id: Serial, // in postgresql, serial is auto increment
@@ -26,7 +26,7 @@ struct User_ {
     weight: Float,
 }
 
-#[derive(FromRow, Debug, Default, Model, Clone)]
+#[derive(FromRow, Debug, Model, Clone)]
 struct Product {
     #[field(primary_key = true)]
     id: Serial, // in postgresql, serial is auto increment

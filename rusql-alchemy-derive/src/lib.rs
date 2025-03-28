@@ -34,6 +34,7 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
         create_args,
         update_args,
         the_primary_key,
+        default_fields,
     } = process_fields(fields);
 
     let primary_key = {
@@ -91,7 +92,7 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
         quote! {
             async fn delete(&self, conn: &Connection) -> Result<(), sqlx::Error> {
                 let placeholder = rusql_alchemy::PLACEHOLDER.to_string();
-                sqlx::query(&#query.replace("?", &placeholder).replace("$", &placeholder))
+                sqlx::query(&#query.replace("?", &placeholder))
                     .bind(self.#the_primary_key)
                     .execute(conn)
                     .await?;
@@ -111,6 +112,14 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
             #delete
         }
 
+        impl Default for #name {
+            fn default() -> Self {
+                Self {
+                    #(#default_fields),*
+                }
+            }
+        }
+
         rusql_alchemy::prelude::inventory::submit! {
             MigrationRegistrar {
                 migrate_fn: #name::migrate
@@ -118,7 +127,7 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
         }
     };
 
-    TokenStream::from(expanded)
+    expanded.into()
 }
 
 #[derive(Debug)]
@@ -127,6 +136,7 @@ struct ModelData {
     create_args: Vec<proc_macro2::TokenStream>,
     update_args: Vec<proc_macro2::TokenStream>,
     the_primary_key: proc_macro2::TokenStream,
+    default_fields: Vec<proc_macro2::TokenStream>,
 }
 
 fn process_fields(fields: &syn::punctuated::Punctuated<Field, syn::Token![,]>) -> ModelData {
@@ -134,6 +144,7 @@ fn process_fields(fields: &syn::punctuated::Punctuated<Field, syn::Token![,]>) -
     let mut create_args = Vec::new();
     let mut update_args = Vec::new();
     let mut the_primary_key = quote! {};
+    let mut default_fields = Vec::new();
 
     for field in fields {
         let field_name = field.ident.as_ref().expect("Field name should be present");
@@ -145,6 +156,7 @@ fn process_fields(fields: &syn::punctuated::Punctuated<Field, syn::Token![,]>) -
         let is_auto = attrs.auto.unwrap_or(false);
         let is_unique = attrs.unique.unwrap_or(false);
         let size = attrs.size;
+        let is_primary_key = attrs.primary_key.unwrap_or(false);
 
         let is_nullable = match &field.ty {
             syn::Type::Path(type_path) => {
@@ -174,7 +186,7 @@ fn process_fields(fields: &syn::punctuated::Punctuated<Field, syn::Token![,]>) -
             None => quote! {},
         };
 
-        if attrs.primary_key.unwrap_or(false) {
+        if is_primary_key {
             the_primary_key = quote! { #field_name };
         }
 
@@ -199,12 +211,57 @@ fn process_fields(fields: &syn::punctuated::Punctuated<Field, syn::Token![,]>) -
                         }
                     }
                     _ => {
-                        let default_value = default_value.to_string();
                         quote! { default #default_value }
                     }
                 }
             }
             None => quote! {},
+        };
+
+        let default_value = match &attrs.default {
+            Some(default_value) => {
+                let default_value_str = default_value.to_string().replace('"', "");
+                match default_value_str.as_str() {
+                    "now" => {
+                        if field_type == "Date" {
+                            quote! { chrono::Utc::now().format("%Y-%m-%d").to_string() }
+                        } else if field_type == "DateTime" {
+                            quote! { chrono::Utc::now().format("%Y-%m-%d %H:%M:%S").to_string() }
+                        } else {
+                            panic!("'now' is work only with Date or DateTime");
+                        }
+                    }
+                    "false" | "true" if field_type == "Boolean" => {
+                        if default_value_str == "true" {
+                            quote! {1}
+                        } else {
+                            quote! {0}
+                        }
+                    }
+                    _ => {
+                        let df = default_value_str.to_string();
+                        if is_nullable {
+                            quote! {Some(#df.into())}
+                        } else {
+                            quote! {#df.into()}
+                        }
+                    }
+                }
+            }
+            None => {
+                if is_nullable {
+                    quote! {None}
+                } else {
+                    match field_type.as_str() {
+                        "Serial" | "Integer" => quote! {0},
+                        "String" | "Text" => quote! {String::default()},
+                        "Float" => quote! {0.0},
+                        "Date" | "Datetime" => quote! {String::default()},
+                        "Boolean" => quote! {0},
+                        _ => panic!("Unsupported type for default value"),
+                    }
+                }
+            }
         };
 
         let field_schema = generate_field_schema(
@@ -222,6 +279,7 @@ fn process_fields(fields: &syn::punctuated::Punctuated<Field, syn::Token![,]>) -
         );
 
         schema_fields.push(field_schema);
+        default_fields.push(quote! {#field_name: #default_value});
     }
 
     ModelData {
@@ -229,6 +287,7 @@ fn process_fields(fields: &syn::punctuated::Punctuated<Field, syn::Token![,]>) -
         create_args,
         update_args,
         the_primary_key,
+        default_fields,
     }
 }
 
