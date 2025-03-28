@@ -10,7 +10,7 @@ authors = ["FITAHIANA Nomeniavo Joe <24nomeniavo@gmail.com>"]
 proc-macro = true
 
 [dependencies]
-proc-macro2 = "1.0.94"
-quote = "1.0.40"
-syn = { version = "2.0", features = ["full"] }
-deluxe = "0.5"
+proc-macro2.workspace = true
+quote.workspace = true
+syn = { workspace = true, features = ["full"] }
+deluxe.workspace = true
