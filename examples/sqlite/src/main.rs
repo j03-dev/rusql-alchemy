@@ -92,13 +92,15 @@ async fn main() -> Result<()> {
     .await?
     {
         user.admin = True;
-        user.update(&conn).await.ok();
+        user.update(&conn).await?;
     }
     let user = User::get(
         kwargs!(email == "24nomeniavo@gmail.com").and(kwargs!(password == "strongpassword")),
         &conn,
     )
     .await?;
+
+    println!("2: {:#?}", user);
 
     Product::create(
         kwargs!(
