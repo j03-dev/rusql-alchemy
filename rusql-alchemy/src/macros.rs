@@ -43,74 +43,14 @@ macro_rules! kwargs {
             args
         }
     };
-    ($field:ident == $value:expr) => {
+    ($field:ident $op:tt $value:expr) => {
         {
             vec![
                 Condition::FieldCondition {
                     field: stringify!($field).to_string(),
                     value: rusql_alchemy::to_string($value.clone()),
                     value_type: rusql_alchemy::get_type_name($value.clone()).into(),
-                    comparison_operator: "=".to_string(),
-                }
-            ]
-        }
-    };
-    ($field:ident != $value:expr) => {
-        {
-            vec![
-                Condition::FieldCondition {
-                    field: stringify!($field).to_string(),
-                    value: rusql_alchemy::to_string($value.clone()),
-                    value_type: rusql_alchemy::get_type_name($value.clone()).into(),
-                    comparison_operator: "!=".to_string(),
-                }
-            ]
-        }
-    };
-    ($field:ident < $value:expr) => {
-        {
-            vec![
-                Condition::FieldCondition {
-                    field: stringify!($field).to_string(),
-                    value: rusql_alchemy::to_string($value.clone()),
-                    value_type: rusql_alchemy::get_type_name($value.clone()).into(),
-                    comparison_operator: "<".to_string(),
-                }
-            ]
-        }
-    };
-    ($field:ident <= $value:expr) => {
-        {
-            vec![
-                Condition::FieldCondition {
-                    field: stringify!($field).to_string(),
-                    value: rusql_alchemy::to_string($value.clone()),
-                    value_type: rusql_alchemy::get_type_name($value.clone()).into(),
-                    comparison_operator: "<=".to_string(),
-                }
-            ]
-        }
-    };
-    ($field:ident > $value:expr) => {
-        {
-            vec![
-                Condition::FieldCondition {
-                    field: stringify!($field).to_string(),
-                    value: rusql_alchemy::to_string($value.clone()),
-                    value_type: rusql_alchemy::get_type_name($value.clone()).into(),
-                    comparison_operator: ">".to_string(),
-                }
-            ]
-        }
-    };
-    ($field:ident >= $value:expr) => {
-        {
-            vec![
-                Condition::FieldCondition {
-                    field: stringify!($field).to_string(),
-                    value: rusql_alchemy::to_string($value.clone()),
-                    value_type: rusql_alchemy::get_type_name($value.clone()).into(),
-                    comparison_operator: ">=".to_string(),
+                    comparison_operator: stringify!($op).to_string(),
                 }
             ]
         }

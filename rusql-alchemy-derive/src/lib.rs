@@ -239,11 +239,10 @@ fn process_fields(fields: &syn::punctuated::Punctuated<Field, syn::Token![,]>) -
                         }
                     }
                     _ => {
-                        let df = default_value_str.to_string();
                         if is_nullable {
-                            quote! {Some(#df.into())}
+                            quote! {Some(#default_value_str.into())}
                         } else {
-                            quote! {#df.into()}
+                            quote! {#default_value_str.into()}
                         }
                     }
                 }
