@@ -4,6 +4,7 @@
 //! including querying, inserting, updating, and deleting records.
 
 use lazy_static::lazy_static;
+use serde::Serialize;
 use sqlformat::{FormatOptions, QueryParams};
 use sqlx::{any::AnyRow, FromRow, Row};
 
@@ -301,7 +302,7 @@ pub trait Model {
     /// ).await;
     /// println!("Set success: {}", success);
     /// ```
-    async fn set<T: ToString + Clone + Send + Sync>(
+    async fn set<T: Serialize + Clone + Send + Sync>(
         id_value: T,
         kw: Vec<Condition>,
         conn: &Connection,
@@ -309,7 +310,7 @@ pub trait Model {
         let (placeholders, mut args) = kw.to_update_query();
 
         args.push((
-            id_value.clone().to_string(),
+            serde_json::json!(id_value).to_string(),
             get_type_name(id_value.clone()).to_string(),
         ));
         let index_id = args.len();

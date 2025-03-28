@@ -2,10 +2,10 @@ use anyhow::Result;
 use rusql_alchemy::prelude::*;
 use sqlx::FromRow;
 
-#[derive(FromRow, Clone, Debug, Default, Model)]
+#[derive(FromRow, Clone, Debug, Model)]
 struct User {
     #[field(primary_key = true, auto = true)]
-    id: Integer,
+    id: Option<Integer>,
 
     #[field(size = 50, unique = true)]
     name: String,
@@ -23,9 +23,12 @@ struct User {
 
     #[field(default = "user")]
     role: Option<String>,
+
+    #[field(default = "now")]
+    at: DateTime,
 }
 
-#[derive(FromRow, Debug, Default, Model, Clone)]
+#[derive(FromRow, Debug, Model, Clone)]
 struct Product {
     #[field(primary_key = true, auto = true)]
     id: Integer,
