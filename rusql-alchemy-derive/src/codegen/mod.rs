@@ -29,9 +29,7 @@ fn generate_foreign_key(option_foreign_key: &Option<TokenStream>) -> TokenStream
         Some(fk) => {
             let fkstr = fk.to_string();
             let foreign_key_parts: Vec<_> = fkstr.split(".").collect();
-            if foreign_key_parts.len() != 2 {
-                panic!("Invalid foreign key");
-            }
+            (foreign_key_parts.len() != 2).then(|| panic!("Invalid foreign key"));
             let foreign_key_table = foreign_key_parts[0];
             let foreign_key_field = foreign_key_parts[1];
             quote! { references #foreign_key_table(#foreign_key_field) }
@@ -114,7 +112,7 @@ pub fn process_fields(fields: &Punctuated<Field, Token![,]>) -> ModelData {
         let is_nullable = determin_if_nullable(&field.ty);
 
         let foreign_key = generate_foreign_key(&attrs.foreign_key);
-        is_pk.then(|| the_primary_key = quote! {#field_name});
+        is_pk.then(|| the_primary_key = quote! { #field_name });
 
         let default_value = generate_default_value(&option_default, is_nullable, &field_type);
         default_fields.push(quote! { #field_name: #default_value });
@@ -146,22 +144,17 @@ pub fn process_fields(fields: &Punctuated<Field, Token![,]>) -> ModelData {
 }
 
 fn extract_inner_type(field_type: &Type) -> String {
-    match field_type {
-        Type::Path(type_path) => {
-            let last_segment = type_path
-                .path
-                .segments
-                .last()
-                .expect("Type path should have at least one segment");
-            if last_segment.ident == "Option" {
-                if let PathArguments::AngleBracketed(args) = &last_segment.arguments {
+    if let Type::Path(type_path) = field_type {
+        if let Some(segment) = type_path.path.segments.last() {
+            if segment.ident == "Option" {
+                if let PathArguments::AngleBracketed(args) = &segment.arguments {
                     if let Some(GenericArgument::Type(inner_type)) = args.args.first() {
                         return extract_inner_type(inner_type);
                     }
                 }
             }
-            last_segment.ident.to_string()
+            return segment.ident.to_string();
         }
-        _ => panic!("Unsupported field type"),
     }
+    panic!("Unsupported field type");
 }
