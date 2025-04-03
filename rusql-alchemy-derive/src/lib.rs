@@ -27,7 +27,7 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
     } = process_fields(fields);
 
     let primary_key = {
-        let pk = the_primary_key.to_string();
+        let pk = the_primary_key.to_string().replace(".clone()", "");
         quote! {
             const PK: &'static str = #pk;
         }
@@ -47,7 +47,7 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
         }
     };
 
-    let create = {
+    let save = {
         quote! {
             async fn save(&self, conn: &Connection) -> Result<(), sqlx::Error> {
                 Self::create(
@@ -96,7 +96,7 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
             const NAME: &'static str = stringify!(#name);
             #schema
             #primary_key
-            #create
+            #save
             #update
             #delete
         }

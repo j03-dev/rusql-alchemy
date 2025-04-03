@@ -112,7 +112,8 @@ pub fn process_fields(fields: &Punctuated<Field, Token![,]>) -> ModelData {
         let is_nullable = determin_if_nullable(&field.ty);
 
         let foreign_key = generate_foreign_key(&attrs.foreign_key);
-        is_pk.then(|| the_primary_key = quote! { #field_name });
+
+        is_pk.then(|| the_primary_key = quote! { #field_name.clone() });
 
         let default_value = generate_default_value(&option_default, is_nullable, &field_type);
         default_fields.push(quote! { #field_name: #default_value });
