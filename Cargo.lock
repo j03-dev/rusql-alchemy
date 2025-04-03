@@ -1710,7 +1710,7 @@ dependencies = [
 
 [[package]]
 name = "rusql-alchemy"
-version = "0.5.0-rc.3"
+version = "0.5.0-rc.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -1728,7 +1728,7 @@ dependencies = [
 
 [[package]]
 name = "rusql-alchemy-derive"
-version = "1.0.2"
+version = "1.0.3"
 dependencies = [
  "deluxe",
  "proc-macro2",
