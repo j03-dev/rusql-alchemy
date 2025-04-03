@@ -29,7 +29,7 @@ chrono = "0.4.40"
 inventory = "0.3"
 
 # Local database utilities (development)
-rusql-alchemy = { version = "0.5.0-rc.4", path = "rusql-alchemy" }
+rusql-alchemy = { version = "0.5.0-rc.5", path = "rusql-alchemy" }
 rusql-alchemy-derive = { version = "1", path = "rusql-alchemy-derive" }
 
 # macro
