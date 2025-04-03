@@ -424,15 +424,12 @@ pub trait Model {
     /// let count = User::count(&conn).await;
     /// println!("User count: {}", count);
     /// ```
-    async fn count(conn: &Connection) -> i64
+    async fn count(conn: &Connection) -> Result<i64, sqlx::Error>
     where
         Self: Sized,
     {
         let query = format!("select count(*) from {table_name}", table_name = Self::NAME);
-        sqlx::query(query.as_str())
-            .fetch_one(conn)
-            .await
-            .map_or(0, |r| r.get(0))
+        Ok(sqlx::query(&query).fetch_one(conn).await?.get(0))
     }
 }
 
