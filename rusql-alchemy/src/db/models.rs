@@ -8,7 +8,7 @@ use serde::Serialize;
 use sqlformat::{FormatOptions, QueryParams};
 use sqlx::{any::AnyRow, FromRow, Row};
 
-use crate::{get_placeholder, get_type_name, Connection};
+use crate::{get_placeholder, get_type_name, Connection, FutRes};
 
 lazy_static! {
     /// The placeholder string for SQL queries, determined by the database type.
@@ -172,27 +172,16 @@ pub trait Model {
     /// let success = User::migrate(&conn).await;
     /// println!("Migration success: {}", success);
     /// ```
-    fn migrate(
-        conn: Connection,
-    ) -> std::pin::Pin<
-        Box<dyn std::future::Future<Output = Result<(), sqlx::Error>> + Send + 'static>,
-    >
+    fn migrate(conn: &'_ Connection) -> FutRes<'_, (), sqlx::Error>
     where
         Self: Sized,
     {
         Box::pin(async move {
-            let formatted_sql = sqlformat::format(
-                Self::SCHEMA,
-                &QueryParams::None,
-                &FormatOptions {
-                    uppercase: Some(true),
-                    lines_between_queries: 2,
-                    ..FormatOptions::default()
-                },
-            );
+            let formatted_sql =
+                sqlformat::format(Self::SCHEMA, &QueryParams::None, &FormatOptions::default());
 
             println!("{}", formatted_sql);
-            sqlx::query(Self::SCHEMA).execute(&conn).await?;
+            sqlx::query(Self::SCHEMA).execute(conn).await?;
             Ok(())
         })
     }
@@ -435,15 +424,12 @@ pub trait Model {
     /// let count = User::count(&conn).await;
     /// println!("User count: {}", count);
     /// ```
-    async fn count(&self, conn: &Connection) -> i64
+    async fn count(conn: &Connection) -> Result<i64, sqlx::Error>
     where
         Self: Sized,
     {
         let query = format!("select count(*) from {table_name}", table_name = Self::NAME);
-        sqlx::query(query.as_str())
-            .fetch_one(conn)
-            .await
-            .map_or(0, |r| r.get(0))
+        Ok(sqlx::query(&query).fetch_one(conn).await?.get(0))
     }
 }
 

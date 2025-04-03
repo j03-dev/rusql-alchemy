@@ -116,15 +116,15 @@ async fn main() -> Result<()> {
     let products = Product::all(&conn).await;
     println!("3: {:#?}", products);
 
-    let product = Product::get(kwargs!(is_sel == true), &conn).await;
+    let product = Product::get(kwargs!(is_sel == false), &conn).await;
     println!("4: {:#?}", product);
 
     let products = Product::all(&conn).await?;
     println!("5: {:#?}", products);
-    products.delete(&conn).await.ok();
+    products.delete(&conn).await?;
 
-    let users = User::filter(kwargs!(age <= 18), &conn).await;
-    println!("6: {:#?}", users);
+    let user_count = User::count(&conn).await;
+    println!("6: {:#?}", user_count);
 
     Ok(())
 }
