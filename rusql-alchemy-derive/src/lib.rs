@@ -27,7 +27,7 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
     } = process_fields(fields);
 
     let primary_key = {
-        let pk = the_primary_key.to_string();
+        let pk = the_primary_key.to_string().replace(".clone()", "");
         quote! {
             const PK: &'static str = #pk;
         }

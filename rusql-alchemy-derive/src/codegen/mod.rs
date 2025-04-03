@@ -113,6 +113,8 @@ pub fn process_fields(fields: &Punctuated<Field, Token![,]>) -> ModelData {
 
         let foreign_key = generate_foreign_key(&attrs.foreign_key);
 
+        is_pk.then(|| the_primary_key = quote! { #field_name.clone() });
+
         let default_value = generate_default_value(&option_default, is_nullable, &field_type);
         default_fields.push(quote! { #field_name: #default_value });
 
@@ -129,8 +131,6 @@ pub fn process_fields(fields: &Punctuated<Field, Token![,]>) -> ModelData {
             &mut create_args,
             &mut update_args,
         );
-
-        is_pk.then(|| the_primary_key = quote! { #field_name });
 
         schema_fields.push(field_schema);
     }
