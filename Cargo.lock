@@ -1728,7 +1728,7 @@ dependencies = [
 
 [[package]]
 name = "rusql-alchemy-derive"
-version = "1.0.4"
+version = "1.0.5"
 dependencies = [
  "deluxe",
  "proc-macro2",
