@@ -27,7 +27,7 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
     } = process_fields(fields);
 
     let primary_key = {
-        let pk = the_primary_key.to_string().replace(".clone()", "");
+        let pk = the_primary_key.to_string();
         quote! {
             const PK: &'static str = #pk;
         }
@@ -65,7 +65,7 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
         quote! {
             async fn update(&self, conn: &Connection) -> Result<(), sqlx::Error> {
                 Self::set(
-                    self.#the_primary_key,
+                    self.#the_primary_key.clone(),
                     kwargs!(
                         #(#update_args = self.#update_args),*
                     ),
@@ -81,8 +81,8 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
         quote! {
             async fn delete(&self, conn: &Connection) -> Result<(), sqlx::Error> {
                 let placeholder = rusql_alchemy::PLACEHOLDER.to_string();
-                sqlx::query(&#query.replace("?", &placeholder))
-                    .bind(self.#the_primary_key)
+                sqlx::query(#query.replace("?", &placeholder))
+                    .bind(self.#the_primary_key.clone())
                     .execute(conn)
                     .await?;
                 Ok(())
