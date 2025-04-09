@@ -80,16 +80,17 @@ macro_rules! kwargs {
 /// ```
 macro_rules! binds {
     ($args: expr, $stream:expr) => {
-        for (v, t) in $args {
-            let v = v.replace('"', "");
-            if t == "i32" && t == "bool" {
-                $stream = $stream.bind(v.parse::<i32>().unwrap());
-            } else if t == "f64" {
-                $stream = $stream.bind(v.parse::<f64>().unwrap());
-            } else if t.contains("Option") && v == "null" {
+        for arg in $args {
+            let value = arg.value.replace('"', "");
+            let ty = arg.ty.replace('"', "");
+            if ty == "i32" && ty == "bool" {
+                $stream = $stream.bind(value.parse::<i32>().unwrap());
+            } else if ty == "f64" {
+                $stream = $stream.bind(value.parse::<f64>().unwrap());
+            } else if ty.contains("Option") && value == "null" {
                 $stream = $stream.bind(Option::<String>::None);
             } else {
-                $stream = $stream.bind(v);
+                $stream = $stream.bind(value);
             }
         }
     };

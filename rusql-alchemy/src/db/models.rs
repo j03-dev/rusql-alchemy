@@ -63,19 +63,30 @@ impl And for Vec<Condition> {
     }
 }
 
-/// Trait for generating SQL queries from conditions.
+struct Arg {
+    value: String,
+    ty: String,
+}
+
+pub struct UpSel {
+    placeholders: String,
+    args: Vec<Arg>,
+}
+
+pub struct Insrt {
+    placeholders: String,
+    fields: String,
+    args: Vec<Arg>,
+}
+
 pub trait Query {
-    /// Generates an UPDATE query from the conditions.
-    fn to_update_query(&self) -> (String, Vec<(String, String)>);
-    /// Generates a SELECT query from the conditions.
-    fn to_select_query(&self) -> (String, Vec<(String, String)>);
-    /// Generates an INSERT query from the conditions.
-    fn to_insert_query(&self) -> (String, String, Vec<(String, String)>);
+    fn to_update_query(&self) -> UpSel;
+    fn to_select_query(&self) -> UpSel;
+    fn to_insert_query(&self) -> Insrt;
 }
 
 impl Query for Vec<Condition> {
-    //                               (placeholders, args:[(value, type)])])
-    fn to_update_query(&self) -> (String, Vec<(String, String)>) {
+    fn to_update_query(&self) -> UpSel {
         let mut args = Vec::new();
         let mut placeholders = Vec::new();
         let mut index = 0;
@@ -88,17 +99,21 @@ impl Query for Vec<Condition> {
             } = condition
             {
                 index += 1;
-                args.push((value.clone(), value_type.clone()));
-                // (field + = + placeholder + index)
+                args.push(Arg {
+                    value: value.to_owned(),
+                    ty: value_type.clone(),
+                });
                 let placeholder = PLACEHOLDER.to_string();
                 placeholders.push(format!("{field}={placeholder}{index}",));
             }
         }
-        (placeholders.join(", "), args)
+        UpSel {
+            placeholders: placeholders.join(", "),
+            args,
+        }
     }
 
-    //                               (placeholders, args)
-    fn to_select_query(&self) -> (String, Vec<(String, String)>) {
+    fn to_select_query(&self) -> UpSel {
         let mut args = Vec::new();
         let mut placeholders = Vec::new();
         let mut index = 0;
@@ -111,8 +126,10 @@ impl Query for Vec<Condition> {
                     comparison_operator,
                 } => {
                     index += 1;
-                    args.push((value.clone(), value_type.clone()));
-                    // (field + = + placeholder + index)
+                    args.push(Arg {
+                        value: value.to_owned(),
+                        ty: value_type.clone(),
+                    });
                     let placeholder = PLACEHOLDER.to_string();
                     placeholders.push(format!("{field}{comparison_operator}{placeholder}{index}",));
                 }
@@ -121,11 +138,13 @@ impl Query for Vec<Condition> {
                 }
             }
         }
-        (placeholders.join(" "), args)
+        UpSel {
+            placeholders: placeholders.join(", "),
+            args,
+        }
     }
 
-    //                              fields, placeholders, args:[(value, type)]
-    fn to_insert_query(&self) -> (String, String, Vec<(String, String)>) {
+    fn to_insert_query(&self) -> Insrt {
         let mut args = Vec::new();
         let mut fields = Vec::new();
         let mut placeholders = Vec::new();
@@ -139,13 +158,21 @@ impl Query for Vec<Condition> {
             } = condition
             {
                 index += 1;
-                args.push((value.clone(), value_type.clone()));
+                args.push(Arg {
+                    value: value.to_owned(),
+                    ty: value_type.clone(),
+                });
                 fields.push(field.clone());
                 let placeholder = PLACEHOLDER.to_string();
                 placeholders.push(format!("{placeholder}{index}"));
             }
         }
-        (fields.join(", "), placeholders.join(", "), args)
+
+        Insrt {
+            placeholders: placeholders.join(", "),
+            fields: fields.join(", "),
+            args,
+        }
     }
 }
 
@@ -237,14 +264,18 @@ pub trait Model {
     where
         Self: Sized,
     {
-        let (fields, placeholders, args) = kw.to_insert_query();
+        let Insrt {
+            placeholders,
+            fields,
+            args,
+        } = kw.to_insert_query();
 
         let query = format!(
             "insert into {table_name} ({fields}) values ({placeholders});",
             table_name = Self::NAME
         );
         let mut stream = sqlx::query(&query);
-        binds!(args, stream);
+        binds!(args.iter(), stream);
         stream.execute(conn).await?;
         Ok(())
     }
@@ -296,12 +327,19 @@ pub trait Model {
         kw: Vec<Condition>,
         conn: &Connection,
     ) -> Result<(), sqlx::Error> {
-        let (placeholders, mut args) = kw.to_update_query();
+        let UpSel {
+            placeholders,
+            mut args,
+        } = kw.to_update_query();
 
-        args.push((
-            serde_json::json!(id_value).to_string(),
-            get_type_name(id_value.clone()).to_string(),
-        ));
+        args = args
+            .into_iter()
+            .chain([Arg {
+                value: serde_json::json!(id_value).to_string(),
+                ty: get_type_name(id_value.clone()).to_string(),
+            }])
+            .collect();
+
         let index_id = args.len();
         let placeholder = PLACEHOLDER.to_string();
         let query = format!(
@@ -375,10 +413,10 @@ pub trait Model {
     where
         Self: Sized + Unpin + for<'r> FromRow<'r, AnyRow> + Clone,
     {
-        let (fields, args) = kw.to_select_query();
+        let UpSel { placeholders, args } = kw.to_select_query();
 
         let query = format!(
-            "SELECT * FROM {table_name} WHERE {fields};",
+            "SELECT * FROM {table_name} WHERE {placeholders};",
             table_name = Self::NAME
         );
 
