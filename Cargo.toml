@@ -5,17 +5,17 @@ members = ["rusql-alchemy", "rusql-alchemy-derive", "examples/*"]
 
 [workspace.dependencies]
 # Core utilities & async
-async-trait = "^0.1.81"
-tokio = "^1.39.3"
+async-trait = "^0.1.88"
+tokio = "^1.44.2"
 lazy_static = "1.5.0"
-anyhow = "1.0.95"
+anyhow = "1.0.97"
 
 # Configuration & Environment
 dotenv = "^0.15.0"
 
 # Serialization
-serde = "^1.0.208"
-serde_json = "^1.0.125"
+serde = "1.0"
+serde_json = "1.0"
 
 # Web Framework
 rocket = "0.5.0"
@@ -33,7 +33,7 @@ rusql-alchemy = { version = "0.5.0-rc.6", path = "rusql-alchemy" }
 rusql-alchemy-derive = { version = "^1", path = "rusql-alchemy-derive" }
 
 # macro
-proc-macro2 = "^1"
+proc-macro2 = "1"
 quote = "1.0.40"
 syn = "2.0"
 deluxe = "0.5"
