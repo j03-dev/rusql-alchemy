@@ -107,6 +107,7 @@ impl Query for Vec<Condition> {
                 placeholders.push(format!("{field}={placeholder}{index}",));
             }
         }
+
         UpSel {
             placeholders: placeholders.join(", "),
             args,
@@ -138,8 +139,9 @@ impl Query for Vec<Condition> {
                 }
             }
         }
+
         UpSel {
-            placeholders: placeholders.join(", "),
+            placeholders: placeholders.join(" "),
             args,
         }
     }
