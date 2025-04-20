@@ -34,7 +34,7 @@ struct Product {
     id: Integer,
 
     #[field(size = 50)]
-    name: String,
+    product_name: String,
 
     price: Float,
 
@@ -104,7 +104,7 @@ async fn main() -> Result<()> {
 
     Product::create(
         kwargs!(
-            name = "tomato".to_string(),
+            product_name = "tomato".to_string(),
             price = 1000.0,
             owner = user.clone().unwrap().id
         ),
@@ -121,10 +121,15 @@ async fn main() -> Result<()> {
 
     let products = Product::all(&conn).await?;
     println!("5: {:#?}", products);
-    products.delete(&conn).await?;
 
     let user_count = User::count(&conn).await;
     println!("6: {:#?}", user_count);
+
+    let result = (Product::default(), User::default())
+        .inner_join("owner", "id", &conn)
+        .await?;
+
+    println!("{result:#?}");
 
     Ok(())
 }

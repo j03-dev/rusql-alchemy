@@ -531,7 +531,51 @@ where
     /// In the above example, all records from the `Product` table will be deleted.
     async fn delete(&self, conn: &Connection) -> Result<(), sqlx::Error> {
         let query = format!("delete from {table_name}", table_name = T::NAME);
-        sqlx::query(query.as_str()).execute(conn).await?;
+        sqlx::query(&query).execute(conn).await?;
         Ok(())
+    }
+}
+
+#[async_trait::async_trait]
+pub trait JoinTable<A, B> {
+    async fn inner_join(
+        self,
+        column_a: &str,
+        column_b: &str,
+        conn: &Connection, // or your custom Connection type
+    ) -> Result<Vec<(A, B)>, sqlx::Error>;
+}
+
+#[async_trait::async_trait]
+impl<A, B> JoinTable<A, B> for (A, B)
+where
+    A: Model + Sync + Send + Unpin + for<'r> FromRow<'r, AnyRow>,
+    B: Model + Sync + Send + Unpin + for<'r> FromRow<'r, AnyRow>,
+{
+    async fn inner_join(
+        self,
+        column_a: &str,
+        column_b: &str,
+        conn: &Connection,
+    ) -> Result<Vec<(A, B)>, sqlx::Error> {
+        let query = format!(
+            "SELECT {table_a}.*, {table_b}.* \
+             FROM {table_a} \
+             INNER JOIN {table_b} \
+             ON {table_a}.{column_a} = {table_b}.{column_b}",
+            table_a = A::NAME,
+            table_b = B::NAME
+        );
+
+        let rows = sqlx::query(&query).fetch_all(conn).await?;
+
+        let mut result = Vec::new();
+        for row in rows {
+            let a = A::from_row(&row)?;
+            let b = B::from_row(&row)?;
+            result.push((a, b));
+        }
+
+        Ok(result)
     }
 }

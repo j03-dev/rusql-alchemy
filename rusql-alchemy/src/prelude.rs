@@ -7,4 +7,4 @@ pub use async_trait::async_trait;
 pub use chrono;
 pub use inventory;
 pub use rusql_alchemy_derive::Model;
-pub use sqlx::FromRow;
+pub use sqlx::{Decode, FromRow, Type};
