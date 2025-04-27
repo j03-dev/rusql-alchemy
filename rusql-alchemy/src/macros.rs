@@ -83,7 +83,7 @@ macro_rules! binds {
         for arg in $args {
             let value = arg.value.replace('"', "");
             let ty = arg.ty.replace('"', "");
-            if ty == "i32" && ty == "bool" {
+            if ty == "i32" || ty == "bool" {
                 $stream = $stream.bind(value.parse::<i32>().unwrap());
             } else if ty == "f64" {
                 $stream = $stream.bind(value.parse::<f64>().unwrap());
