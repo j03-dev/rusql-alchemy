@@ -542,6 +542,7 @@ pub trait JoinTable<A, B> {
         self,
         column_a: &str,
         column_b: &str,
+        kw: Option<Vec<Condition>>,
         conn: &Connection, // or your custom Connection type
     ) -> Result<Vec<(A, B)>, sqlx::Error>;
 }
@@ -556,9 +557,10 @@ where
         self,
         column_a: &str,
         column_b: &str,
+        kw: Option<Vec<Condition>>,
         conn: &Connection,
     ) -> Result<Vec<(A, B)>, sqlx::Error> {
-        let query = format!(
+        let mut query = format!(
             "SELECT {table_a}.*, {table_b}.* \
              FROM {table_a} \
              INNER JOIN {table_b} \
@@ -567,7 +569,21 @@ where
             table_b = B::NAME
         );
 
-        let rows = sqlx::query(&query).fetch_all(conn).await?;
+        let mut arguments = None;
+
+        if let Some(kwargs) = kw {
+            let UpSel { placeholders, args } = kwargs.to_select_query();
+            query.push_str(&format!(" WHERE {placeholders}"));
+            arguments = Some(args);
+        }
+
+        println!("{query}");
+
+        let mut rows = sqlx::query(&query);
+        if arguments.is_some() {
+            binds!(arguments.unwrap(), rows);
+        }
+        let rows = rows.fetch_all(conn).await?;
 
         let mut result = Vec::new();
         for row in rows {

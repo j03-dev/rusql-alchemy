@@ -43,6 +43,20 @@ macro_rules! kwargs {
             args
         }
     };
+
+    ($table:ident.$column:ident $op:tt $value:expr) => {
+        {
+            vec![
+                Condition::FieldCondition {
+                    field: format!("{}.{}", stringify!($table), stringify!($column)),
+                    value: rusql_alchemy::to_string($value.clone()),
+                    value_type: rusql_alchemy::get_type_name($value.clone()).into(),
+                    comparison_operator: stringify!($op).to_string(),
+                }
+            ]
+        }
+    };
+
     ($field:ident $op:tt $value:expr) => {
         {
             vec![
@@ -55,6 +69,7 @@ macro_rules! kwargs {
             ]
         }
     };
+
 }
 
 /// A macro to bind arguments to a stream based on their type.

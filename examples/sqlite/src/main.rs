@@ -126,7 +126,7 @@ async fn main() -> Result<()> {
     println!("6: {:#?}", user_count);
 
     let result = (Product::default(), User::default())
-        .inner_join("owner", "id", &conn)
+        .inner_join("owner", "id", Some(kwargs!(Product.id == 2)), &conn)
         .await?;
 
     println!("{result:#?}");
