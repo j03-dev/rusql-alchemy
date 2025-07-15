@@ -501,25 +501,25 @@ where
     /// #
     /// # #[derive(FromRow, Debug, Default, Model, Clone)]
     /// # struct Product {
-    /// #     #[model(primary_key = true, auto = true)]
+    /// #     #[field(primary_key = true, auto = true)]
     /// #     id: Integer,
-    /// #     #[model(size = 50)]
+    /// #     #[field(size = 50)]
     /// #     name: String,
     /// #     price: Float,
     /// #     description: Text,
-    /// #     #[model(default = true)]
+    /// #     #[field(default = true)]
     /// #     is_sel: Boolean,
-    /// #     #[model(foreign_key = "User.id")]
+    /// #     #[field(foreign_key = "User.id")]
     /// #     owner: Integer,
-    /// #     #[model(default = "now")]
+    /// #     #[field(default = "now")]
     /// #     at: DateTime,
     /// # }
     /// #
     /// #[tokio::main]
-    /// async fn main() {
-    ///     let conn = Database::new().await.conn;
+    /// async fn main() -> Result<(), sqlx::error> {
+    ///     let conn = Database::new().await?.conn;
     ///
-    ///     let products = Product::all(&conn).await;
+    ///     let products = Product::all(&conn).await?;
     ///     let success = products.delete(&conn).await;
     ///     println!("Products delete success: {}", success);
     ///
@@ -543,8 +543,60 @@ pub trait JoinTable<A, B> {
         column_a: &str,
         column_b: &str,
         kw: Option<Vec<Condition>>,
-        conn: &Connection, // or your custom Connection type
+        conn: &Connection,
     ) -> Result<Vec<(A, B)>, sqlx::Error>;
+
+    async fn left_join(
+        self,
+        column_a: &str,
+        column_b: &str,
+        kw: Option<Vec<Condition>>,
+        conn: &Connection,
+    ) -> Result<Vec<(A, B)>, sqlx::Error>;
+}
+
+async fn join_table<A, B>(
+    join: &str,
+    column_a: &str,
+    column_b: &str,
+    kw: Option<Vec<Condition>>,
+    conn: &Connection,
+) -> Result<Vec<(A, B)>, sqlx::Error>
+where
+    A: Model + Sync + Send + Unpin + for<'r> FromRow<'r, AnyRow>,
+    B: Model + Sync + Send + Unpin + for<'r> FromRow<'r, AnyRow>,
+{
+    let mut query = format!(
+        "SELECT {table_a}.*, {table_b}.* \
+             FROM {table_a} \
+             {join} JOIN {table_b} \
+             ON {table_a}.{column_a} = {table_b}.{column_b}",
+        table_a = A::NAME,
+        table_b = B::NAME
+    );
+
+    let mut arguments = None;
+
+    if let Some(kwargs) = kw {
+        let UpSel { placeholders, args } = kwargs.to_select_query();
+        query.push_str(&format!(" WHERE {placeholders}"));
+        arguments = Some(args);
+    }
+
+    let mut rows = sqlx::query(&query);
+    if arguments.is_some() {
+        binds!(arguments.unwrap(), rows);
+    }
+    let rows = rows.fetch_all(conn).await?;
+
+    let mut result = Vec::new();
+    for row in rows {
+        let a = A::from_row(&row)?;
+        let b = B::from_row(&row)?;
+        result.push((a, b));
+    }
+
+    Ok(result)
 }
 
 #[async_trait::async_trait]
@@ -560,38 +612,16 @@ where
         kw: Option<Vec<Condition>>,
         conn: &Connection,
     ) -> Result<Vec<(A, B)>, sqlx::Error> {
-        let mut query = format!(
-            "SELECT {table_a}.*, {table_b}.* \
-             FROM {table_a} \
-             INNER JOIN {table_b} \
-             ON {table_a}.{column_a} = {table_b}.{column_b}",
-            table_a = A::NAME,
-            table_b = B::NAME
-        );
+        join_table("INNER", column_a, column_b, kw, conn).await
+    }
 
-        let mut arguments = None;
-
-        if let Some(kwargs) = kw {
-            let UpSel { placeholders, args } = kwargs.to_select_query();
-            query.push_str(&format!(" WHERE {placeholders}"));
-            arguments = Some(args);
-        }
-
-        println!("{query}");
-
-        let mut rows = sqlx::query(&query);
-        if arguments.is_some() {
-            binds!(arguments.unwrap(), rows);
-        }
-        let rows = rows.fetch_all(conn).await?;
-
-        let mut result = Vec::new();
-        for row in rows {
-            let a = A::from_row(&row)?;
-            let b = B::from_row(&row)?;
-            result.push((a, b));
-        }
-
-        Ok(result)
+    async fn left_join(
+        self,
+        column_a: &str,
+        column_b: &str,
+        kw: Option<Vec<Condition>>,
+        conn: &Connection,
+    ) -> Result<Vec<(A, B)>, sqlx::Error> {
+        join_table("LEFT", column_a, column_b, kw, conn).await
     }
 }

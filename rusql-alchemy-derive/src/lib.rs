@@ -47,32 +47,28 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
         }
     };
 
-    let save = {
-        quote! {
-            async fn save(&self, conn: &Connection) -> Result<(), sqlx::Error> {
-                Self::create(
-                    kwargs!(
-                        #(#create_args = self.#create_args),*
-                    ),
-                    conn,
-                )
-                .await
-            }
+    let save = quote! {
+        async fn save(&self, conn: &Connection) -> Result<(), sqlx::Error> {
+            Self::create(
+                kwargs!(
+                    #(#create_args = self.#create_args),*
+                ),
+                conn,
+            )
+            .await
         }
     };
 
-    let update = {
-        quote! {
-            async fn update(&self, conn: &Connection) -> Result<(), sqlx::Error> {
-                Self::set(
-                    self.#the_primary_key.clone(),
-                    kwargs!(
-                        #(#update_args = self.#update_args),*
-                    ),
-                    conn,
-                )
-                .await
-            }
+    let update = quote! {
+        async fn update(&self, conn: &Connection) -> Result<(), sqlx::Error> {
+            Self::set(
+                self.#the_primary_key.clone(),
+                kwargs!(
+                    #(#update_args = self.#update_args),*
+                ),
+                conn,
+            )
+            .await
         }
     };
 
