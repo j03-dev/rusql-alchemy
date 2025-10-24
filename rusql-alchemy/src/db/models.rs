@@ -178,6 +178,8 @@ impl Query for Vec<Condition> {
     }
 }
 
+type Error = Box<dyn std::error::Error>;
+
 /// Trait for database model operations.
 #[async_trait::async_trait]
 pub trait Model {
@@ -201,7 +203,7 @@ pub trait Model {
     /// let success = User::migrate(&conn).await;
     /// println!("Migration success: {}", success);
     /// ```
-    fn migrate(conn: &'_ Connection) -> FutRes<'_, (), sqlx::Error>
+    fn migrate(conn: &'_ Connection) -> FutRes<'_, (), Error>
     where
         Self: Sized,
     {
@@ -210,7 +212,11 @@ pub trait Model {
                 sqlformat::format(Self::SCHEMA, &QueryParams::None, &FormatOptions::default());
 
             println!("{}", formatted_sql);
+            #[cfg(not(feature = "turso"))]
             sqlx::query(Self::SCHEMA).execute(conn).await?;
+
+            #[cfg(feature = "turso")]
+            conn.execute(Self::SCHEMA, ()).await?;
             Ok(())
         })
     }
@@ -235,7 +241,7 @@ pub trait Model {
     /// let success = user.save(&conn).await;
     /// println!("Save success: {}", success);
     /// ```
-    async fn save(&self, conn: &Connection) -> Result<(), sqlx::Error>
+    async fn save(&self, conn: &Connection) -> Result<(), Error>
     where
         Self: Sized;
 
@@ -276,9 +282,19 @@ pub trait Model {
             "insert into {table_name} ({fields}) values ({placeholders});",
             table_name = Self::NAME
         );
-        let mut stream = sqlx::query(&query);
-        binds!(args.iter(), stream);
-        stream.execute(conn).await?;
+
+        #[cfg(not(feature = "turso"))]
+        {
+            let mut stream = sqlx::query(&query);
+            binds!(args.iter(), stream);
+            stream.execute(conn).await?;
+        }
+
+        #[cfg(feature = "turso")]
+        {
+            let params = binds!(args.iter());
+            conn.execute(&query, params).await.unwrap();
+        }
         Ok(())
     }
 
@@ -350,9 +366,18 @@ pub trait Model {
             table_name = Self::NAME,
         );
 
-        let mut stream = sqlx::query(&query);
-        binds!(args, stream);
-        stream.execute(conn).await?;
+        #[cfg(not(feature = "turso"))]
+        {
+            let mut stream = sqlx::query(&query);
+            binds!(args, stream);
+            stream.execute(conn).await?;
+        }
+
+        #[cfg(feature = "turso")]
+        {
+            let params = binds!(args.iter());
+            conn.execute(&query, params).await.unwrap();
+        }
         Ok(())
     }
 
@@ -386,12 +411,26 @@ pub trait Model {
     /// let users = User::all(&conn).await;
     /// println!("{:#?}", users);
     /// ```
-    async fn all(conn: &Connection) -> Result<Vec<Self>, sqlx::Error>
+    async fn all(conn: &Connection) -> Result<Vec<Self>, Error>
     where
-        Self: Sized + Unpin + for<'r> FromRow<'r, AnyRow> + Clone,
+        Self:
+            Sized + Unpin + for<'r> FromRow<'r, AnyRow> + Clone + for<'de> serde::Deserialize<'de>,
     {
         let query = format!("select * from {table_name}", table_name = Self::NAME);
-        Ok(sqlx::query_as::<_, Self>(&query).fetch_all(conn).await?)
+        #[cfg(not(feature = "turso"))]
+        {
+            Ok(sqlx::query_as::<_, Self>(&query).fetch_all(conn).await?)
+        }
+        #[cfg(feature = "turso")]
+        {
+            let mut rows = conn.query(&query, ()).await.unwrap();
+            let mut results = Vec::new();
+            for row in rows.next().await.unwrap() {
+                let s = libsql::de::from_row::<Self>(&row).unwrap();
+                results.push(s);
+            }
+            Ok(results)
+        }
     }
 
     /// Filters instances of the model based on the provided parameters.

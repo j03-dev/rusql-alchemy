@@ -24,7 +24,7 @@ mod utils;
 pub type Connection = sqlx::Pool<sqlx::Any>;
 
 #[cfg(feature = "turso")]
-pub type Connection = turso::Connection;
+pub type Connection = libsql::Connection;
 
 async fn establish_connection(url: &str) -> anyhow::Result<Connection> {
     #[cfg(not(feature = "turso"))]
@@ -38,7 +38,7 @@ async fn establish_connection(url: &str) -> anyhow::Result<Connection> {
     }
     #[cfg(feature = "turso")]
     {
-        let db = turso::Builder::new_local(url).build().await?;
+        let db = libsql::Builder::new_local(url).build().await?;
         let conn = db.connect()?;
         Ok(conn)
     }
@@ -69,7 +69,7 @@ impl Database {
     pub async fn new() -> anyhow::Result<Self> {
         dotenv::dotenv().ok();
         let database_url = std::env::var("DATABASE_URL")?;
-        let conn = establish_connection(database_url).await?;
+        let conn = establish_connection(&database_url).await?;
         Ok(Self { conn })
     }
 

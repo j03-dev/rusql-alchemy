@@ -30,7 +30,8 @@ rocket = "0.5.1"
 # Database
 sqlx = "^0.8"
 sqlformat = "0.3.5"
-turso = "0.2.2"
+# turso = "0.2.2"
+libsql = "0.9.24"
 
 chrono = "0.4.40"
 

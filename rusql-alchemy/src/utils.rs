@@ -43,7 +43,10 @@ pub fn get_placeholder() -> std::io::Result<&'static str> {
     let database_url = std::env::var("DATABASE_URL").map_err(|_| {
         std::io::Error::new(std::io::ErrorKind::NotFound, "DATABASE_URL is not found")
     })?;
-    if database_url.starts_with("sqlite") || database_url.starts_with("mysql") {
+    if database_url.starts_with("sqlite")
+        || database_url.starts_with("mysql")
+        || database_url.starts_with("libsql")
+    {
         Ok("?")
     } else if database_url.starts_with("postgres") {
         Ok("$")

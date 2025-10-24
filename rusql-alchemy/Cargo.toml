@@ -16,7 +16,7 @@ default = ["sqlite"]
 sqlite = ["sqlx/sqlite"]
 mysql = ["sqlx/mysql"]
 postgres = ["sqlx/postgres"]
-turso = ["dep:turso"]
+turso = ["dep:libsql"]
 
 [dependencies]
 async-trait.workspace = true
@@ -25,7 +25,7 @@ serde.workspace = true
 serde_json.workspace = true
 rusql-alchemy-derive.workspace = true
 lazy_static.workspace = true
-turso = { workspace = true, optional = true }
+libsql = { workspace = true, optional = true }
 sqlx = { workspace = true, features = ["runtime-tokio-rustls", "any"] }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 anyhow.workspace = true
