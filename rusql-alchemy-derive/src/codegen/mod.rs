@@ -66,16 +66,20 @@ fn generate_default_value(
                 quote! { #default_value.into() }
             }
         }
-        None => is_nullable
-            .then(|| quote! { None })
-            .unwrap_or_else(|| match field_type {
-                "Float" => quote! { 0.0 },
-                "Boolean" => quote! { 0 },
-                "Serial" | "Integer" => quote! { 0 },
-                "String" | "Text" => quote! { String::default() },
-                "Date" | "DateTime" => quote! { String::default() },
-                _ => panic!("Unsupported type for default value"),
-            }),
+        None => {
+            if is_nullable {
+                quote! { None }
+            } else {
+                match field_type {
+                    "Float" => quote! { 0.0 },
+                    "Boolean" => quote! { 0 },
+                    "Serial" | "Integer" => quote! { 0 },
+                    "String" | "Text" => quote! { String::default() },
+                    "Date" | "DateTime" => quote! { String::default() },
+                    _ => panic!("Unsupported type for default value"),
+                }
+            }
+        }
     }
 }
 

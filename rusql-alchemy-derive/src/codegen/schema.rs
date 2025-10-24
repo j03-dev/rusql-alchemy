@@ -64,7 +64,7 @@ fn generate_default_schema(option_default: Option<TokenStream>, field_type: &str
                 quote! { default #default_value }
             }
         }
-        None => quote! {},
+        _ => quote! {},
     }
 }
 
