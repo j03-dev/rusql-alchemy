@@ -11,13 +11,13 @@ pub mod prelude;
 /// This module contains the custom types used in the crate.
 pub mod types;
 
-use std::{future::Future, pin::Pin};
+mod utils;
 
 /// The placeholder for the database query.
 pub use db::models::PLACEHOLDER;
 pub use utils::*;
 
-mod utils;
+use std::{future::Future, pin::Pin};
 
 /// Alias for the database connection pool.
 #[cfg(not(feature = "turso"))]
