@@ -1,14 +1,14 @@
 [package]
 name = "rusql-alchemy"
-version = "0.5.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+keywords.workspace = true
+license.workspace = true
 description = "Rust Alchemy is Django ORM like lib for Rust"
-license = "Apache-2.0"
 documentation = "https://docs.rs/russenger/latest/rusql-alchemy/"
 homepage = "https://github.com/russenger/rusql-alchemy"
 repository = "https://github.com/russenger/rusql-alchemy"
-authors = ["FITAHIANA Nomeniavo Joe <24nomeniavo@gmail.com>"]
-keywords = ["orm", "rust", "django-orm", "lib"]
 
 
 [features]
@@ -24,6 +24,7 @@ serde.workspace = true
 serde_json.workspace = true
 rusql-alchemy-derive.workspace = true
 lazy_static.workspace = true
+turso.workspace = true
 sqlx = { workspace = true, features = ["runtime-tokio-rustls", "any"] }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 anyhow.workspace = true
