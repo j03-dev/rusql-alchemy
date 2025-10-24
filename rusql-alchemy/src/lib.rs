@@ -20,17 +20,28 @@ pub use utils::*;
 mod utils;
 
 /// Alias for the database connection pool.
+#[cfg(not(feature = "turso"))]
 pub type Connection = sqlx::Pool<sqlx::Any>;
 
-use sqlx::any::{install_default_drivers, AnyPoolOptions};
+#[cfg(feature = "turso")]
+pub type Connection = turso::Connection;
 
-async fn establish_connection(url: String) -> anyhow::Result<Connection> {
-    install_default_drivers();
-    let conn = AnyPoolOptions::new()
-        .max_connections(5)
-        .connect(&url)
-        .await?;
-    Ok(conn)
+async fn establish_connection(url: &str) -> anyhow::Result<Connection> {
+    #[cfg(not(feature = "turso"))]
+    {
+        sqlx::any::install_default_drivers();
+        let conn = sqlx::any::AnyPoolOptions::new()
+            .max_connections(5)
+            .connect(url)
+            .await?;
+        Ok(conn)
+    }
+    #[cfg(feature = "turso")]
+    {
+        let db = turso::Builder::new_local(url).build().await?;
+        let conn = db.connect()?;
+        Ok(conn)
+    }
 }
 
 /// Represents a database.
