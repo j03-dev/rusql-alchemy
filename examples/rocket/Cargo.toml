@@ -1,11 +1,10 @@
 [package]
-name = "rocket-alchemy"
+name = "rocket"
 version = "0.1.0"
 edition = "2021"
 
 
 [dependencies]
-anyhow.workspace = true
 rocket = { workspace = true, features = ["json"] }
 serde = { workspace = true, features = ["derive"] }
 rusql-alchemy = { workspace = true, features = ["postgres"] }

@@ -1,8 +1,8 @@
-use anyhow::Result;
 use rusql_alchemy::prelude::*;
 use sqlx::FromRow;
+use serde::Deserialize;
 
-#[derive(FromRow, Clone, Debug, Model)]
+#[derive(FromRow, Clone, Debug, Deserialize, Model)]
 struct User_ {
     #[field(primary_key = true)]
     id: Serial, // in postgresql, serial is auto increment
@@ -26,7 +26,7 @@ struct User_ {
     weight: Float,
 }
 
-#[derive(FromRow, Debug, Model, Clone)]
+#[derive(FromRow, Debug, Deserialize, Model, Clone)]
 struct Product {
     #[field(primary_key = true)]
     id: Serial, // in postgresql, serial is auto increment
@@ -51,7 +51,7 @@ struct Product {
 }
 
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() -> Result<(), rusql_alchemy::Error> {
     let database = Database::new().await?;
 
     database.migrate().await?;

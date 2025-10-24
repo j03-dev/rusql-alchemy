@@ -1,5 +1,5 @@
 [workspace.package]
-version = "0.5.0"
+version = "0.5.1"
 edition = "2021"
 authors = ["FITAHIANA Nomeniavo Joe <24nomeniavo@gmail.com>"]
 keywords = ["orm", "rust", "django-orm", "lib"]
@@ -12,10 +12,10 @@ members = ["rusql-alchemy", "rusql-alchemy-derive", "examples/*"]
 
 [workspace.dependencies]
 # Core utilities & async
-async-trait = "^0.1.88"
-tokio = "^1.44.2"
+async-trait = "^0.1.89"
+tokio = "^1.48.0"
 lazy_static = "1.5.0"
-anyhow = "1.0.98"
+anyhow = "1.0.100"
 
 # Configuration & Environment
 dotenv = "^0.15.0"
@@ -29,11 +29,11 @@ rocket = "0.5.1"
 
 # Database
 sqlx = "^0.8"
-sqlformat = "0.3.5"
+sqlformat = "0.5.0"
 # turso = "0.2.2"
 libsql = "0.9.24"
 
-chrono = "0.4.40"
+chrono = "0.4.42"
 
 inventory = "0.3"
 

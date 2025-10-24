@@ -93,7 +93,6 @@ macro_rules! binds {
                 $stream = $stream.bind(value);
             }
         }
-        $stream
     }};
 
     ($args:expr) => {{

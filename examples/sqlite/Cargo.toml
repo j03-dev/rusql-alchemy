@@ -8,3 +8,4 @@ anyhow.workspace = true
 rusql-alchemy = { workspace = true, features = ["sqlite"] }
 sqlx.workspace = true
 tokio = { workspace = true, features = ["full"] }
+serde = {workspace = true,  features = ["derive"] }

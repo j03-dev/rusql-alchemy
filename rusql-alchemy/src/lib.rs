@@ -66,14 +66,14 @@ impl Database {
     ///     let db = Database::new().await;
     /// }
     /// ```
-    pub async fn new() -> anyhow::Result<Self> {
+    pub async fn new() -> Result<Self, Error> {
         dotenv::dotenv().ok();
         let database_url = std::env::var("DATABASE_URL")?;
         let conn = establish_connection(&database_url).await?;
         Ok(Self { conn })
     }
 
-    pub async fn migrate(&self) -> anyhow::Result<()> {
+    pub async fn migrate(&self) -> Result<(), Error> {
         for model in inventory::iter::<MigrationRegistrar> {
             (model.migrate_fn)(&self.conn).await?;
         }
@@ -81,9 +81,11 @@ impl Database {
     }
 }
 
+pub type Error = Box<dyn std::error::Error + Send + Sync>;
+
 type FutRes<'fut, T, E> = Pin<Box<dyn Future<Output = Result<T, E>> + Send + 'fut>>;
 
-type MigrateFn = for<'m> fn(&'m Connection) -> FutRes<'m, (), sqlx::Error>;
+type MigrateFn = for<'m> fn(&'m Connection) -> FutRes<'m, (), Error>;
 
 pub struct MigrationRegistrar {
     pub migrate_fn: MigrateFn,

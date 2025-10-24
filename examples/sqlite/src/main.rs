@@ -1,8 +1,8 @@
-use anyhow::Result;
 use rusql_alchemy::prelude::*;
+use serde::Deserialize;
 use sqlx::FromRow;
 
-#[derive(FromRow, Clone, Debug, Model)]
+#[derive(FromRow, Clone, Debug, Deserialize, Model)]
 struct User {
     #[field(primary_key = true, auto = true)]
     id: Option<Integer>,
@@ -28,7 +28,7 @@ struct User {
     at: DateTime,
 }
 
-#[derive(FromRow, Debug, Model, Clone)]
+#[derive(FromRow, Debug, Deserialize, Model, Clone)]
 struct Product {
     #[field(primary_key = true, auto = true)]
     id: Integer,
@@ -51,7 +51,7 @@ struct Product {
 }
 
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() -> Result<(), rusql_alchemy::Error> {
     let database = Database::new().await?;
 
     database.migrate().await?;
