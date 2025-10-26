@@ -27,7 +27,7 @@ rusql-alchemy-derive = { workspace = true, features = [] }
 lazy_static.workspace = true
 
 # Explicit feature configuration for libsql
-libsql = { workspace = true, optional = true, default-features = false, features = [] }
+libsql = { workspace = true, optional = true }
 
 # Explicit feature configuration for sqlx
 sqlx = { workspace = true, optional = true, default-features = false, features = ["runtime-tokio-rustls", "any"] }
