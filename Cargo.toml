@@ -28,7 +28,14 @@ rocket = "0.5.1"
 
 # Database
 sqlx = { version = "^0.8", default-features = false }
-libsql = { version = "0.9.24", default-features = false }
+
+# libsql with necessary features but without bundling its own SQLite
+libsql = { version = "0.9.24", default-features = false, features = [
+    "core",           # Core functionality
+    "replication",    # Replication support
+    "parser",         # SQL parser
+    "serde",         # Serialization support
+] }
 
 chrono = "0.4.42"
 inventory = "0.3"
@@ -44,11 +51,10 @@ quote = "1.0.40"
 syn = "2.0"
 deluxe = "0.5"
 
-# Force specific libsqlite3-sys version
+# Use system SQLite
 [workspace.dependencies.libsqlite3-sys]
 version = "0.30"
 features = []
 
-# Remove the libsql-sys line - it doesn't exist
 [profile.dev.package.libsqlite3-sys]
 opt-level = 3

@@ -26,7 +26,10 @@ serde_json.workspace = true
 rusql-alchemy-derive = { workspace = true, features = [] }
 lazy_static.workspace = true
 
-libsql = { workspace = true, optional = true , default-features = true }
+# Explicit feature configuration for libsql
+libsql = { workspace = true, optional = true, default-features = false }
+
+# Explicit feature configuration for sqlx
 sqlx = { workspace = true, optional = true, default-features = false, features = ["runtime-tokio-rustls", "any"] }
 
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
