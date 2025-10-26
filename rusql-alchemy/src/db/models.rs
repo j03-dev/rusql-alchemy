@@ -421,7 +421,6 @@ pub trait Model {
         let query = format!("select * from {table_name}", table_name = Self::NAME);
         Ok(sqlx::query_as::<_, Self>(&query).fetch_all(conn).await?)
     }
-
     #[cfg(feature = "turso")]
     async fn all(conn: &Connection) -> Result<Vec<Self>, Error>
     where
@@ -470,7 +469,6 @@ pub trait Model {
         binds!(args, stream);
         Ok(stream.fetch_all(conn).await?)
     }
-
     #[cfg(feature = "turso")]
     async fn filter(kw: Vec<Condition>, conn: &Connection) -> Result<Vec<Self>, Error>
     where
@@ -627,7 +625,7 @@ where
 
         #[cfg(feature = "turso")]
         {
-            conn.execute(&query, ()).await.unwrap();
+            conn.execute(&query, ()).await?;
         }
         Ok(())
     }
