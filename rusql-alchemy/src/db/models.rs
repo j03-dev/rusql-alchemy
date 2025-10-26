@@ -4,7 +4,6 @@
 //! including querying, inserting, updating, and deleting records.
 
 use serde::Serialize;
-use sqlformat::{FormatOptions, QueryParams};
 
 #[cfg(not(feature = "turso"))]
 use sqlx::{any::AnyRow, FromRow, Row};
@@ -14,10 +13,10 @@ use crate::Error;
 use crate::{get_type_name, Connection, FutRes};
 
 #[cfg(not(feature = "postgres"))]
-pub const PLACEHOLDER: &str  = "?";
+pub const PLACEHOLDER: &str = "?";
 
 #[cfg(feature = "postgres")]
-pub const PLACEHOLDER: &str  = "$";
+pub const PLACEHOLDER: &str = "$";
 
 /// Represents a condition in a database query.
 #[derive(Debug)]
@@ -208,15 +207,22 @@ pub trait Model {
         Self: Sized,
     {
         Box::pin(async move {
-            let formatted_sql =
-                sqlformat::format(Self::SCHEMA, &QueryParams::None, &FormatOptions::default());
+            #[cfg(debug_assertions)]
+            {
+                let formatted_sql = sqlformat::format(
+                    Self::SCHEMA,
+                    &sqlformat::QueryParams::None,
+                    &sqlformat::FormatOptions::default(),
+                );
+                println!("{formatted_sql}");
+            }
 
-            println!("{}", formatted_sql);
             #[cfg(not(feature = "turso"))]
             sqlx::query(Self::SCHEMA).execute(conn).await?;
 
             #[cfg(feature = "turso")]
             conn.execute(Self::SCHEMA, ()).await?;
+
             Ok(())
         })
     }
