@@ -26,6 +26,9 @@ pub type Connection = sqlx::Pool<sqlx::Any>;
 #[cfg(feature = "turso")]
 pub type Connection = libsql::Connection;
 
+#[cfg(feature = "turso")]
+pub use libsql::params;
+
 async fn establish_connection(url: &str) -> anyhow::Result<Connection> {
     #[cfg(not(feature = "turso"))]
     {
