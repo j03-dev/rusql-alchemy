@@ -94,8 +94,7 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
         quote! {
             async fn delete(&self, conn: &Connection) -> Result<(), rusql_alchemy::Error> {
                 let placeholder = rusql_alchemy::PLACEHOLDER.to_string();
-                todo!("delete method is not yet implement in turso features");
-                // conn.execute(&#query.replace("?", &placeholder), rusql_alchemy::params![self.#the_primary_key.clone()]).await?;
+                conn.execute(&#query.replace("?", &placeholder), rusql_alchemy::params![self.#the_primary_key.clone()]).await?;
                 Ok(())
             }
         }

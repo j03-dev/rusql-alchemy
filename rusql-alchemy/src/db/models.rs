@@ -6,10 +6,9 @@
 use lazy_static::lazy_static;
 use serde::Serialize;
 use sqlformat::{FormatOptions, QueryParams};
-use sqlx::{any::AnyRow, FromRow};
 
 #[cfg(not(feature = "turso"))]
-use sqlx:: Row;
+use sqlx::{any::AnyRow, FromRow, Row};
 
 use crate::Error;
 
@@ -414,26 +413,28 @@ pub trait Model {
     /// let users = User::all(&conn).await;
     /// println!("{:#?}", users);
     /// ```
+    #[cfg(not(feature = "turso"))]
     async fn all(conn: &Connection) -> Result<Vec<Self>, Error>
     where
-        Self:
-            Sized + Unpin + for<'r> FromRow<'r, AnyRow> + Clone + for<'de> serde::Deserialize<'de>,
+        Self: Sized + Unpin + for<'r> FromRow<'r, AnyRow> + Clone,
     {
         let query = format!("select * from {table_name}", table_name = Self::NAME);
-        #[cfg(not(feature = "turso"))]
-        {
-            Ok(sqlx::query_as::<_, Self>(&query).fetch_all(conn).await?)
+        Ok(sqlx::query_as::<_, Self>(&query).fetch_all(conn).await?)
+    }
+
+    #[cfg(feature = "turso")]
+    async fn all(conn: &Connection) -> Result<Vec<Self>, Error>
+    where
+        Self: Sized + for<'de> serde::Deserialize<'de>,
+    {
+        let query = format!("select * from {table_name}", table_name = Self::NAME);
+        let mut rows = conn.query(&query, ()).await.unwrap();
+        let mut results = Vec::new();
+        while let Some(row) = rows.next().await? {
+            let s = libsql::de::from_row::<Self>(&row)?;
+            results.push(s);
         }
-        #[cfg(feature = "turso")]
-        {
-            let mut rows = conn.query(&query, ()).await.unwrap();
-            let mut results = Vec::new();
-            while let Some(row) = rows.next().await? {
-                let s = libsql::de::from_row::<Self>(&row)?;
-                results.push(s);
-            }
-            Ok(results)
-        }
+        Ok(results)
     }
 
     /// Filters instances of the model based on the provided parameters.
@@ -453,10 +454,10 @@ pub trait Model {
     /// ).await;
     /// println!("{:#?}", users);
     /// ```
+    #[cfg(not(feature = "turso"))]
     async fn filter(kw: Vec<Condition>, conn: &Connection) -> Result<Vec<Self>, Error>
     where
-        Self:
-            Sized + Unpin + for<'r> FromRow<'r, AnyRow> + Clone + for<'de> serde::Deserialize<'de>,
+        Self: Sized + Unpin + for<'r> FromRow<'r, AnyRow> + Clone,
     {
         let UpSel { placeholders, args } = kw.to_select_query();
 
@@ -465,24 +466,30 @@ pub trait Model {
             table_name = Self::NAME
         );
 
-        #[cfg(not(feature = "turso"))]
-        {
-            let mut stream = sqlx::query_as::<_, Self>(&query);
-            binds!(args, stream);
-            Ok(stream.fetch_all(conn).await?)
-        }
+        let mut stream = sqlx::query_as::<_, Self>(&query);
+        binds!(args, stream);
+        Ok(stream.fetch_all(conn).await?)
+    }
 
-        #[cfg(feature = "turso")]
-        {
-            let params = binds!(args.iter());
-            let mut rows = conn.query(&query, params).await?;
-            let mut results = Vec::new();
-            while let Some(row) = rows.next().await? {
-                let s = libsql::de::from_row::<Self>(&row)?;
-                results.push(s);
-            }
-            Ok(results)
+    #[cfg(feature = "turso")]
+    async fn filter(kw: Vec<Condition>, conn: &Connection) -> Result<Vec<Self>, Error>
+    where
+        Self: Sized + for<'de> serde::Deserialize<'de>,
+    {
+        let UpSel { placeholders, args } = kw.to_select_query();
+
+        let query = format!(
+            "SELECT * FROM {table_name} WHERE {placeholders};",
+            table_name = Self::NAME
+        );
+        let params = binds!(args.iter());
+        let mut rows = conn.query(&query, params).await?;
+        let mut results = Vec::new();
+        while let Some(row) = rows.next().await? {
+            let s = libsql::de::from_row::<Self>(&row)?;
+            results.push(s);
         }
+        Ok(results)
     }
 
     /// Retrieves the first instance of the model matching the filter criteria.
@@ -502,10 +509,18 @@ pub trait Model {
     /// ).await;
     /// println!("{:#?}", user);
     /// ```
+    #[cfg(not(feature = "turso"))]
     async fn get(kw: Vec<Condition>, conn: &Connection) -> Result<Option<Self>, Error>
     where
-        Self:
-            Sized + Unpin + for<'r> FromRow<'r, AnyRow> + Clone + for<'de> serde::Deserialize<'de>,
+        Self: Sized + Unpin + for<'r> FromRow<'r, AnyRow> + Clone,
+    {
+        Ok(Self::filter(kw, conn).await?.first().cloned())
+    }
+
+    #[cfg(feature = "turso")]
+    async fn get(kw: Vec<Condition>, conn: &Connection) -> Result<Option<Self>, Error>
+    where
+        Self: Sized + Clone + for<'de> serde::Deserialize<'de>,
     {
         Ok(Self::filter(kw, conn).await?.first().cloned())
     }
