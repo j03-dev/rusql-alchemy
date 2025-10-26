@@ -13,19 +13,10 @@ members = ["rusql-alchemy", "rusql-alchemy-derive"]
 [workspace.dependencies]
 # Core utilities & async
 async-trait = "^0.1.89"
-tokio = "^1.48.0"
-lazy_static = "1.5.0"
-anyhow = "1.0.100"
-
-# Configuration & Environment
-dotenv = "^0.15.0"
 
 # Serialization
 serde = "1.0"
 serde_json = "1.0"
-
-# Web Framework
-rocket = "0.5.1"
 
 # Database
 sqlx = "^0.8"
