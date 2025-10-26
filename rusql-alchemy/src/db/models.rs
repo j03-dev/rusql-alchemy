@@ -3,7 +3,6 @@
 //! This module provides traits and implementations for database operations,
 //! including querying, inserting, updating, and deleting records.
 
-use lazy_static::lazy_static;
 use serde::Serialize;
 use sqlformat::{FormatOptions, QueryParams};
 
@@ -12,14 +11,13 @@ use sqlx::{any::AnyRow, FromRow, Row};
 
 use crate::Error;
 
-use crate::{get_placeholder, get_type_name, Connection, FutRes};
+use crate::{get_type_name, Connection, FutRes};
 
-lazy_static! {
-    /// The placeholder string for SQL queries, determined by the database type.
-    pub static ref PLACEHOLDER: &'static str = get_placeholder().expect(
-        "DATABASE_URL is not set, make sur the database is 'sqlite', 'postgres' or 'mysql'"
-    );
-}
+#[cfg(not(feature = "postgres"))]
+pub const PLACEHOLDER: &str  = "?";
+
+#[cfg(feature = "postgres")]
+pub const PLACEHOLDER: &str  = "$";
 
 /// Represents a condition in a database query.
 #[derive(Debug)]

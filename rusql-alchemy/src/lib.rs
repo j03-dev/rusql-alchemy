@@ -29,24 +29,6 @@ pub type Connection = libsql::Connection;
 #[cfg(feature = "turso")]
 pub use libsql::params;
 
-async fn establish_connection(url: &str) -> anyhow::Result<Connection> {
-    #[cfg(not(feature = "turso"))]
-    {
-        sqlx::any::install_default_drivers();
-        let conn = sqlx::any::AnyPoolOptions::new()
-            .max_connections(5)
-            .connect(url)
-            .await?;
-        Ok(conn)
-    }
-    #[cfg(feature = "turso")]
-    {
-        let db = libsql::Builder::new_local(url).build().await?;
-        let conn = db.connect()?;
-        Ok(conn)
-    }
-}
-
 /// Represents a database.
 pub struct Database {
     /// The connection pool for the database.
@@ -69,10 +51,47 @@ impl Database {
     ///     let db = Database::new().await;
     /// }
     /// ```
-    pub async fn new() -> Result<Self, Error> {
-        dotenv::dotenv().ok();
-        let database_url = std::env::var("DATABASE_URL")?;
-        let conn = establish_connection(&database_url).await?;
+    pub async fn new(database_url: &str) -> Result<Self, Error> {
+        #[cfg(not(feature = "turso"))]
+        {
+            sqlx::any::install_default_drivers();
+            let conn = sqlx::any::AnyPoolOptions::new()
+                .max_connections(5)
+                .connect(database_url)
+                .await?;
+            Ok(Self { conn })
+        }
+        #[cfg(feature = "turso")]
+        {
+            let db = libsql::Builder::new_local(database_url).build().await?;
+            let conn = db.connect()?;
+            Ok(Self { conn })
+        }
+    }
+
+    #[cfg(feature = "turso")]
+    pub async fn new_remote_replica(
+        path: &str,
+        database_url: &str,
+        auth_token: &str,
+    ) -> Result<Self, Error> {
+        let db = libsql::Builder::new_remote_replica(
+            path,
+            database_url.to_string(),
+            auth_token.to_string(),
+        )
+        .build()
+        .await?;
+        let conn = db.connect()?;
+        Ok(Self { conn })
+    }
+
+    #[cfg(feature = "turso")]
+    pub async fn new_remote(database_url: &str, auth_token: &str) -> Result<Self, Error> {
+        let db = libsql::Builder::new_remote(database_url.to_string(), auth_token.to_string())
+            .build()
+            .await?;
+        let conn = db.connect()?;
         Ok(Self { conn })
     }
 

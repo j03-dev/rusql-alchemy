@@ -1,4 +1,4 @@
-use std::{any::type_name, io::Error};
+use std::any::type_name;
 
 /// Returns the name of the type `T` as a string.
 ///
@@ -18,44 +18,6 @@ use std::{any::type_name, io::Error};
 /// ```
 pub fn get_type_name<T: Sized>(_: T) -> &'static str {
     type_name::<T>()
-}
-
-/// Retrieves a placeholder for SQL queries based on the `DATABASE_URL` environment variable.
-///
-/// # Returns
-///
-/// * `Ok("?")` if the database is SQLite or MySQL.
-/// * `Ok("$")` if the database is PostgreSQL.
-/// * `Err` if the `DATABASE_URL` environment variable is not set or if the database type is unsupported.
-///
-/// # Errors
-///
-/// Returns an `std::io::Error` if the `DATABASE_URL` is not found or if the database type is unsupported.
-///
-/// # Example
-///
-/// ```
-/// std::env::set_var("DATABASE_URL", "sqlite://database.db");
-/// let placeholder = get_placeholder().unwrap();
-/// assert_eq!(placeholder, "?");
-/// ```
-pub fn get_placeholder() -> std::io::Result<&'static str> {
-    let database_url = std::env::var("DATABASE_URL").map_err(|_| {
-        std::io::Error::new(std::io::ErrorKind::NotFound, "DATABASE_URL is not found")
-    })?;
-    if database_url.starts_with("sqlite")
-        || database_url.starts_with("mysql")
-        || database_url.starts_with("libsql")
-    {
-        Ok("?")
-    } else if database_url.starts_with("postgres") {
-        Ok("$")
-    } else {
-        Err(Error::new(
-            std::io::ErrorKind::InvalidData,
-            "Unsupported database type",
-        ))
-    }
 }
 
 /// Converts a value into a JSON string.
