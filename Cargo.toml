@@ -9,6 +9,7 @@ license = "Apache-2.0"
 resolver = "2"
 members = ["rusql-alchemy", "rusql-alchemy-derive"]
 
+
 [workspace.dependencies]
 # Core utilities & async
 async-trait = "^0.1.89"
@@ -27,22 +28,14 @@ serde_json = "1.0"
 rocket = "0.5.1"
 
 # Database
-sqlx = { version = "^0.8", default-features = false }
-
-# libsql with necessary features but without bundling its own SQLite
-libsql = { version = "0.9.24", default-features = false, features = [
-    "core",           # Core functionality
-    "replication",    # Replication support
-    "parser",         # SQL parser
-    "serde",         # Serialization support
-] }
+sqlx = "^0.8"
+sqlformat = "0.5.0"
+libsql = "0.9.24"
 
 chrono = "0.4.42"
-inventory = "0.3"
-sqlformat = "0.5.0"
 
-# Local database utilities (development)
-rusql-alchemy.path = "rusql-alchemy"
+inventory = "0.3"
+
 rusql-alchemy-derive.path = "rusql-alchemy-derive"
 
 # macro
@@ -50,11 +43,3 @@ proc-macro2 = "1"
 quote = "1.0.40"
 syn = "2.0"
 deluxe = "0.5"
-
-# Use system SQLite
-[workspace.dependencies.libsqlite3-sys]
-version = "0.30"
-features = []
-
-[profile.dev.package.libsqlite3-sys]
-opt-level = 3

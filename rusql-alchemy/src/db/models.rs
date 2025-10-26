@@ -565,7 +565,7 @@ pub trait Model {
 /// Trait for deleting database records.
 #[async_trait::async_trait]
 pub trait Delete {
-    async fn delete(&self, conn: &Connection) -> Result<(), sqlx::Error>;
+    async fn delete(&self, conn: &Connection) -> Result<(), Error>;
 }
 #[async_trait::async_trait]
 impl<T> Delete for Vec<T>
@@ -618,7 +618,7 @@ where
     /// ```
     ///
     /// In the above example, all records from the `Product` table will be deleted.
-    async fn delete(&self, conn: &Connection) -> Result<(), sqlx::Error> {
+    async fn delete(&self, conn: &Connection) -> Result<(), Error> {
         let query = format!("delete from {table_name}", table_name = T::NAME);
         #[cfg(not(feature = "turso"))]
         {
