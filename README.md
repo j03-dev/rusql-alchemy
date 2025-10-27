@@ -80,7 +80,7 @@ struct User {
 > }
 > ```
 
-### 3. Connect to Your Database
+### 3. Connect to Your Database & Run Migrations
 
 Instantiate the `Database` and run your migrations.
 
@@ -103,6 +103,26 @@ async fn main() -> Result<(), Error> {
     Ok(())
 }
 ```
+
+> **NB:** For migrations to work correctly, the models must be imported into the binary where `database.migrate()` is called. This allows the migration system to discover your models. If your models are in a separate module (e.g., `src/models.rs`), ensure you import them:
+> 
+> ```rust
+> // In your main.rs
+> use rusql_alchemy::prelude::*;
+> use rusql_alchemy::Error;
+> 
+> // Import your models so they can be discovered for migration.
+> // The `allow(unused_imports)` attribute is useful here.
+> #[allow(unused_imports)]
+> use crate::models::*; // Assuming models are in `src/models.rs`
+> 
+> #[tokio::main]
+> async fn main() -> Result<(), Error> {
+>     let database = Database::new_local("local.db").await?;
+>     database.migrate().await?;
+>     Ok(())
+> }
+> ```
 
 ##  CRUD Operations
 
