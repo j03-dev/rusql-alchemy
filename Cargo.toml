@@ -4,6 +4,7 @@ edition = "2021"
 authors = ["FITAHIANA Nomeniavo Joe <24nomeniavo@gmail.com>"]
 keywords = ["orm", "rust", "django-orm", "lib"]
 license = "Apache-2.0"
+readme = "README.md"
 
 [workspace]
 resolver = "2"
