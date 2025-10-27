@@ -97,8 +97,7 @@ impl Query for Vec<Condition> {
                     value: value.to_owned(),
                     ty: value_type.clone(),
                 });
-                let placeholder = PLACEHOLDER.to_string();
-                placeholders.push(format!("{field}={placeholder}{index}",));
+                placeholders.push(format!("{field}={PLACEHOLDER}{index}",));
             }
         }
 
@@ -125,8 +124,7 @@ impl Query for Vec<Condition> {
                         value: value.to_owned(),
                         ty: value_type.clone(),
                     });
-                    let placeholder = PLACEHOLDER.to_string();
-                    placeholders.push(format!("{field}{comparison_operator}{placeholder}{index}",));
+                    placeholders.push(format!("{field}{comparison_operator}{PLACEHOLDER}{index}",));
                 }
                 Condition::LogicalOperator { operator } => {
                     placeholders.push(operator.to_owned());
@@ -159,8 +157,7 @@ impl Query for Vec<Condition> {
                     ty: value_type.clone(),
                 });
                 fields.push(field.clone());
-                let placeholder = PLACEHOLDER.to_string();
-                placeholders.push(format!("{placeholder}{index}"));
+                placeholders.push(format!("{PLACEHOLDER}{index}"));
             }
         }
 
@@ -358,9 +355,8 @@ pub trait Model {
             .collect();
 
         let index_id = args.len();
-        let placeholder = PLACEHOLDER.to_string();
         let query = format!(
-            "update {table_name} set {placeholders} where {id}={placeholder}{index_id};",
+            "update {table_name} set {placeholders} where {id}={PLACEHOLDER}{index_id};",
             id = Self::PK,
             table_name = Self::NAME,
         );
