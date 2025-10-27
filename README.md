@@ -10,6 +10,12 @@ Welcome to Rusql Alchemy! This project is a personal challenge to create a simpl
 *   **Multi-Database Support:** Works with PostgreSQL, MySQL, SQLite, and Turso out of the box.
 *   **Asynchronous from the Ground Up:** Built with `async`/`.await` for modern, non-blocking applications.
 
+## ❗️ Runtime Compatibility
+
+This library is built on `sqlx` and `libsql`, which are designed to work with the `tokio` async runtime. All asynchronous operations in `rusql-alchemy` must be executed within a `tokio` runtime.
+
+Using this library in other runtimes, such as the one provided by `actix-web` (`#[actix_web::main]`), will likely result in runtime panics. Please ensure you are using `#[tokio::main]` or are manually running a `tokio` runtime.
+
 ## 🚀 Getting Started
 
 ### 1. Add Rusql Alchemy to Your Project
