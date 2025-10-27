@@ -13,13 +13,11 @@ pub mod types;
 
 mod utils;
 
-/// The placeholder for the database query.
 pub use db::models::PLACEHOLDER;
 pub use utils::*;
 
 use std::{future::Future, pin::Pin};
 
-/// Alias for the database connection pool.
 #[cfg(not(feature = "turso"))]
 pub type Connection = sqlx::Pool<sqlx::Any>;
 
@@ -31,42 +29,25 @@ pub use libsql::params;
 
 /// Represents a database.
 pub struct Database {
-    /// The connection pool for the database.
     pub conn: Connection,
 }
 
 impl Database {
-    /// Creates a new instance of `Database`.
-    ///
-    /// # Returns
-    ///
-    /// Returns a new `Database` instance.
-    ///
-    /// # Example
-    /// ```rust
-    /// use rusql_alchemy::Database;
-    ///
-    /// #[tokio::main]
-    /// async fn main() {
-    ///     let db = Database::new().await;
-    /// }
-    /// ```
+    #[cfg(not(feature = "turso"))]
     pub async fn new(database_url: &str) -> Result<Self, Error> {
-        #[cfg(not(feature = "turso"))]
-        {
-            sqlx::any::install_default_drivers();
-            let conn = sqlx::any::AnyPoolOptions::new()
-                .max_connections(5)
-                .connect(database_url)
-                .await?;
-            Ok(Self { conn })
-        }
-        #[cfg(feature = "turso")]
-        {
-            let db = libsql::Builder::new_local(database_url).build().await?;
-            let conn = db.connect()?;
-            Ok(Self { conn })
-        }
+        sqlx::any::install_default_drivers();
+        let conn = sqlx::any::AnyPoolOptions::new()
+            .max_connections(5)
+            .connect(database_url)
+            .await?;
+        Ok(Self { conn })
+    }
+
+    #[cfg(feature = "turso")]
+    pub async fn new_local(path: &str) -> Result<Self, Error> {
+        let db = libsql::Builder::new_local(path).build().await?;
+        let conn = db.connect()?;
+        Ok(Self { conn })
     }
 
     #[cfg(feature = "turso")]

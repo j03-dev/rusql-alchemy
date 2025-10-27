@@ -18,29 +18,22 @@ pub const PLACEHOLDER: &str = "?";
 #[cfg(feature = "postgres")]
 pub const PLACEHOLDER: &str = "$";
 
-/// Represents a condition in a database query.
 #[derive(Debug)]
 pub enum Condition {
-    /// A condition on a specific field.
     FieldCondition {
         field: String,
         value: String,
         value_type: String,
         comparison_operator: String,
     },
-    /// A logical operator (AND/OR) for combining conditions.
     LogicalOperator { operator: String },
 }
 
-/// Trait for adding OR conditions to a vector of conditions.
 pub trait Or {
-    /// Adds OR conditions to the existing conditions.
     fn or(self, conditions: Vec<Condition>) -> Vec<Condition>;
 }
 
-/// Trait for adding AND conditions to a vector of conditions.
 pub trait And {
-    /// Adds AND conditions to the existing conditions.
     fn and(self, conditions: Vec<Condition>) -> Vec<Condition>;
 }
 
