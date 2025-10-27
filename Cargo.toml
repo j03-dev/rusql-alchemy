@@ -6,9 +6,9 @@ keywords = ["orm", "rust", "django-orm", "lib"]
 license = "Apache-2.0"
 readme = "README.md"
 description = "Rust Alchemy is Django ORM like lib for Rust"
-documentation = "https://docs.rs/russenger/latest/rusql-alchemy/"
-homepage = "https://github.com/russenger/rusql-alchemy"
-repository = "https://github.com/russenger/rusql-alchemy"
+documentation = "https://docs.rs/rusql-alchemy/latest/rusql_alchemy/"
+homepage = "https://github.com/j03-dev/rusql-alchemy"
+repository = "https://github.com/j03-dev/rusql-alchemy"
 
 [workspace]
 resolver = "2"
