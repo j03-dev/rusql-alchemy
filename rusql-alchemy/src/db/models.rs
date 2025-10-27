@@ -549,8 +549,7 @@ pub trait Model {
                 .query(&query, ())
                 .await?
                 .next()
-                .await
-                .unwrap()
+                .await?
                 .ok_or("no rows returned")?;
             Ok(row.get(0)?)
         }
