@@ -424,7 +424,7 @@ pub trait Model {
         Self: Sized + for<'de> serde::Deserialize<'de>,
     {
         let query = format!("select * from {table_name}", table_name = Self::NAME);
-        let mut rows = conn.query(&query, ()).await.unwrap();
+        let mut rows = conn.query(&query, ()).await?;
         let mut results = Vec::new();
         while let Some(row) = rows.next().await? {
             let s = libsql::de::from_row::<Self>(&row)?;
