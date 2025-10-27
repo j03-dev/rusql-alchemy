@@ -25,7 +25,7 @@ Depending on the database you want to use, add one of the following to your `Car
 **For PostgreSQL:**
 ```toml
 [dependencies]
-rusql-alchemy = { git = "0.5.2", features = ["postgres"] }
+rusql-alchemy = { version = "0.5.2", default-features = false, features = ["postgres"] }
 sqlx = "0.8"
 tokio = { version = "1", features = ["full"] }
 ```
@@ -33,7 +33,7 @@ tokio = { version = "1", features = ["full"] }
 **For MySQL:**
 ```toml
 [dependencies]
-rusql-alchemy = { version = "0.5.2", features = ["mysql"] }
+rusql-alchemy = { version = "0.5.2", default-features = false, features = ["mysql"] }
 sqlx = "0.8"
 tokio = { version = "1", features = ["full"] }
 ```
@@ -41,7 +41,7 @@ tokio = { version = "1", features = ["full"] }
 **For SQLite:**
 ```toml
 [dependencies]
-rusql-alchemy = { version = "0.5.2", features = ["sqlite"] }
+rusql-alchemy = "0.5.2" 
 sqlx = "0.8"
 tokio = { version = "1", features = ["full"] }
 ```
@@ -49,7 +49,7 @@ tokio = { version = "1", features = ["full"] }
 **For Turso:**
 ```toml
 [dependencies]
-rusql-alchemy = { version = "0.5.2", features = ["turso"] }
+rusql-alchemy = { version = "0.5.2", default-features = false, features = ["turso"] }
 tokio = { version = "1", features = ["full"] }
 ```
 
