@@ -6,10 +6,10 @@ authors.workspace = true
 keywords.workspace = true
 license.workspace = true
 readme.workspace = true
-description = "Rust Alchemy is Django ORM like lib for Rust"
-documentation = "https://docs.rs/russenger/latest/rusql-alchemy/"
-homepage = "https://github.com/russenger/rusql-alchemy"
-repository = "https://github.com/russenger/rusql-alchemy"
+description.workspace = true
+documentation.workspace = true
+homepage.workspace = true
+repository.workspace = true
 
 
 [features]

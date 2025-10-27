@@ -5,6 +5,9 @@ edition.workspace = true
 authors.workspace = true
 keywords.workspace = true
 license.workspace = true
+documentation.workspace = true
+homepage.workspace = true
+repository.workspace = true
 description = "macro for rusql-alchemy"
 
 [lib]
