@@ -49,7 +49,7 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
 
     let save = {
         quote! {
-            async fn save(&self, conn: &Connection) -> Result<(), sqlx::Error> {
+            async fn save(&self, conn: &Connection) -> Result<(), rusql_alchemy::Error> {
                 Self::create(
                     kwargs!(
                         #(#create_args = self.#create_args),*
@@ -63,7 +63,7 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
 
     let update = {
         quote! {
-            async fn update(&self, conn: &Connection) -> Result<(), sqlx::Error> {
+            async fn update(&self, conn: &Connection) -> Result<(), rusql_alchemy::Error> {
                 Self::set(
                     self.#the_primary_key.clone(),
                     kwargs!(
@@ -78,13 +78,23 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
 
     let delete = {
         let query = format!("delete from {name} where {the_primary_key}=?1;");
+        #[cfg(not(feature = "turso"))]
         quote! {
-            async fn delete(&self, conn: &Connection) -> Result<(), sqlx::Error> {
+            async fn delete(&self, conn: &Connection) -> Result<(), rusql_alchemy::Error> {
                 let placeholder = rusql_alchemy::PLACEHOLDER.to_string();
                 sqlx::query(&#query.replace("?", &placeholder))
                     .bind(self.#the_primary_key.clone())
                     .execute(conn)
                     .await?;
+                Ok(())
+            }
+        }
+
+        #[cfg(feature = "turso")]
+        quote! {
+            async fn delete(&self, conn: &Connection) -> Result<(), rusql_alchemy::Error> {
+                let placeholder = rusql_alchemy::PLACEHOLDER.to_string();
+                conn.execute(&#query.replace("?", &placeholder), rusql_alchemy::params![self.#the_primary_key.clone()]).await?;
                 Ok(())
             }
         }

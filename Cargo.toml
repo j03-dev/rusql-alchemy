@@ -1,36 +1,34 @@
+[workspace.package]
+version = "0.5.1"
+edition = "2021"
+authors = ["FITAHIANA Nomeniavo Joe <24nomeniavo@gmail.com>"]
+keywords = ["orm", "rust", "django-orm", "lib"]
+license = "Apache-2.0"
+readme = "README.md"
+
 [workspace]
 resolver = "2"
-members = ["rusql-alchemy", "rusql-alchemy-derive", "examples/*"]
+members = ["rusql-alchemy", "rusql-alchemy-derive"]
 
 
 [workspace.dependencies]
 # Core utilities & async
-async-trait = "^0.1.88"
-tokio = "^1.44.2"
-lazy_static = "1.5.0"
-anyhow = "1.0.98"
-
-# Configuration & Environment
-dotenv = "^0.15.0"
+async-trait = "^0.1.89"
 
 # Serialization
 serde = "1.0"
 serde_json = "1.0"
 
-# Web Framework
-rocket = "0.5.1"
-
 # Database
 sqlx = "^0.8"
-sqlformat = "0.3.5"
+sqlformat = "0.5.0"
+libsql = "0.9.24"
 
-chrono = "0.4.40"
+chrono = "0.4.42"
 
 inventory = "0.3"
 
-# Local database utilities (development)
-rusql-alchemy = { version = "0.5.0-rc.6", path = "rusql-alchemy" }
-rusql-alchemy-derive = { version = "^1", path = "rusql-alchemy-derive" }
+rusql-alchemy-derive.path = "rusql-alchemy-derive"
 
 # macro
 proc-macro2 = "1"

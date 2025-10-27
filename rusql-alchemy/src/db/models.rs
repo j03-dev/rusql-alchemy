@@ -3,43 +3,37 @@
 //! This module provides traits and implementations for database operations,
 //! including querying, inserting, updating, and deleting records.
 
-use lazy_static::lazy_static;
 use serde::Serialize;
-use sqlformat::{FormatOptions, QueryParams};
+
+#[cfg(not(feature = "turso"))]
 use sqlx::{any::AnyRow, FromRow, Row};
 
-use crate::{get_placeholder, get_type_name, Connection, FutRes};
+use crate::Error;
 
-lazy_static! {
-    /// The placeholder string for SQL queries, determined by the database type.
-    pub static ref PLACEHOLDER: &'static str = get_placeholder().expect(
-        "DATABASE_URL is not set, make sur the database is 'sqlite', 'postgres' or 'mysql'"
-    );
-}
+use crate::{get_type_name, Connection, FutRes};
 
-/// Represents a condition in a database query.
+#[cfg(not(feature = "postgres"))]
+pub const PLACEHOLDER: &str = "?";
+
+#[cfg(feature = "postgres")]
+pub const PLACEHOLDER: &str = "$";
+
 #[derive(Debug)]
 pub enum Condition {
-    /// A condition on a specific field.
     FieldCondition {
         field: String,
         value: String,
         value_type: String,
         comparison_operator: String,
     },
-    /// A logical operator (AND/OR) for combining conditions.
     LogicalOperator { operator: String },
 }
 
-/// Trait for adding OR conditions to a vector of conditions.
 pub trait Or {
-    /// Adds OR conditions to the existing conditions.
     fn or(self, conditions: Vec<Condition>) -> Vec<Condition>;
 }
 
-/// Trait for adding AND conditions to a vector of conditions.
 pub trait And {
-    /// Adds AND conditions to the existing conditions.
     fn and(self, conditions: Vec<Condition>) -> Vec<Condition>;
 }
 
@@ -201,16 +195,27 @@ pub trait Model {
     /// let success = User::migrate(&conn).await;
     /// println!("Migration success: {}", success);
     /// ```
-    fn migrate(conn: &'_ Connection) -> FutRes<'_, (), sqlx::Error>
+    fn migrate(conn: &'_ Connection) -> FutRes<'_, (), Error>
     where
         Self: Sized,
     {
         Box::pin(async move {
-            let formatted_sql =
-                sqlformat::format(Self::SCHEMA, &QueryParams::None, &FormatOptions::default());
+            #[cfg(debug_assertions)]
+            {
+                let formatted_sql = sqlformat::format(
+                    Self::SCHEMA,
+                    &sqlformat::QueryParams::None,
+                    &sqlformat::FormatOptions::default(),
+                );
+                println!("{formatted_sql}");
+            }
 
-            println!("{}", formatted_sql);
+            #[cfg(not(feature = "turso"))]
             sqlx::query(Self::SCHEMA).execute(conn).await?;
+
+            #[cfg(feature = "turso")]
+            conn.execute(Self::SCHEMA, ()).await?;
+
             Ok(())
         })
     }
@@ -235,7 +240,7 @@ pub trait Model {
     /// let success = user.save(&conn).await;
     /// println!("Save success: {}", success);
     /// ```
-    async fn save(&self, conn: &Connection) -> Result<(), sqlx::Error>
+    async fn save(&self, conn: &Connection) -> Result<(), Error>
     where
         Self: Sized;
 
@@ -262,7 +267,7 @@ pub trait Model {
     /// ).await;
     /// println!("Create success: {}", success);
     /// ```
-    async fn create(kw: Vec<Condition>, conn: &Connection) -> Result<(), sqlx::Error>
+    async fn create(kw: Vec<Condition>, conn: &Connection) -> Result<(), Error>
     where
         Self: Sized,
     {
@@ -276,9 +281,19 @@ pub trait Model {
             "insert into {table_name} ({fields}) values ({placeholders});",
             table_name = Self::NAME
         );
-        let mut stream = sqlx::query(&query);
-        binds!(args.iter(), stream);
-        stream.execute(conn).await?;
+
+        #[cfg(not(feature = "turso"))]
+        {
+            let mut stream = sqlx::query(&query);
+            binds!(args.iter(), stream);
+            stream.execute(conn).await?;
+        }
+
+        #[cfg(feature = "turso")]
+        {
+            let params = binds!(args.iter());
+            conn.execute(&query, params).await?;
+        }
         Ok(())
     }
 
@@ -301,7 +316,7 @@ pub trait Model {
     ///     println!("Update success: {}", success);
     /// }
     /// ```
-    async fn update(&self, conn: &Connection) -> Result<(), sqlx::Error>
+    async fn update(&self, conn: &Connection) -> Result<(), Error>
     where
         Self: Sized;
 
@@ -328,7 +343,7 @@ pub trait Model {
         id_value: T,
         kw: Vec<Condition>,
         conn: &Connection,
-    ) -> Result<(), sqlx::Error> {
+    ) -> Result<(), Error> {
         let UpSel {
             placeholders,
             mut args,
@@ -350,9 +365,18 @@ pub trait Model {
             table_name = Self::NAME,
         );
 
-        let mut stream = sqlx::query(&query);
-        binds!(args, stream);
-        stream.execute(conn).await?;
+        #[cfg(not(feature = "turso"))]
+        {
+            let mut stream = sqlx::query(&query);
+            binds!(args, stream);
+            stream.execute(conn).await?;
+        }
+
+        #[cfg(feature = "turso")]
+        {
+            let params = binds!(args.iter());
+            conn.execute(&query, params).await?;
+        }
         Ok(())
     }
 
@@ -369,7 +393,7 @@ pub trait Model {
     /// let success = user.delete(&conn).await;
     /// println!("Delete success: {}", success);
     /// ```
-    async fn delete(&self, conn: &Connection) -> Result<(), sqlx::Error>
+    async fn delete(&self, conn: &Connection) -> Result<(), Error>
     where
         Self: Sized;
 
@@ -386,12 +410,27 @@ pub trait Model {
     /// let users = User::all(&conn).await;
     /// println!("{:#?}", users);
     /// ```
-    async fn all(conn: &Connection) -> Result<Vec<Self>, sqlx::Error>
+    #[cfg(not(feature = "turso"))]
+    async fn all(conn: &Connection) -> Result<Vec<Self>, Error>
     where
         Self: Sized + Unpin + for<'r> FromRow<'r, AnyRow> + Clone,
     {
         let query = format!("select * from {table_name}", table_name = Self::NAME);
         Ok(sqlx::query_as::<_, Self>(&query).fetch_all(conn).await?)
+    }
+    #[cfg(feature = "turso")]
+    async fn all(conn: &Connection) -> Result<Vec<Self>, Error>
+    where
+        Self: Sized + for<'de> serde::Deserialize<'de>,
+    {
+        let query = format!("select * from {table_name}", table_name = Self::NAME);
+        let mut rows = conn.query(&query, ()).await?;
+        let mut results = Vec::new();
+        while let Some(row) = rows.next().await? {
+            let s = libsql::de::from_row::<Self>(&row)?;
+            results.push(s);
+        }
+        Ok(results)
     }
 
     /// Filters instances of the model based on the provided parameters.
@@ -411,7 +450,8 @@ pub trait Model {
     /// ).await;
     /// println!("{:#?}", users);
     /// ```
-    async fn filter(kw: Vec<Condition>, conn: &Connection) -> Result<Vec<Self>, sqlx::Error>
+    #[cfg(not(feature = "turso"))]
+    async fn filter(kw: Vec<Condition>, conn: &Connection) -> Result<Vec<Self>, Error>
     where
         Self: Sized + Unpin + for<'r> FromRow<'r, AnyRow> + Clone,
     {
@@ -425,6 +465,26 @@ pub trait Model {
         let mut stream = sqlx::query_as::<_, Self>(&query);
         binds!(args, stream);
         Ok(stream.fetch_all(conn).await?)
+    }
+    #[cfg(feature = "turso")]
+    async fn filter(kw: Vec<Condition>, conn: &Connection) -> Result<Vec<Self>, Error>
+    where
+        Self: Sized + for<'de> serde::Deserialize<'de>,
+    {
+        let UpSel { placeholders, args } = kw.to_select_query();
+
+        let query = format!(
+            "SELECT * FROM {table_name} WHERE {placeholders};",
+            table_name = Self::NAME
+        );
+        let params = binds!(args.iter());
+        let mut rows = conn.query(&query, params).await?;
+        let mut results = Vec::new();
+        while let Some(row) = rows.next().await? {
+            let s = libsql::de::from_row::<Self>(&row)?;
+            results.push(s);
+        }
+        Ok(results)
     }
 
     /// Retrieves the first instance of the model matching the filter criteria.
@@ -444,9 +504,18 @@ pub trait Model {
     /// ).await;
     /// println!("{:#?}", user);
     /// ```
-    async fn get(kw: Vec<Condition>, conn: &Connection) -> Result<Option<Self>, sqlx::Error>
+    #[cfg(not(feature = "turso"))]
+    async fn get(kw: Vec<Condition>, conn: &Connection) -> Result<Option<Self>, Error>
     where
         Self: Sized + Unpin + for<'r> FromRow<'r, AnyRow> + Clone,
+    {
+        Ok(Self::filter(kw, conn).await?.first().cloned())
+    }
+
+    #[cfg(feature = "turso")]
+    async fn get(kw: Vec<Condition>, conn: &Connection) -> Result<Option<Self>, Error>
+    where
+        Self: Sized + Clone + for<'de> serde::Deserialize<'de>,
     {
         Ok(Self::filter(kw, conn).await?.first().cloned())
     }
@@ -464,19 +533,33 @@ pub trait Model {
     /// let count = User::count(&conn).await;
     /// println!("User count: {}", count);
     /// ```
-    async fn count(conn: &Connection) -> Result<i64, sqlx::Error>
+    async fn count(conn: &Connection) -> Result<i64, Error>
     where
         Self: Sized,
     {
         let query = format!("select count(*) from {table_name}", table_name = Self::NAME);
-        Ok(sqlx::query(&query).fetch_one(conn).await?.get(0))
+        #[cfg(not(feature = "turso"))]
+        {
+            Ok(sqlx::query(&query).fetch_one(conn).await?.get(0))
+        }
+
+        #[cfg(feature = "turso")]
+        {
+            let row = conn
+                .query(&query, ())
+                .await?
+                .next()
+                .await?
+                .ok_or("no rows returned")?;
+            Ok(row.get(0)?)
+        }
     }
 }
 
 /// Trait for deleting database records.
 #[async_trait::async_trait]
 pub trait Delete {
-    async fn delete(&self, conn: &Connection) -> Result<(), sqlx::Error>;
+    async fn delete(&self, conn: &Connection) -> Result<(), Error>;
 }
 #[async_trait::async_trait]
 impl<T> Delete for Vec<T>
@@ -529,9 +612,17 @@ where
     /// ```
     ///
     /// In the above example, all records from the `Product` table will be deleted.
-    async fn delete(&self, conn: &Connection) -> Result<(), sqlx::Error> {
+    async fn delete(&self, conn: &Connection) -> Result<(), Error> {
         let query = format!("delete from {table_name}", table_name = T::NAME);
-        sqlx::query(query.as_str()).execute(conn).await?;
+        #[cfg(not(feature = "turso"))]
+        {
+            sqlx::query(&query).execute(conn).await?;
+        }
+
+        #[cfg(feature = "turso")]
+        {
+            conn.execute(&query, ()).await?;
+        }
         Ok(())
     }
 }

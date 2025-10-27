@@ -79,7 +79,7 @@ macro_rules! kwargs {
 /// binds!(args, stream);
 /// ```
 macro_rules! binds {
-    ($args: expr, $stream:expr) => {
+    ($args:expr, $stream:expr) => {{
         for arg in $args {
             let value = arg.value.replace('"', "");
             let ty = arg.ty.replace('"', "");
@@ -93,5 +93,24 @@ macro_rules! binds {
                 $stream = $stream.bind(value);
             }
         }
-    };
+    }};
+
+    ($args:expr) => {{
+        use libsql::Value;
+        let mut params = Vec::new();
+        for arg in $args {
+            let value = arg.value.replace('"', "");
+            let ty = arg.ty.replace('"', "");
+            if ty == "i32" || ty == "bool" {
+                params.push(Value::Integer(value.parse::<i64>().unwrap()));
+            } else if ty == "f64" {
+                params.push(Value::Real(value.parse::<f64>().unwrap()));
+            } else if ty.contains("Option") && value == "null" {
+                params.push(Value::Null);
+            } else {
+                params.push(Value::Text(value));
+            }
+        }
+        libsql::params_from_iter(params)
+    }};
 }

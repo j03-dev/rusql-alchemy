@@ -1,10 +1,11 @@
 [package]
 name = "rusql-alchemy-derive"
-version = "1.0.5"
-edition = "2021"
-license = "Apache-2.0"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+keywords.workspace = true
+license.workspace = true
 description = "macro for rusql-alchemy"
-authors = ["FITAHIANA Nomeniavo Joe <24nomeniavo@gmail.com>"]
 
 [lib]
 proc-macro = true
@@ -14,3 +15,8 @@ proc-macro2.workspace = true
 quote.workspace = true
 syn = { workspace = true, features = ["full"] }
 deluxe.workspace = true
+
+
+[features]
+default = []
+turso = []
