@@ -292,7 +292,7 @@ pub trait Model {
         #[cfg(feature = "turso")]
         {
             let params = binds!(args.iter());
-            conn.execute(&query, params).await.unwrap();
+            conn.execute(&query, params).await?;
         }
         Ok(())
     }
