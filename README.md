@@ -60,7 +60,7 @@ Create your database models using simple Rust structs and the `field` derive mac
 ```rust
 use rusql_alchemy::prelude::*;
 
-#[derive(Debug, field, FromRow, Default)]
+#[derive(Debug, Clone, Model, FromRow)]
 struct User {
     #[field(primary_key=true, auto=true)]
     id: Integer,
@@ -78,7 +78,7 @@ struct User {
 > **Note for PostgreSQL users:** For auto-incrementing primary keys, it's recommended to use the `Serial` type instead of `Integer` with `auto=true`.
 > 
 > ```rust
-> #[derive(Debug, field, FromRow, Default)]
+> #[derive(Debug, Clone, Model, FromRow)]
 > struct UserPg {
 >     #[field(primary_key=true)]
 >     id: Serial,
