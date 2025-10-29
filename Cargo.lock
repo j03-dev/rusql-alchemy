@@ -2423,6 +2423,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "tests"
+version = "0.5.2"
+dependencies = [
+ "rusql-alchemy",
+ "serde",
+ "sqlx",
+ "tokio",
+]
+
+[[package]]
 name = "thiserror"
 version = "1.0.69"
 source = "registry+https://github.com/rust-lang/crates.io-index"

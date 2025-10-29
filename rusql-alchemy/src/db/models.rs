@@ -6,7 +6,7 @@
 use serde::Serialize;
 
 #[cfg(not(feature = "turso"))]
-use sqlx::{any::AnyRow, FromRow, Row};
+pub use sqlx::{any::AnyRow, FromRow, Row};
 
 use crate::Error;
 
@@ -26,7 +26,9 @@ pub enum Condition {
         value_type: String,
         comparison_operator: String,
     },
-    LogicalOperator { operator: String },
+    LogicalOperator {
+        operator: String,
+    },
 }
 
 pub trait Or {
