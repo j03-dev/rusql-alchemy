@@ -4,7 +4,7 @@ use rusql_alchemy::prelude::*;
 async fn setup_database() -> Database {
     #[cfg(not(feature = "turso"))]
     {
-        Database::new("sqlite::memory:")
+        Database::new("sqlite:file:db?mode=memory&cache=shared")
             .await
             .expect("failed to init database")
     }
