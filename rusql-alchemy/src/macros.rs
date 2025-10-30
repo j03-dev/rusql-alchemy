@@ -33,7 +33,7 @@ macro_rules! kwargs {
         {
             let mut args = Vec::new();
             $(
-                args.push(Condition::FieldCondition {
+                args.push($crate::Kwargs::Condition {
                     field: stringify!($field).to_string(),
                     value: rusql_alchemy::to_string($value.clone()),
                     value_type: rusql_alchemy::get_type_name($value.clone()).into(),
@@ -46,7 +46,7 @@ macro_rules! kwargs {
     ($field:ident $op:tt $value:expr) => {
         {
             vec![
-                Condition::FieldCondition {
+                $crate::Kwargs::Condition {
                     field: stringify!($field).to_string(),
                     value: rusql_alchemy::to_string($value.clone()),
                     value_type: rusql_alchemy::get_type_name($value.clone()).into(),

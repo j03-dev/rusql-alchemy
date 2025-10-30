@@ -3,173 +3,14 @@
 //! This module provides traits and implementations for database operations,
 //! including querying, inserting, updating, and deleting records.
 
-use serde::Serialize;
-
 #[cfg(not(feature = "turso"))]
 pub use sqlx::{any::AnyRow, FromRow, Row};
 
+use serde::Serialize;
+
+use super::{Arg, Kwargs, Query, PLACEHOLDER};
 use crate::Error;
-
 use crate::{get_type_name, Connection, FutRes};
-
-#[cfg(not(feature = "postgres"))]
-pub const PLACEHOLDER: &str = "?";
-
-#[cfg(feature = "postgres")]
-pub const PLACEHOLDER: &str = "$";
-
-#[derive(Debug)]
-pub enum Condition {
-    FieldCondition {
-        field: String,
-        value: String,
-        value_type: String,
-        comparison_operator: String,
-    },
-    LogicalOperator {
-        operator: String,
-    },
-}
-
-pub trait Or {
-    fn or(self, conditions: Vec<Condition>) -> Vec<Condition>;
-}
-
-pub trait And {
-    fn and(self, conditions: Vec<Condition>) -> Vec<Condition>;
-}
-
-impl Or for Vec<Condition> {
-    fn or(mut self, conditions: Vec<Condition>) -> Vec<Condition> {
-        self.push(Condition::LogicalOperator {
-            operator: "or".to_string(),
-        });
-        self.extend(conditions);
-        self
-    }
-}
-
-impl And for Vec<Condition> {
-    fn and(mut self, conditions: Vec<Condition>) -> Vec<Condition> {
-        self.push(Condition::LogicalOperator {
-            operator: "and".to_string(),
-        });
-        self.extend(conditions);
-        self
-    }
-}
-
-struct Arg {
-    value: String,
-    ty: String,
-}
-
-pub struct UpSel {
-    placeholders: String,
-    args: Vec<Arg>,
-}
-
-pub struct Insrt {
-    placeholders: String,
-    fields: String,
-    args: Vec<Arg>,
-}
-
-pub trait Query {
-    fn to_update_query(&self) -> UpSel;
-    fn to_select_query(&self) -> UpSel;
-    fn to_insert_query(&self) -> Insrt;
-}
-
-impl Query for Vec<Condition> {
-    fn to_update_query(&self) -> UpSel {
-        let mut args = Vec::new();
-        let mut placeholders = Vec::new();
-        let mut index = 0;
-        for condition in self {
-            if let Condition::FieldCondition {
-                field,
-                value,
-                value_type,
-                ..
-            } = condition
-            {
-                index += 1;
-                args.push(Arg {
-                    value: value.to_owned(),
-                    ty: value_type.clone(),
-                });
-                placeholders.push(format!("{field}={PLACEHOLDER}{index}",));
-            }
-        }
-
-        UpSel {
-            placeholders: placeholders.join(", "),
-            args,
-        }
-    }
-
-    fn to_select_query(&self) -> UpSel {
-        let mut args = Vec::new();
-        let mut placeholders = Vec::new();
-        let mut index = 0;
-        for condition in self {
-            match condition {
-                Condition::FieldCondition {
-                    field,
-                    value,
-                    value_type,
-                    comparison_operator,
-                } => {
-                    index += 1;
-                    args.push(Arg {
-                        value: value.to_owned(),
-                        ty: value_type.clone(),
-                    });
-                    placeholders.push(format!("{field}{comparison_operator}{PLACEHOLDER}{index}",));
-                }
-                Condition::LogicalOperator { operator } => {
-                    placeholders.push(operator.to_owned());
-                }
-            }
-        }
-
-        UpSel {
-            placeholders: placeholders.join(" "),
-            args,
-        }
-    }
-
-    fn to_insert_query(&self) -> Insrt {
-        let mut args = Vec::new();
-        let mut fields = Vec::new();
-        let mut placeholders = Vec::new();
-        let mut index = 0;
-        for condition in self {
-            if let Condition::FieldCondition {
-                field,
-                value,
-                value_type,
-                ..
-            } = condition
-            {
-                index += 1;
-                args.push(Arg {
-                    value: value.to_owned(),
-                    ty: value_type.clone(),
-                });
-                fields.push(field.clone());
-                placeholders.push(format!("{PLACEHOLDER}{index}"));
-            }
-        }
-
-        Insrt {
-            placeholders: placeholders.join(", "),
-            fields: fields.join(", "),
-            args,
-        }
-    }
-}
 
 /// Trait for database model operations.
 #[async_trait::async_trait]
@@ -266,15 +107,15 @@ pub trait Model {
     /// ).await;
     /// println!("Create success: {}", success);
     /// ```
-    async fn create(kw: Vec<Condition>, conn: &Connection) -> Result<(), Error>
+    async fn create(kw: Vec<Kwargs>, conn: &Connection) -> Result<(), Error>
     where
         Self: Sized,
     {
-        let Insrt {
+        let Query {
             placeholders,
             fields,
             args,
-        } = kw.to_insert_query();
+        } = super::to_insert_query(kw);
 
         let query = format!(
             "insert into {table_name} ({fields}) values ({placeholders});",
@@ -340,13 +181,14 @@ pub trait Model {
     /// ```
     async fn set<T: Serialize + Clone + Send + Sync>(
         id_value: T,
-        kw: Vec<Condition>,
+        kw: Vec<Kwargs>,
         conn: &Connection,
     ) -> Result<(), Error> {
-        let UpSel {
+        let Query {
             placeholders,
             mut args,
-        } = kw.to_update_query();
+            ..
+        } = super::to_update_query(kw);
 
         args = args
             .into_iter()
@@ -449,11 +291,13 @@ pub trait Model {
     /// println!("{:#?}", users);
     /// ```
     #[cfg(not(feature = "turso"))]
-    async fn filter(kw: Vec<Condition>, conn: &Connection) -> Result<Vec<Self>, Error>
+    async fn filter(kw: Vec<Kwargs>, conn: &Connection) -> Result<Vec<Self>, Error>
     where
         Self: Sized + Unpin + for<'r> FromRow<'r, AnyRow> + Clone,
     {
-        let UpSel { placeholders, args } = kw.to_select_query();
+        let Query {
+            placeholders, args, ..
+        } = super::to_select_query(kw);
 
         let query = format!(
             "SELECT * FROM {table_name} WHERE {placeholders};",
@@ -465,11 +309,13 @@ pub trait Model {
         Ok(stream.fetch_all(conn).await?)
     }
     #[cfg(feature = "turso")]
-    async fn filter(kw: Vec<Condition>, conn: &Connection) -> Result<Vec<Self>, Error>
+    async fn filter(kw: Vec<Kwargs>, conn: &Connection) -> Result<Vec<Self>, Error>
     where
         Self: Sized + for<'de> serde::Deserialize<'de>,
     {
-        let UpSel { placeholders, args } = kw.to_select_query();
+        let Query {
+            placeholders, args, ..
+        } = super::to_select_query(kw);
 
         let query = format!(
             "SELECT * FROM {table_name} WHERE {placeholders};",
@@ -503,7 +349,7 @@ pub trait Model {
     /// println!("{:#?}", user);
     /// ```
     #[cfg(not(feature = "turso"))]
-    async fn get(kw: Vec<Condition>, conn: &Connection) -> Result<Option<Self>, Error>
+    async fn get(kw: Vec<Kwargs>, conn: &Connection) -> Result<Option<Self>, Error>
     where
         Self: Sized + Unpin + for<'r> FromRow<'r, AnyRow> + Clone,
     {
@@ -511,7 +357,7 @@ pub trait Model {
     }
 
     #[cfg(feature = "turso")]
-    async fn get(kw: Vec<Condition>, conn: &Connection) -> Result<Option<Self>, Error>
+    async fn get(kw: Vec<Kwargs>, conn: &Connection) -> Result<Option<Self>, Error>
     where
         Self: Sized + Clone + for<'de> serde::Deserialize<'de>,
     {
