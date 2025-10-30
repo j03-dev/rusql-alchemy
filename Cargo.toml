@@ -12,7 +12,7 @@ repository = "https://github.com/j03-dev/rusql-alchemy"
 
 [workspace]
 resolver = "2"
-members = ["rusql-alchemy", "rusql-alchemy-derive"]
+members = ["rusql-alchemy", "rusql-alchemy-derive", "tests"]
 
 
 [workspace.dependencies]
@@ -32,6 +32,7 @@ chrono = "0.4.42"
 
 inventory = "0.3"
 
+rusql-alchemy = { path = "rusql-alchemy", version = "0.5.2", default-features = false }
 rusql-alchemy-derive = { path = "rusql-alchemy-derive", version = "0.5.2" }
 
 # macro
@@ -39,3 +40,5 @@ proc-macro2 = "1"
 quote = "1.0.40"
 syn = "2.0"
 deluxe = "0.5"
+
+tokio = {version = "1", features = ["full"]}

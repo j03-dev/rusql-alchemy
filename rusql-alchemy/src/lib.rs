@@ -13,7 +13,7 @@ pub mod types;
 
 mod utils;
 
-pub use db::models::PLACEHOLDER;
+pub use db::*;
 pub use utils::*;
 
 use std::{future::Future, pin::Pin};

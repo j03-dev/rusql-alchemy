@@ -1,5 +1,6 @@
 #[cfg(feature = "postgres")]
 pub use super::types::Serial;
+
 #[cfg(not(feature = "turso"))]
 pub use sqlx::FromRow;
 
