@@ -1,0 +1,21 @@
+[package]
+name = "tests"
+version.workspace = true
+edition.workspace = true
+
+
+[lib]
+path = "tests.rs"
+
+
+[features]
+default = ["sqlite"]
+sqlite = ["rusql-alchemy/sqlite"]
+turso = ["rusql-alchemy/turso"]
+
+
+[dependencies]
+sqlx.workspace = true
+tokio.workspace = true
+serde.workspace = true
+rusql-alchemy = { workspace = true, features = [] }
