@@ -477,7 +477,7 @@ pub trait JoinTable<A, B> {
         self,
         column_a: &str,
         column_b: &str,
-        kw: Option<Vec<Condition>>,
+        kw: Option<Vec<Kwargs>>,
         conn: &Connection,
     ) -> Result<Vec<(A, B)>, sqlx::Error>;
 
@@ -485,7 +485,7 @@ pub trait JoinTable<A, B> {
         self,
         column_a: &str,
         column_b: &str,
-        kw: Option<Vec<Condition>>,
+        kw: Option<Vec<Kwargs>>,
         conn: &Connection,
     ) -> Result<Vec<(A, B)>, sqlx::Error>;
 }
@@ -494,7 +494,7 @@ async fn join_table<A, B>(
     join: &str,
     column_a: &str,
     column_b: &str,
-    kw: Option<Vec<Condition>>,
+    kw: Option<Vec<Kwargs>>,
     conn: &Connection,
 ) -> Result<Vec<(A, B)>, sqlx::Error>
 where
@@ -513,7 +513,9 @@ where
     let mut arguments = None;
 
     if let Some(kwargs) = kw {
-        let UpSel { placeholders, args } = kwargs.to_select_query();
+        let Query {
+            placeholders, args, ..
+        } = super::to_select_query(kwargs);
         query.push_str(&format!(" WHERE {placeholders}"));
         arguments = Some(args);
     }
@@ -544,7 +546,7 @@ where
         self,
         column_a: &str,
         column_b: &str,
-        kw: Option<Vec<Condition>>,
+        kw: Option<Vec<Kwargs>>,
         conn: &Connection,
     ) -> Result<Vec<(A, B)>, sqlx::Error> {
         join_table("INNER", column_a, column_b, kw, conn).await
@@ -554,7 +556,7 @@ where
         self,
         column_a: &str,
         column_b: &str,
-        kw: Option<Vec<Condition>>,
+        kw: Option<Vec<Kwargs>>,
         conn: &Connection,
     ) -> Result<Vec<(A, B)>, sqlx::Error> {
         join_table("LEFT", column_a, column_b, kw, conn).await
