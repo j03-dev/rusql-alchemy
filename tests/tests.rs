@@ -53,6 +53,8 @@ async fn test_main() {
     // Create
     let r = User::create(kwargs!(name = "John"), &database.conn).await;
     assert!(r.is_ok());
+    let r = User::create(kwargs!(name = "Doe"), &database.conn).await;
+    assert!(r.is_ok());
 
     // Get
     let result = User::get(kwargs!(name = "John"), &database.conn).await;
@@ -63,6 +65,12 @@ async fn test_main() {
     assert_eq!(u.id, Some(1));
     assert_eq!(u.name, "John");
     assert_eq!(u.role, "user");
+
+    // Filter
+    let results = User::filter(kwargs!(role = "user"), &database.conn).await;
+    assert!(results.is_ok());
+    let users = results.unwrap();
+    assert_eq!(users.len(), 2);
 
     // Update
     let mut user_to_update = User::get(kwargs!(name = "John"), &database.conn)
