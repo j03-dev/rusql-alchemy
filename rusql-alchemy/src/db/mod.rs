@@ -3,6 +3,10 @@
 //! This module contains submodules and traits that define the structure and behavior
 //! of database models, as well as functions for performing common database operations.
 
+use std::fmt;
+
+use crate::Connection;
+
 /// The `models` module defines the traits and structures for database models.
 ///
 /// This module includes the `Model` trait, which provides a common interface for
@@ -156,5 +160,44 @@ fn to_insert_query(kw: Vec<Kwargs>) -> Query {
         placeholders: placeholders.join(", "),
         fields: fields.join(", "),
         args,
+    }
+}
+
+pub enum JoinType {
+    Inner,
+    Left,
+    Right,
+    Full,
+}
+
+impl fmt::Display for JoinType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let join_type_name = match self {
+            JoinType::Inner => "INNER",
+            JoinType::Left => "LEFT",
+            JoinType::Right => "RIGHT",
+            JoinType::Full => "FUll",
+        };
+        std::write!(f, "{}", join_type_name)
+    }
+}
+
+pub struct Statement(String);
+
+impl Statement {
+    pub async fn join<T: Unpin + Send + Sync + for<'r> sqlx::FromRow<'r, sqlx::any::AnyRow>>(
+        &self,
+        join_type: JoinType,
+        table: &str,
+        kw: Vec<Kwargs>,
+        conn: &Connection,
+    ) -> Vec<T> {
+        let Query {
+            placeholders, args, ..
+        } = to_select_query(kw);
+        let query = format!("{select} {join_type} join {table} on {placeholders}", select = self.0);
+        let mut stream = sqlx::query_as::<_, T>(&query);
+        binds!(args, stream);
+        stream.fetch_all(conn).await.unwrap()
     }
 }

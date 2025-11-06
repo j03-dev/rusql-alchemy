@@ -129,3 +129,9 @@ macro_rules! binds {
         libsql::params_from_iter(params)
     }};
 }
+
+macro_rules! select {
+    ($($table:ty),*) => {
+        $crate::db::Statement(format!("SELECT {}", { let table_names = [$(stringify!($table)),*]; table_names.join(", ") }))
+    };
+}
