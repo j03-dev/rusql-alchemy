@@ -135,7 +135,7 @@ async fn test_join() {
 
     // Create Profile
     let r = Profile::create(
-        kwargs!(user_id = user.id.unwrap(), bio = "Loves Rust"),
+        kwargs!(user_id = user.id, bio = "Loves Rust"),
         &database.conn,
     )
     .await;

@@ -443,7 +443,7 @@ where
     /// # }
     /// #
     /// #[tokio::main]
-    /// async fn main() -> Result<(), sqlx::error> {
+    /// async fn main() -> Result<(), rusql_alchemy::error> {
     ///     let conn = Database::new().await?.conn;
     ///
     ///     let products = Product::all(&conn).await?;
