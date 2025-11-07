@@ -20,6 +20,8 @@ pub const PLACEHOLDER: &str = "?";
 #[cfg(feature = "postgres")]
 pub const PLACEHOLDER: &str = "$";
 
+use crate::Error;
+
 #[derive(Debug)]
 pub enum Kwargs {
     Condition {
@@ -113,12 +115,16 @@ fn to_select_query(kw: Vec<Kwargs>) -> Query {
                 value_type,
                 comparison_operator,
             } => {
-                index += 1;
-                args.push(Arg {
-                    value: value.to_owned(),
-                    ty: value_type.clone(),
-                });
-                placeholders.push(format!("{field}{comparison_operator}{PLACEHOLDER}{index}",));
+                if value_type == "column" {
+                    placeholders.push(format!("{field}{comparison_operator}{value}"));
+                } else {
+                    index += 1;
+                    args.push(Arg {
+                        value: value.to_owned(),
+                        ty: value_type.clone(),
+                    });
+                    placeholders.push(format!("{field}{comparison_operator}{PLACEHOLDER}{index}",));
+                }
             }
             Kwargs::LogicalOperator { operator } => {
                 placeholders.push(operator.to_owned());
@@ -182,22 +188,61 @@ impl fmt::Display for JoinType {
     }
 }
 
-pub struct Statement(String);
+pub struct Statement(pub String);
 
 impl Statement {
-    pub async fn join<T: Unpin + Send + Sync + for<'r> sqlx::FromRow<'r, sqlx::any::AnyRow>>(
+    #[cfg(not(feature = "turso"))]
+    pub async fn join<
+        T: Unpin + Send + Sync + for<'r> sqlx::FromRow<'r, sqlx::any::AnyRow> + models::Model,
+    >(
         &self,
         join_type: JoinType,
         table: &str,
         kw: Vec<Kwargs>,
         conn: &Connection,
-    ) -> Vec<T> {
+    ) -> Result<Vec<T>, Error> {
         let Query {
             placeholders, args, ..
         } = to_select_query(kw);
-        let query = format!("{select} {join_type} join {table} on {placeholders}", select = self.0);
+        let query = format!(
+            "{select} FROM {base_table} {join_type} join {table} on {placeholders};",
+            select = self.0,
+            base_table = T::NAME,
+            join_type = join_type,
+            table = table
+        );
+
         let mut stream = sqlx::query_as::<_, T>(&query);
         binds!(args, stream);
-        stream.fetch_all(conn).await.unwrap()
+        Ok(stream.fetch_all(conn).await?)
+    }
+
+    #[cfg(feature = "turso")]
+    pub async fn join<T: Unpin + Send + Sync + for<'de> serde::Deserialize<'de> + models::Model>(
+        &self,
+        join_type: JoinType,
+        table: &str,
+        kw: Vec<Kwargs>,
+        conn: &Connection,
+    ) -> Result<Vec<T>, Error> {
+        let Query {
+            placeholders, args, ..
+        } = to_select_query(kw);
+        let query = format!(
+            "{select} FROM {base_table} {join_type} join {table} on {placeholders};",
+            select = self.0,
+            base_table = T::NAME,
+            join_type = join_type,
+            table = table
+        );
+
+        let params = binds!(args.iter());
+        let mut rows = conn.query(&query, params).await?;
+        let mut results = Vec::new();
+        while let Some(row) = rows.next().await? {
+            let s = libsql::de::from_row::<T>(&row)?;
+            results.push(s);
+        }
+        Ok(results)
     }
 }
