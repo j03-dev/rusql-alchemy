@@ -57,13 +57,15 @@ tokio = { version = "1", features = ["full"] }
 
 Create your database models using simple Rust structs and the `field` derive macro. The macro automatically generates the necessary code for database interactions.
 
+When using an auto-incrementing primary key (`auto=true`), it is recommended to use `Option<Integer>` for the field type. This allows the model to represent a record that has not yet been inserted into the database (where the ID would be `None`).
+
 ```rust
 use rusql_alchemy::prelude::*;
 
 #[derive(Debug, Clone, Model, FromRow)]
 struct User {
     #[field(primary_key=true, auto=true)]
-    id: Integer,
+    id: Option<Integer>,
 
     #[field(unique=true)]
     name: String,
@@ -226,6 +228,70 @@ async fn main() -> Result<(), Error> {
     // Delete all users
     let all_users = User::all(&database.conn).await?;
     all_users.delete(&database.conn).await?;
+
+    Ok(())
+}
+```
+
+
+## JOIN Operations
+
+Rusql Alchemy supports `INNER JOIN` operations, allowing you to query data from multiple tables at once.
+
+First, define the models with a foreign key relationship. Assuming the `User` model from before, we can define a `Profile` model:
+
+```rust
+use rusql_alchemy::prelude::*;
+
+#[derive(Debug, Clone, Model, FromRow)]
+struct Profile {
+    #[field(primary_key=true, auto=true)]
+    id: Option<Integer>,
+
+    #[field(foreign_key=User.id)]
+    user_id: Integer,
+
+    bio: String,
+}
+```
+
+Then, you can use the `select!` macro to perform a join. The `join` method returns a `Vec<T>` where `T` is the type specified in `join::<T>`.
+
+```rust
+use rusql_alchemy::prelude::*;
+use rusql_alchemy::Error;
+
+// Assuming User and Profile models are defined as above
+#[tokio::main]
+async fn main() -> Result<(), Error> {
+    let database = Database::new_local("local.db").await?;
+    database.migrate().await?;
+
+    // Create a user
+    User::create(kwargs!(name = "Jane", age = 25), &database.conn).await?;
+
+    // Get the user to access the auto-generated id
+    let user = User::get(kwargs!(name == "Jane"), &database.conn)
+        .await?
+        .expect("User should exist");
+
+    // Create a profile for the user
+    Profile::create(
+        kwargs!(user_id = user.id.unwrap(), bio = "Loves Rust"),
+        &database.conn,
+    ).await?;
+
+    // Perform an inner join to get Users
+    let results = select!(User, Profile)
+        .join::<User>(
+            JoinType::Inner,
+            Profile::NAME,
+            kwargs!(User.id == Profile.user_id),
+            &database.conn,
+        )
+        .await?;
+
+    println!("Joined users: {:?}", results);
 
     Ok(())
 }
