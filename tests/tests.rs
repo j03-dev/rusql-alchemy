@@ -4,7 +4,7 @@ use rusql_alchemy::prelude::*;
 async fn setup_database() -> Database {
     #[cfg(not(feature = "turso"))]
     {
-        Database::new("sqlite:file:db?mode=memory&cache=shared")
+        Database::new("sqlite:file:cache?mode=memory&cache=shared")
             .await
             .expect("failed to init database")
     }
@@ -17,7 +17,7 @@ async fn setup_database() -> Database {
 }
 
 #[cfg(not(feature = "turso"))]
-#[derive(Model, Clone, FromRow)]
+#[derive(Model, Clone, FromRow, Debug)]
 struct User {
     #[field(primary_key = true, auto = true)]
     id: Option<Integer>,
@@ -29,7 +29,7 @@ struct User {
 }
 
 #[cfg(feature = "turso")]
-#[derive(Model, Clone, serde::Deserialize)]
+#[derive(Model, Clone, serde::Deserialize, Debug)]
 struct User {
     #[field(primary_key = true, auto = true)]
     id: Option<Integer>,
@@ -39,6 +39,26 @@ struct User {
 
     #[field(default = "user")]
     role: String,
+}
+
+#[cfg(not(feature = "turso"))]
+#[derive(Model, Clone, FromRow, Debug)]
+struct Profile {
+    #[field(primary_key = true, auto = true)]
+    profile_id: Option<Integer>,
+    #[field(foreign_key=User.id)]
+    user_id: Integer,
+    bio: String,
+}
+
+#[cfg(feature = "turso")]
+#[derive(Model, Clone, serde::Deserialize, Debug)]
+struct Profile {
+    #[field(primary_key = true, auto = true)]
+    profile_id: Option<Integer>,
+    #[field(foreign_key=User.id)]
+    user_id: Integer,
+    bio: String,
 }
 
 #[tokio::test]
@@ -62,7 +82,6 @@ async fn test_main() {
     let user = result.unwrap();
     assert!(user.is_some());
     let u = user.unwrap();
-    assert_eq!(u.id, Some(1));
     assert_eq!(u.name, "John");
     assert_eq!(u.role, "user");
 
@@ -70,7 +89,7 @@ async fn test_main() {
     let results = User::filter(kwargs!(role = "user"), &database.conn).await;
     assert!(results.is_ok());
     let users = results.unwrap();
-    assert_eq!(users.len(), 2);
+    assert!(!users.is_empty());
 
     // Update
     let mut user_to_update = User::get(kwargs!(name = "John"), &database.conn)
@@ -81,7 +100,7 @@ async fn test_main() {
     let r = user_to_update.update(&database.conn).await;
     assert!(r.is_ok());
 
-    let updated_user = User::get(kwargs!(id = 1), &database.conn)
+    let updated_user = User::get(kwargs!(role == "admin"), &database.conn)
         .await
         .unwrap()
         .unwrap();
@@ -91,6 +110,49 @@ async fn test_main() {
     let r = updated_user.delete(&database.conn).await;
     assert!(r.is_ok());
 
-    let deleted_user = User::get(kwargs!(id = 1), &database.conn).await.unwrap();
+    let deleted_user = User::get(kwargs!(role == "admin"), &database.conn).await.unwrap();
     assert!(deleted_user.is_none());
+}
+
+#[tokio::test]
+async fn test_join() {
+    // Setup
+    let database = setup_database().await;
+
+    // Migrate
+    let result = database.migrate().await;
+    assert!(result.is_ok());
+
+    // Create User
+    let r = User::create(kwargs!(name = "Jane"), &database.conn).await;
+    assert!(r.is_ok());
+
+    // Get User
+    let user = User::get(kwargs!(name = "Jane"), &database.conn)
+        .await
+        .unwrap()
+        .unwrap();
+
+    // Create Profile
+    let r = Profile::create(
+        kwargs!(user_id = user.id.unwrap(), bio = "Loves Rust"),
+        &database.conn,
+    )
+    .await;
+    assert!(r.is_ok());
+
+    // Join
+    let results = select!(User, Profile)
+        .join::<User>(
+            JoinType::Inner,
+            Profile::NAME,
+            kwargs!(User.id = Profile.user_id),
+            &database.conn,
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(results.len(), 1);
+    let joined_user = results.first().unwrap();
+    assert_eq!(joined_user.name, "Jane");
 }

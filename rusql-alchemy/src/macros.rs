@@ -43,6 +43,33 @@ macro_rules! kwargs {
             args
         }
     };
+    
+    ($table:ident.$column:ident $op:tt $v_table:ident.$v_column:ident) => {
+        {
+            vec![
+                $crate::Kwargs::Condition {
+                    field: format!("{}.{}", stringify!($table), stringify!($column)),
+                    value: format!("{}.{}", stringify!($v_table), stringify!($v_column)),
+                    value_type: "column".into(),
+                    comparison_operator: stringify!($op).to_string(),
+                }
+            ]
+        }
+    };
+
+    ($table:ident.$column:ident $op:tt $value:expr) => {
+        {
+            vec![
+                $crate::Kwargs::Condition {
+                    field: format!("{}.{}", stringify!($table), stringify!($column)),
+                    value: rusql_alchemy::to_string($value.clone()),
+                    value_type: rusql_alchemy::get_type_name($value.clone()).into(),
+                    comparison_operator: stringify!($op).to_string(),
+                }
+            ]
+        }
+    };
+    
     ($field:ident $op:tt $value:expr) => {
         {
             vec![
@@ -55,6 +82,7 @@ macro_rules! kwargs {
             ]
         }
     };
+
 }
 
 /// A macro to bind arguments to a stream based on their type.
@@ -113,4 +141,11 @@ macro_rules! binds {
         }
         libsql::params_from_iter(params)
     }};
+}
+
+#[macro_export]
+macro_rules! select {
+    ($($table:ty),*) => {
+        $crate::db::Statement(format!("SELECT {}", { let table_names = [$(format!("{}.*", stringify!($table))),*]; table_names.join(", ") }))
+    };
 }

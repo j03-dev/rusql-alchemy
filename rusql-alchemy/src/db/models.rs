@@ -428,25 +428,25 @@ where
     /// #
     /// # #[derive(FromRow, Debug, Default, Model, Clone)]
     /// # struct Product {
-    /// #     #[model(primary_key = true, auto = true)]
+    /// #     #[field(primary_key = true, auto = true)]
     /// #     id: Integer,
-    /// #     #[model(size = 50)]
+    /// #     #[field(size = 50)]
     /// #     name: String,
     /// #     price: Float,
     /// #     description: Text,
-    /// #     #[model(default = true)]
+    /// #     #[field(default = true)]
     /// #     is_sel: Boolean,
-    /// #     #[model(foreign_key = "User.id")]
+    /// #     #[field(foreign_key = "User.id")]
     /// #     owner: Integer,
-    /// #     #[model(default = "now")]
+    /// #     #[field(default = "now")]
     /// #     at: DateTime,
     /// # }
     /// #
     /// #[tokio::main]
-    /// async fn main() {
-    ///     let conn = Database::new().await.conn;
+    /// async fn main() -> Result<(), sqlx::error> {
+    ///     let conn = Database::new().await?.conn;
     ///
-    ///     let products = Product::all(&conn).await;
+    ///     let products = Product::all(&conn).await?;
     ///     let success = products.delete(&conn).await;
     ///     println!("Products delete success: {}", success);
     ///
