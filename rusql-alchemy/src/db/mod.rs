@@ -182,7 +182,7 @@ impl fmt::Display for JoinType {
             JoinType::Inner => "INNER",
             JoinType::Left => "LEFT",
             JoinType::Right => "RIGHT",
-            JoinType::Full => "FUll",
+            JoinType::Full => "FULL",
         };
         std::write!(f, "{}", join_type_name)
     }
