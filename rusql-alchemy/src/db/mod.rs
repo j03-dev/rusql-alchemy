@@ -209,7 +209,6 @@ impl Statement {
             select = self.0,
             base_table = T::NAME,
             join_type = join_type,
-            table = table
         );
 
         let mut stream = sqlx::query_as::<_, T>(&query);
@@ -233,7 +232,6 @@ impl Statement {
             select = self.0,
             base_table = T::NAME,
             join_type = join_type,
-            table = table
         );
 
         let params = binds!(args.iter());
