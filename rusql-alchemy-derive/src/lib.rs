@@ -61,7 +61,7 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
         quote! {
             async fn update(&self, conn: &Connection) -> Result<(), rusql_alchemy::Error> {
                 Self::set(
-                    self.#primary_key.clone(),
+                    self.#primary_key,
                     kwargs!(
                         #(#update_args = self.#update_args),*
                     ),

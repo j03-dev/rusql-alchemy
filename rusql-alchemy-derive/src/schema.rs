@@ -24,7 +24,7 @@ pub fn process_fields(fields: &syn::punctuated::Punctuated<syn::Field, syn::Toke
         let field_type = &field.ty;
 
         if attributes.primary_key.unwrap_or(false) {
-            primary_key = quote! { #field_name.clone() };
+            primary_key = quote! { #field_name };
             if !attributes.auto.unwrap_or(false) || extract_inner_type(field_type) != "Serial" {
                 create_args.push(quote! { #field_name });
             }
@@ -105,7 +105,7 @@ fn construct_sql_type(inner_type: &str, size: Option<usize>) -> TokenStream {
         "Float" => quote! { float },
         "Boolean" => quote! { bool },
         "Serial" => quote! { serial },
-        "Integer" => quote! { interger },
+        "Integer" => quote! { integer },
         "Date" => quote! { varchar(10) },
         "DateTime" => quote! { varchar(40) },
         "String" => match size {
@@ -152,6 +152,8 @@ fn construct_default_sql_value(default: &Option<TokenStream>, inner_type: &str) 
                 ("DateTime", "now") => quote! { default current_timestamp },
                 ("Boolean", "true") => quote! { default 1 },
                 ("Boolean", "false") => quote! { default 0 },
+                (_, "now") => panic!("'now' is only work with Date or DateTime"),
+                ("Boolean", _) => panic!("Invalid boolean default value, use 'true' or 'false'"),
                 _ => quote! { default #value },
             }
         }
