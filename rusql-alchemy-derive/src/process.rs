@@ -121,10 +121,9 @@ fn construct_sql_type(inner_type: &str, size: Option<usize>) -> TokenStream {
             None => quote! { varchar(255)},
         },
         other => panic!(
-            "Unsupported type: {}, only 'Text' 'String' 'Float' 'Boolean' 'Serial' 'Integer' 'Data' 'DateTime' are available!",
+            "Unsupported type: {}, only 'Text' 'String' 'Float' 'Boolean' 'Serial' 'Integer' 'Date' 'DateTime' are available!",
             other
         ),
-    }
 }
 
 fn construct_nullable(ty: &syn::Type) -> TokenStream {
