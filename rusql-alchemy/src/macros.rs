@@ -35,15 +35,15 @@ macro_rules! kwargs {
             $(
                 args.push($crate::Kwargs::Condition {
                     field: stringify!($field).to_string(),
-                    value: rusql_alchemy::to_string($value.clone()),
-                    value_type: rusql_alchemy::get_type_name($value.clone()).into(),
+                    value: $crate::to_string($value.clone()),
+                    value_type: $crate::get_type_name($value.clone()).into(),
                     comparison_operator: "=".to_string(),
                 });
             )*
             args
         }
     };
-    
+
     ($table:ident.$column:ident $op:tt $v_table:ident.$v_column:ident) => {
         {
             vec![
@@ -62,21 +62,21 @@ macro_rules! kwargs {
             vec![
                 $crate::Kwargs::Condition {
                     field: format!("{}.{}", stringify!($table), stringify!($column)),
-                    value: rusql_alchemy::to_string($value.clone()),
-                    value_type: rusql_alchemy::get_type_name($value.clone()).into(),
+                    value: $crate::to_string($value.clone()),
+                    value_type: $crate::get_type_name($value.clone()).into(),
                     comparison_operator: stringify!($op).to_string(),
                 }
             ]
         }
     };
-    
+
     ($field:ident $op:tt $value:expr) => {
         {
             vec![
                 $crate::Kwargs::Condition {
                     field: stringify!($field).to_string(),
-                    value: rusql_alchemy::to_string($value.clone()),
-                    value_type: rusql_alchemy::get_type_name($value.clone()).into(),
+                    value: $crate::to_string($value.clone()),
+                    value_type: $crate::get_type_name($value.clone()).into(),
                     comparison_operator: stringify!($op).to_string(),
                 }
             ]
