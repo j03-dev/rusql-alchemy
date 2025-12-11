@@ -77,7 +77,7 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
         quote! {
             async fn delete(&self, conn: &Connection) -> Result<(), rusql_alchemy::Error> {
                 sqlx::query(&#query.replace("?", rusql_alchemy::PLACEHOLDER))
-                    .bind(self.#primary_key.clone())
+                    .bind(self.#primary_key)
                     .execute(conn)
                     .await?;
                 Ok(())
@@ -87,7 +87,7 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
         #[cfg(feature = "turso")]
         quote! {
             async fn delete(&self, conn: &Connection) -> Result<(), rusql_alchemy::Error> {
-                conn.execute(&#query.replace("?", rusql_alchemy::PLACEHOLDER), rusql_alchemy::params![self.#primary_key.clone()]).await?;
+                conn.execute(&#query.replace("?", rusql_alchemy::PLACEHOLDER), rusql_alchemy::params![self.#primary_key]).await?;
                 Ok(())
             }
         }
