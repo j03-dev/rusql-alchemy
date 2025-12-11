@@ -1,9 +1,8 @@
-use codegen::{process_fields, ModelData};
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{parse_macro_input, Data, DeriveInput, Fields};
 
-mod codegen;
+mod process;
 
 #[proc_macro_derive(Model, attributes(field))]
 pub fn model_derive(input: TokenStream) -> TokenStream {
@@ -18,19 +17,17 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
         _ => panic!("Model derive macro only supports structs"),
     };
 
-    let ModelData {
+    let process::Output {
+        primary_key,
+        default_fields,
         schema_fields,
         create_args,
         update_args,
-        the_primary_key,
-        default_fields,
-    } = process_fields(fields);
+    } = process::process_fields(fields);
 
-    let primary_key = {
-        let pk = the_primary_key.to_string();
-        quote! {
-            const PK: &'static str = #pk;
-        }
+    let pk = {
+        let pk = primary_key.to_string();
+        quote! { const PK: &'static str = #pk; }
     };
 
     let schema = {
@@ -42,9 +39,7 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
 
         let schema = format!("create table if not exists {name} ({fields});").replace('"', "");
 
-        quote! {
-            const SCHEMA: &'static str = #schema;
-        }
+        quote! { const SCHEMA: &'static str = #schema; }
     };
 
     let save = {
@@ -65,7 +60,7 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
         quote! {
             async fn update(&self, conn: &Connection) -> Result<(), rusql_alchemy::Error> {
                 Self::set(
-                    self.#the_primary_key.clone(),
+                    self.#primary_key,
                     kwargs!(
                         #(#update_args = self.#update_args),*
                     ),
@@ -77,12 +72,12 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
     };
 
     let delete = {
-        let query = format!("delete from {name} where {the_primary_key}=?1;");
+        let query = format!("delete from {name} where {primary_key}=?1;");
         #[cfg(not(feature = "turso"))]
         quote! {
             async fn delete(&self, conn: &Connection) -> Result<(), rusql_alchemy::Error> {
                 sqlx::query(&#query.replace("?", rusql_alchemy::PLACEHOLDER))
-                    .bind(self.#the_primary_key.clone())
+                    .bind(self.#primary_key)
                     .execute(conn)
                     .await?;
                 Ok(())
@@ -92,7 +87,7 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
         #[cfg(feature = "turso")]
         quote! {
             async fn delete(&self, conn: &Connection) -> Result<(), rusql_alchemy::Error> {
-                conn.execute(&#query.replace("?", rusql_alchemy::PLACEHOLDER), rusql_alchemy::params![self.#the_primary_key.clone()]).await?;
+                conn.execute(&#query.replace("?", rusql_alchemy::PLACEHOLDER), rusql_alchemy::params![self.#primary_key]).await?;
                 Ok(())
             }
         }
@@ -103,7 +98,7 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
         impl Model for #name {
             const NAME: &'static str = stringify!(#name);
             #schema
-            #primary_key
+            #pk
             #save
             #update
             #delete
