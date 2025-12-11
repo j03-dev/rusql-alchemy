@@ -124,6 +124,7 @@ fn construct_sql_type(inner_type: &str, size: Option<usize>) -> TokenStream {
             "Unsupported type: {}, only 'Text' 'String' 'Float' 'Boolean' 'Serial' 'Integer' 'Date' 'DateTime' are available!",
             other
         ),
+    }
 }
 
 fn construct_nullable(ty: &syn::Type) -> TokenStream {
@@ -159,7 +160,7 @@ fn construct_default_sql_value(default: &Option<TokenStream>, inner_type: &str) 
                 ("DateTime", "now") => quote! { default current_timestamp },
                 ("Boolean", "true") => quote! { default 1 },
                 ("Boolean", "false") => quote! { default 0 },
-                (_, "now") => panic!("The key work 'now' is only work with Date or DateTime type!"),
+                (_, "now") => panic!("The keyword 'now' only works with Date or DateTime type!"),
                 ("Boolean", _) => panic!("Invalid boolean default value, use 'true' or 'false'!"),
                 _ => quote! { default #value },
             }
