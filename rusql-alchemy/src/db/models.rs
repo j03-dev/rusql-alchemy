@@ -205,8 +205,6 @@ pub trait Model {
             table_name = Self::NAME,
         );
 
-        println!("{query}");
-
         #[cfg(not(feature = "turso"))]
         {
             let mut stream = sqlx::query(&query);
