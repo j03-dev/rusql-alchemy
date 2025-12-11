@@ -1,9 +1,8 @@
-use crate::schema::Output;
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{parse_macro_input, Data, DeriveInput, Fields};
 
-mod schema;
+mod process;
 
 #[proc_macro_derive(Model, attributes(field))]
 pub fn model_derive(input: TokenStream) -> TokenStream {
@@ -18,13 +17,13 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
         _ => panic!("Model derive macro only supports structs"),
     };
 
-    let Output {
+    let process::Output {
         primary_key,
         default_fields,
         schema_fields,
         create_args,
         update_args,
-    } = schema::process_fields(fields);
+    } = process::process_fields(fields);
 
     let pk = {
         let pk = primary_key.to_string();

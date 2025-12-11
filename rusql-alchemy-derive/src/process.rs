@@ -25,6 +25,7 @@ pub fn process_fields(fields: &syn::punctuated::Punctuated<syn::Field, syn::Toke
 
         if attributes.primary_key.unwrap_or(false) {
             primary_key = quote! { #field_name };
+            // if not autoincrement push to create candidate
             if !attributes.auto.unwrap_or(false) || extract_inner_type(field_type) != "Serial" {
                 create_args.push(quote! { #field_name });
             }
