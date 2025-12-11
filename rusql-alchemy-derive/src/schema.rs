@@ -33,11 +33,11 @@ pub fn process_fields(fields: &syn::punctuated::Punctuated<syn::Field, syn::Toke
             update_args.push(quote! { #field_name });
         }
 
+        let field_schema = generate_field_schema(&attributes, field_name, field_type);
+        schema_fields.push(field_schema);
+
         let default_field = generate_default_field(&attributes.default, field_name, field_type);
         default_fields.push(default_field);
-
-        let field_schema = generate_field_schema(attributes, field_name, field_type);
-        schema_fields.push(field_schema);
     }
 
     Output {
@@ -61,7 +61,7 @@ struct ModelField {
 }
 
 fn generate_field_schema(
-    attributes: ModelField,
+    attributes: &ModelField,
     field_name: &syn::Ident,
     field_type: &syn::Type,
 ) -> TokenStream {
@@ -77,7 +77,11 @@ fn generate_field_schema(
     quote! { #field_name #sql_type #primary_key #unique #default #nullable #foreign_key }
 }
 
-fn construct_primary_key(inner_type: &str, is_primary_key: &Option<bool>, is_auto: &Option<bool>) -> TokenStream {
+fn construct_primary_key(
+    inner_type: &str,
+    is_primary_key: &Option<bool>,
+    is_auto: &Option<bool>,
+) -> TokenStream {
     if is_primary_key.unwrap_or(false) {
         let auto = match (is_auto, inner_type) {
             (Some(true), _) => quote! { autoincrement },
@@ -115,7 +119,10 @@ fn construct_sql_type(inner_type: &str, size: Option<usize>) -> TokenStream {
             }
             None => quote! { varchar(255)},
         },
-        ty => panic!("Unsupported type: {}", ty),
+        other => panic!(
+            "Unsupported type: {}, only 'Text' 'String' 'Float' 'Boolean' 'Serial' 'Integer' 'Data' 'DateTime' are available!",
+            other
+        ),
     }
 }
 
@@ -152,8 +159,8 @@ fn construct_default_sql_value(default: &Option<TokenStream>, inner_type: &str) 
                 ("DateTime", "now") => quote! { default current_timestamp },
                 ("Boolean", "true") => quote! { default 1 },
                 ("Boolean", "false") => quote! { default 0 },
-                (_, "now") => panic!("'now' is only work with Date or DateTime"),
-                ("Boolean", _) => panic!("Invalid boolean default value, use 'true' or 'false'"),
+                (_, "now") => panic!("The key work 'now' is only work with Date or DateTime type!"),
+                ("Boolean", _) => panic!("Invalid boolean default value, use 'true' or 'false'!"),
                 _ => quote! { default #value },
             }
         }
@@ -179,8 +186,8 @@ fn generate_default_field(
                 }
                 ("Boolean", "true") => quote! { 1 },
                 ("Boolean", "false") => quote! { 0 },
-                (_, "now") => panic!("'now' is only work with Date or DateTime"),
-                ("Boolean", _) => panic!("Invalid boolean default value, use 'true' or 'false'"),
+                (_, "now") => panic!("The key work 'now' is only work with Date or DateTime type!"),
+                ("Boolean", _) => panic!("Invalid boolean default value, use 'true' or 'false'!"),
                 _ if nullable => quote! { Some(#value.into()) },
                 _ => quote! { #value.into() },
             }
