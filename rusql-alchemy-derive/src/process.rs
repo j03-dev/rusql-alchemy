@@ -186,7 +186,7 @@ fn generate_default_field(
                 }
                 ("Boolean", "true") => quote! { 1 },
                 ("Boolean", "false") => quote! { 0 },
-                (_, "now") => panic!("The key work 'now' is only work with Date or DateTime type!"),
+                (_, "now") => panic!("The keyword 'now' only works with Date or DateTime type!"),
                 ("Boolean", _) => panic!("Invalid boolean default value, use 'true' or 'false'!"),
                 _ if nullable => quote! { Some(#value.into()) },
                 _ => quote! { #value.into() },
