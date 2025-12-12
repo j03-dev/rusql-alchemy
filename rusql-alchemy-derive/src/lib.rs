@@ -42,7 +42,7 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
             const SCHEMA: &'static str = #schema;
 
             async fn save(&self, conn: &rusql_alchemy::Connection) -> Result<(), rusql_alchemy::Error> {
-                Self::create(kwargs!(#(#create_args = self.#create_args),*),conn).await
+                Self::create(rusql_alchemy::kwargs!(#(#create_args = self.#create_args),*),conn).await
             }
 
             async fn update(&self, conn: &rusql_alchemy::Connection) -> Result<(), rusql_alchemy::Error> {
