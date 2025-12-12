@@ -10,7 +10,7 @@ use serde::Serialize;
 
 use super::{Arg, Kwargs, Query, PLACEHOLDER};
 use crate::Error;
-use crate::{get_type_name, Connection, FutRes};
+use crate::{utils::get_type_name, Connection, FutRes};
 
 /// Trait for database model operations.
 #[async_trait::async_trait]

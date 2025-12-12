@@ -22,10 +22,10 @@ macro_rules! kwargs {
         {
             let mut args = Vec::new();
             $(
-                args.push($crate::Kwargs::Condition {
+                args.push($crate::db::Kwargs::Condition {
                     field: stringify!($field).to_string(),
-                    value: $crate::to_string($value.clone()),
-                    value_type: $crate::get_type_name($value.clone()).into(),
+                    value: $crate::utils::to_string($value.clone()),
+                    value_type: $crate::utils::get_type_name($value.clone()).into(),
                     comparison_operator: "=".to_string(),
                 });
             )*
@@ -36,7 +36,7 @@ macro_rules! kwargs {
     ($table:ident.$column:ident $op:tt $v_table:ident.$v_column:ident) => {
         {
             vec![
-                $crate::Kwargs::Condition {
+                $crate::db::Kwargs::Condition {
                     field: format!("{}.{}", stringify!($table), stringify!($column)),
                     value: format!("{}.{}", stringify!($v_table), stringify!($v_column)),
                     value_type: "column".into(),
@@ -49,10 +49,10 @@ macro_rules! kwargs {
     ($table:ident.$column:ident $op:tt $value:expr) => {
         {
             vec![
-                $crate::Kwargs::Condition {
+                $crate::db::Kwargs::Condition {
                     field: format!("{}.{}", stringify!($table), stringify!($column)),
-                    value: $crate::to_string($value.clone()),
-                    value_type: $crate::get_type_name($value.clone()).into(),
+                    value: $crate::utils::to_string($value.clone()),
+                    value_type: $crate::utils::get_type_name($value.clone()).into(),
                     comparison_operator: stringify!($op).to_string(),
                 }
             ]
@@ -62,10 +62,10 @@ macro_rules! kwargs {
     ($field:ident $op:tt $value:expr) => {
         {
             vec![
-                $crate::Kwargs::Condition {
+                $crate::db::Kwargs::Condition {
                     field: stringify!($field).to_string(),
-                    value: $crate::to_string($value.clone()),
-                    value_type: $crate::get_type_name($value.clone()).into(),
+                    value: $crate::utils::to_string($value.clone()),
+                    value_type: $crate::utils::get_type_name($value.clone()).into(),
                     comparison_operator: stringify!($op).to_string(),
                 }
             ]

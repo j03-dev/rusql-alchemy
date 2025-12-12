@@ -11,12 +11,19 @@ pub mod prelude;
 /// This module contains the custom types used in the crate.
 pub mod types;
 
-mod utils;
-
-pub use db::*;
-pub use utils::*;
+pub mod utils;
 
 use std::{future::Future, pin::Pin};
+
+pub use async_trait;
+pub use chrono;
+pub use rusql_alchemy_derive as derive;
+pub use inventory;
+
+#[cfg(feature = "turso")]
+pub use libsql;
+#[cfg(not(feature = "turso"))]
+pub use sqlx;
 
 #[cfg(not(feature = "turso"))]
 /// A type alias for the database connection pool.

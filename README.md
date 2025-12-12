@@ -50,6 +50,7 @@ tokio = { version = "1", features = ["full"] }
 ```toml
 [dependencies]
 rusql-alchemy = { version = "0.5.4", default-features = false, features = ["turso"] }
+serde = "1.0"
 tokio = { version = "1", features = ["full"] }
 ```
 

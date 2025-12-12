@@ -7,9 +7,12 @@ pub use sqlx::FromRow;
 #[cfg(feature = "turso")]
 pub use super::params;
 
-pub use super::{db::{*, models::*}, kwargs, select};
+pub use super::async_trait::async_trait;
+pub use super::chrono;
+pub use super::derive::Model;
+pub use super::inventory;
+pub use super::{
+    db::{models::*, *},
+    kwargs, select,
+};
 pub use super::{types::*, Connection, Database, MigrationRegistrar};
-pub use async_trait::async_trait;
-pub use chrono;
-pub use inventory;
-pub use rusql_alchemy_derive::Model;

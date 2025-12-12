@@ -183,9 +183,9 @@ fn generate_default_field(
         Some(value) => {
             let value = value.to_string().replace('"', "");
             match (inner_type.as_str(), value.as_str()) {
-                ("Date", "now") => quote! { chrono::Utc::now().format("%Y-%m-%d").to_string() },
+                ("Date", "now") => quote! { rusql_alchemy::chrono::Utc::now().format("%Y-%m-%d").to_string() },
                 ("DateTime", "now") => {
-                    quote! { chrono::Utc::now().format("%Y-%m-%d %H:%M:%S").to_string() }
+                    quote! { rusql_alchemy::chrono::Utc::now().format("%Y-%m-%d %H:%M:%S").to_string() }
                 }
                 ("Boolean", "true") => quote! { 1 },
                 ("Boolean", "false") => quote! { 0 },
