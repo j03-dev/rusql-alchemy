@@ -2,9 +2,6 @@
 //!
 //! This module contains submodules and traits that define the structure and behavior
 //! of database models, as well as functions for performing common database operations.
-
-use std::fmt;
-
 use crate::Connection;
 
 /// The `models` module defines the traits and structures for database models.
@@ -176,8 +173,8 @@ pub enum JoinType {
     Full,
 }
 
-impl fmt::Display for JoinType {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl std::fmt::Display for JoinType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let join_type_name = match self {
             JoinType::Inner => "INNER",
             JoinType::Left => "LEFT",

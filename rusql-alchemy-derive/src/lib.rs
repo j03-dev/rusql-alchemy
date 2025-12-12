@@ -25,8 +25,6 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
         update_args,
     } = process::process_fields(fields);
 
-    let pk = primary_key.to_string();
-
     let schema = {
         let fields = schema_fields
             .iter()
@@ -40,7 +38,7 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
         #[async_trait]
         impl Model for #name {
             const NAME: &'static str = stringify!(#name);
-            const PK: &'static str = #pk;
+            const PK: &'static str = stringify!(#primary_key);
             const SCHEMA: &'static str = #schema;
 
             async fn save(&self, conn: &Connection) -> Result<(), rusql_alchemy::Error> {
