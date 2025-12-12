@@ -86,8 +86,8 @@ fn to_update_query(kw: Vec<Kwargs>) -> Query {
         {
             index += 1;
             args.push(Arg {
-                value: value.to_owned(),
-                ty: value_type.clone(),
+                value,
+                ty: value_type,
             });
             placeholders.push(format!("{field}={PLACEHOLDER}{index}",));
         }
@@ -117,8 +117,8 @@ fn to_select_query(kw: Vec<Kwargs>) -> Query {
                 } else {
                     index += 1;
                     args.push(Arg {
-                        value: value.to_owned(),
-                        ty: value_type.clone(),
+                        value,
+                        ty: value_type,
                     });
                     placeholders.push(format!("{field}{comparison_operator}{PLACEHOLDER}{index}",));
                 }
@@ -151,8 +151,8 @@ fn to_insert_query(kw: Vec<Kwargs>) -> Query {
         {
             index += 1;
             args.push(Arg {
-                value: value.to_owned(),
-                ty: value_type.clone(),
+                value,
+                ty: value_type,
             });
             fields.push(field.clone());
             placeholders.push(format!("{PLACEHOLDER}{index}"));

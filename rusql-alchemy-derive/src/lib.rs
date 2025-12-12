@@ -25,7 +25,8 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
         update_args,
     } = process::process_fields(fields);
 
-    let schema = {
+    let down = format!("drop table if exists {name};");
+    let up = {
         let fields = schema_fields
             .iter()
             .map(|f| f.to_string())
@@ -37,9 +38,10 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
     let expanded = quote! {
         #[rusql_alchemy::async_trait::async_trait]
         impl Model for #name {
+            const UP: &'static str = #up;
+            const DOWN: &'static str = #down;
             const NAME: &'static str = stringify!(#name);
             const PK: &'static str = stringify!(#primary_key);
-            const SCHEMA: &'static str = #schema;
 
             async fn save(&self, conn: &rusql_alchemy::Connection) -> Result<(), rusql_alchemy::Error> {
                 Self::create(rusql_alchemy::kwargs!(#(#create_args = self.#create_args),*),conn).await

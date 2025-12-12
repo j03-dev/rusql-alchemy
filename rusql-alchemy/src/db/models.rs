@@ -15,11 +15,9 @@ use crate::{utils::get_type_name, Connection, FutRes};
 /// Trait for database model operations.
 #[async_trait::async_trait]
 pub trait Model {
-    // The SQL schema of the model
-    const SCHEMA: &'static str;
-    // The Table name of the model
+    const UP: &'static str;
+    const DOWN: &'static str;
     const NAME: &'static str;
-    // The Primary Key of the model
     const PK: &'static str;
 
     /// Migrates the model schema to the database
@@ -43,7 +41,7 @@ pub trait Model {
             #[cfg(debug_assertions)]
             {
                 let formatted_sql = sqlformat::format(
-                    Self::SCHEMA,
+                    Self::UP,
                     &sqlformat::QueryParams::None,
                     &sqlformat::FormatOptions::default(),
                 );
@@ -51,10 +49,16 @@ pub trait Model {
             }
 
             #[cfg(not(feature = "turso"))]
-            sqlx::query(Self::SCHEMA).execute(conn).await?;
+            {
+                sqlx::query(Self::DOWN).execute(conn).await?;
+                sqlx::query(Self::UP).execute(conn).await?;
+            }
 
             #[cfg(feature = "turso")]
-            conn.execute(Self::SCHEMA, ()).await?;
+            {
+                conn.execute(Self::DOWN, ()).await?;
+                conn.execute(Self::UP, ()).await?;
+            }
 
             Ok(())
         })
