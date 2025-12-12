@@ -17,8 +17,8 @@ use std::{future::Future, pin::Pin};
 
 pub use async_trait;
 pub use chrono;
-pub use rusql_alchemy_derive as derive;
 pub use inventory;
+pub use rusql_alchemy_derive as derive;
 
 #[cfg(feature = "turso")]
 pub use libsql;
@@ -37,8 +37,17 @@ pub type Connection = sqlx::Pool<sqlx::Any>;
 /// When the `turso` feature is enabled, this is a `libsql::Connection`.
 pub type Connection = libsql::Connection;
 
-#[cfg(feature = "turso")]
-pub use libsql::params;
+pub type Error = Box<dyn std::error::Error + Send + Sync>;
+
+type FutRes<'fut, T, E> = Pin<Box<dyn Future<Output = Result<T, E>> + Send + 'fut>>;
+
+type MigrateFn = for<'m> fn(&'m Connection) -> FutRes<'m, (), Error>;
+
+pub struct MigrationRegistrar {
+    pub migrate_fn: MigrateFn,
+}
+
+inventory::collect!(MigrationRegistrar);
 
 /// Represents a database connection and provides methods for interacting with it.
 ///
@@ -46,7 +55,6 @@ pub use libsql::params;
 /// It holds the connection pool and provides methods for creating new connections,
 /// running migrations, and performing other database-level operations.
 pub struct Database {
-    /// The database connection.
     pub conn: Connection,
 }
 
@@ -176,20 +184,3 @@ impl Database {
         Ok(())
     }
 }
-
-/// A type alias for the error type used throughout the crate.
-pub type Error = Box<dyn std::error::Error + Send + Sync>;
-
-type FutRes<'fut, T, E> = Pin<Box<dyn Future<Output = Result<T, E>> + Send + 'fut>>;
-
-type MigrateFn = for<'m> fn(&'m Connection) -> FutRes<'m, (), Error>;
-
-/// A struct used for registering migrations.
-///
-/// This struct is used internally by the migration system to collect
-/// all the migration functions from the defined models.
-pub struct MigrationRegistrar {
-    pub migrate_fn: MigrateFn,
-}
-
-inventory::collect!(MigrationRegistrar);
