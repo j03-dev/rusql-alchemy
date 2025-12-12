@@ -25,10 +25,7 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
         update_args,
     } = process::process_fields(fields);
 
-    let pk = {
-        let pk = primary_key.to_string();
-        quote! { const PK: &'static str = #pk; }
-    };
+    let pk = primary_key.to_string();
 
     let schema = {
         let fields = schema_fields
@@ -36,79 +33,45 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
             .map(|f| f.to_string())
             .collect::<Vec<_>>()
             .join(", ");
-
-        let schema = format!("create table if not exists {name} ({fields});").replace('"', "");
-
-        quote! { const SCHEMA: &'static str = #schema; }
-    };
-
-    let save = {
-        quote! {
-            async fn save(&self, conn: &Connection) -> Result<(), rusql_alchemy::Error> {
-                Self::create(
-                    kwargs!(
-                        #(#create_args = self.#create_args),*
-                    ),
-                    conn,
-                )
-                .await
-            }
-        }
-    };
-
-    let update = {
-        quote! {
-            async fn update(&self, conn: &Connection) -> Result<(), rusql_alchemy::Error> {
-                Self::set(
-                    self.#primary_key,
-                    kwargs!(
-                        #(#update_args = self.#update_args),*
-                    ),
-                    conn,
-                )
-                .await
-            }
-        }
-    };
-
-    let delete = {
-        let query = format!("delete from {name} where {primary_key}=?1;");
-        #[cfg(not(feature = "turso"))]
-        quote! {
-            async fn delete(&self, conn: &Connection) -> Result<(), rusql_alchemy::Error> {
-                sqlx::query(&#query.replace("?", rusql_alchemy::PLACEHOLDER))
-                    .bind(self.#primary_key)
-                    .execute(conn)
-                    .await?;
-                Ok(())
-            }
-        }
-
-        #[cfg(feature = "turso")]
-        quote! {
-            async fn delete(&self, conn: &Connection) -> Result<(), rusql_alchemy::Error> {
-                conn.execute(&#query.replace("?", rusql_alchemy::PLACEHOLDER), rusql_alchemy::params![self.#primary_key]).await?;
-                Ok(())
-            }
-        }
+        format!("create table if not exists {name} ({fields});").replace('"', "")
     };
 
     let expanded = quote! {
         #[async_trait]
         impl Model for #name {
             const NAME: &'static str = stringify!(#name);
-            #schema
-            #pk
-            #save
-            #update
-            #delete
+            const PK: &'static str = #pk;
+            const SCHEMA: &'static str = #schema;
+
+            async fn save(&self, conn: &Connection) -> Result<(), rusql_alchemy::Error> {
+                Self::create(kwargs!(#(#create_args = self.#create_args),*),conn).await
+            }
+
+            async fn update(&self, conn: &Connection) -> Result<(), rusql_alchemy::Error> {
+                Self::set(self.#primary_key,kwargs!(#(#update_args = self.#update_args),*),conn).await
+            }
+
+            async fn delete(&self, conn: &Connection) -> Result<(), rusql_alchemy::Error> {
+                let query = format!("delete from {} where {}=?1;", Self::NAME, Self::PK).replace("?", rusql_alchemy::PLACEHOLDER);
+
+                #[cfg(not(feature = "turso"))]
+                {
+                    sqlx::query(&query)
+                        .bind(self.#primary_key)
+                        .execute(conn)
+                        .await?;
+                }
+
+                #[cfg(feature = "turso")]
+                conn.execute(&query, rusql_alchemy::params![self.#primary_key]).await?;
+
+                Ok(())
+            }
         }
 
         impl Default for #name {
             fn default() -> Self {
-                Self {
-                    #(#default_fields),*
-                }
+                Self {#(#default_fields),*}
             }
         }
 

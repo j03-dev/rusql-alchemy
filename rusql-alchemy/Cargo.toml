@@ -17,7 +17,7 @@ default = ["sqlite"]
 sqlite = ["sqlx/sqlite"]
 mysql = ["sqlx/mysql"]
 postgres = ["sqlx/postgres"]
-turso = ["libsql", "rusql-alchemy-derive/turso"]
+turso = ["libsql"]
 
 [dependencies]
 async-trait.workspace = true

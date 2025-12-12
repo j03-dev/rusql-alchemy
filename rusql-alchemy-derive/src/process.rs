@@ -151,6 +151,7 @@ fn construct_unique(unique: &Option<bool>) -> TokenStream {
     }
 }
 
+// Default for SQL
 fn construct_default_sql_value(default: &Option<TokenStream>, inner_type: &str) -> TokenStream {
     match default {
         Some(value) => {
@@ -169,6 +170,7 @@ fn construct_default_sql_value(default: &Option<TokenStream>, inner_type: &str) 
     }
 }
 
+// Default for Rust `Default` impl
 fn generate_default_field(
     default: &Option<TokenStream>,
     field_name: &syn::Ident,

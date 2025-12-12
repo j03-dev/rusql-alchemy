@@ -16,19 +16,8 @@
 ///     field7 >= value7,
 /// );
 /// ```
-///
-/// # Variants
-///
-/// - `$field:ident = $value:expr`
-/// - `$field:ident == $value:expr`
-/// - `$field:ident != $value:expr`
-/// - `$field:ident < $value:expr`
-/// - `$field:ident <= $value:expr`
-/// - `$field:ident > $value:expr`
-/// - `$field:ident >= $value:expr`
 #[macro_export]
 macro_rules! kwargs {
-    // Support for direct field-value pairs with custom comparison operators
     ($($field:ident = $value:expr),* $(,)?) => {
         {
             let mut args = Vec::new();
@@ -85,27 +74,6 @@ macro_rules! kwargs {
 
 }
 
-/// A macro to bind arguments to a stream based on their type.
-///
-/// This macro iterates over a list of `(value, type)` pairs and binds each value to the stream
-/// according to its type. Supported types are `i32`, `bool`, and `f64`. All other types are bound as strings.
-///
-/// # Arguments
-///
-/// * `$args:expr` - A list of `(value, type)` pairs.
-/// * `$stream:expr` - The stream to which the values will be bound.
-///
-/// # Example
-///
-/// ```
-/// let args = vec![
-///     ("42".to_string(), "i32".to_string()),
-///     ("3.14".to_string(), "f64".to_string()),
-///     ("true".to_string(), "bool".to_string()),
-/// ];
-/// let stream = some_stream();
-/// binds!(args, stream);
-/// ```
 macro_rules! binds {
     ($args:expr, $stream:expr) => {{
         for arg in $args {
