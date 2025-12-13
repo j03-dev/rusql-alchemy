@@ -22,7 +22,7 @@ macro_rules! kwargs {
         {
             let mut args = Vec::new();
             $(
-                args.push($crate::db::Kwargs::Condition {
+                args.push($crate::db::query::condition::Kwargs::Condition {
                     field: stringify!($field).to_string(),
                     value: $crate::utils::to_string($value.clone()),
                     value_type: $crate::utils::get_type_name($value.clone()).into(),
@@ -36,7 +36,7 @@ macro_rules! kwargs {
     ($table:ident.$column:ident $op:tt $v_table:ident.$v_column:ident) => {
         {
             vec![
-                $crate::db::Kwargs::Condition {
+                $crate::db::query::condition::Kwargs::Condition {
                     field: format!("{}.{}", stringify!($table), stringify!($column)),
                     value: format!("{}.{}", stringify!($v_table), stringify!($v_column)),
                     value_type: "column".into(),
@@ -49,7 +49,7 @@ macro_rules! kwargs {
     ($table:ident.$column:ident $op:tt $value:expr) => {
         {
             vec![
-                $crate::db::Kwargs::Condition {
+                $crate::db::query::condition::Kwargs::Condition {
                     field: format!("{}.{}", stringify!($table), stringify!($column)),
                     value: $crate::utils::to_string($value.clone()),
                     value_type: $crate::utils::get_type_name($value.clone()).into(),
@@ -62,7 +62,7 @@ macro_rules! kwargs {
     ($field:ident $op:tt $value:expr) => {
         {
             vec![
-                $crate::db::Kwargs::Condition {
+                $crate::db::query::condition::Kwargs::Condition {
                     field: stringify!($field).to_string(),
                     value: $crate::utils::to_string($value.clone()),
                     value_type: $crate::utils::get_type_name($value.clone()).into(),
@@ -114,6 +114,8 @@ macro_rules! binds {
 #[macro_export]
 macro_rules! select {
     ($($table:ty),*) => {
-        $crate::db::Statement(format!("SELECT {}", { let table_names = [$(format!("{}.*", stringify!($table))),*]; table_names.join(", ") }))
+        $crate::db::query::statement::Statement(
+            format!("SELECT {}", { let table_names = [$(format!("{}.*", stringify!($table))),*]; table_names.join(", ") })
+        )
     };
 }

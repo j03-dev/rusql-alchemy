@@ -43,15 +43,15 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
             const NAME: &'static str = stringify!(#name);
             const PK: &'static str = stringify!(#primary_key);
 
-            async fn save(&self, conn: &rusql_alchemy::Connection) -> Result<(), rusql_alchemy::Error> {
+            async fn save(&self, conn: &rusql_alchemy::db::Connection) -> Result<(), rusql_alchemy::Error> {
                 Self::create(rusql_alchemy::kwargs!(#(#create_args = self.#create_args),*),conn).await
             }
 
-            async fn update(&self, conn: &rusql_alchemy::Connection) -> Result<(), rusql_alchemy::Error> {
+            async fn update(&self, conn: &rusql_alchemy::db::Connection) -> Result<(), rusql_alchemy::Error> {
                 Self::set(self.#primary_key, rusql_alchemy::kwargs!(#(#update_args = self.#update_args),*),conn).await
             }
 
-            async fn delete(&self, conn: &rusql_alchemy::Connection) -> Result<(), rusql_alchemy::Error> {
+            async fn delete(&self, conn: &rusql_alchemy::db::Connection) -> Result<(), rusql_alchemy::Error> {
                 let query = format!("delete from {} where {}=?1;", Self::NAME, Self::PK).replace("?", rusql_alchemy::db::PLACEHOLDER);
 
                 #[cfg(not(feature = "turso"))]

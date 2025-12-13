@@ -3,14 +3,13 @@
 //! This module provides traits and implementations for database operations,
 //! including querying, inserting, updating, and deleting records.
 
-#[cfg(not(feature = "turso"))]
-pub use sqlx::{any::AnyRow, FromRow, Row};
-
 use serde::Serialize;
+#[cfg(not(feature = "turso"))]
+use sqlx::{any::AnyRow, FromRow, Row};
 
-use super::{Arg, Kwargs, Query, PLACEHOLDER};
+use super::query::{builder, condition::Kwargs, Arg, Query};
+use super::{Connection, PLACEHOLDER};
 use crate::Error;
-use crate::{utils::get_type_name, Connection, FutRes};
 
 /// Trait for database model operations.
 #[async_trait::async_trait]
@@ -33,7 +32,7 @@ pub trait Model {
     /// let success = User::migrate(&conn).await;
     /// println!("Migration success: {}", success);
     /// ```
-    fn migrate(conn: &'_ Connection) -> FutRes<'_, (), Error>
+    fn migrate(conn: &'_ Connection) -> crate::FutRes<'_, (), Error>
     where
         Self: Sized,
     {
@@ -119,7 +118,7 @@ pub trait Model {
             placeholders,
             fields,
             args,
-        } = super::to_insert_query(kw);
+        } = builder::to_insert_query(kw);
 
         let query = format!(
             "insert into {table_name} ({fields}) values ({placeholders});",
@@ -192,13 +191,13 @@ pub trait Model {
             placeholders,
             mut args,
             ..
-        } = super::to_update_query(kw);
+        } = builder::to_update_query(kw);
 
         args = args
             .into_iter()
             .chain([Arg {
                 value: serde_json::json!(id_value).to_string(),
-                ty: get_type_name(id_value.clone()).to_string(),
+                ty: crate::utils::get_type_name(id_value.clone()).to_string(),
             }])
             .collect();
 
@@ -301,7 +300,7 @@ pub trait Model {
     {
         let Query {
             placeholders, args, ..
-        } = super::to_select_query(kw);
+        } = builder::to_select_query(kw);
 
         let query = format!(
             "SELECT * FROM {table_name} WHERE {placeholders};",
@@ -319,7 +318,7 @@ pub trait Model {
     {
         let Query {
             placeholders, args, ..
-        } = super::to_select_query(kw);
+        } = builder::to_select_query(kw);
 
         let query = format!(
             "SELECT * FROM {table_name} WHERE {placeholders};",
