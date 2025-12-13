@@ -113,9 +113,12 @@ macro_rules! binds {
 
 #[macro_export]
 macro_rules! select {
-    ($($table:ty),*) => {
-        $crate::db::query::statement::Statement(
-            format!("SELECT {}", { let table_names = [$(format!("{}.*", stringify!($table))),*]; table_names.join(", ") })
-        )
+    ($table: ty) => {
+        $crate::db::query::statement::SelectBuilder::new(String::from("*") , Some(String::from(stringify!($table))))
     };
+    
+    ($($table:ty),+) => {{
+        let select_fields = vec![$(format!("{}.*", <$table>::NAME)),+].join(", ");
+        $crate::db::query::statement::SelectBuilder::new(select_fields, None)
+    }};
 }
