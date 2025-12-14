@@ -141,7 +141,7 @@ async fn test_join() {
         &database.conn,
     )
     .await;
-    assert!(r.is_ok());
+    assert!(r.is_ok(), "{:?}", r);
 
     // Join with new syntax
     let results: Vec<User> = select!(User, Profile)
