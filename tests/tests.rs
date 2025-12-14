@@ -110,7 +110,9 @@ async fn test_main() {
     let r = updated_user.delete(&database.conn).await;
     assert!(r.is_ok());
 
-    let deleted_user = User::get(kwargs!(role == "admin"), &database.conn).await.unwrap();
+    let deleted_user = User::get(kwargs!(role == "admin"), &database.conn)
+        .await
+        .unwrap();
     assert!(deleted_user.is_none());
 }
 
@@ -141,18 +143,21 @@ async fn test_join() {
     .await;
     assert!(r.is_ok());
 
-    // Join
-    let results = select!(User, Profile)
-        .join::<User>(
-            JoinType::Inner,
-            Profile::NAME,
-            kwargs!(User.id = Profile.user_id),
-            &database.conn,
-        )
+    // Join with new syntax
+    let results: Vec<User> = select!(User, Profile)
+        .inner_join::<User, Profile>(kwargs!(User.id == Profile.user_id))
+        .fetch_all(&database.conn)
         .await
         .unwrap();
 
     assert_eq!(results.len(), 1);
     let joined_user = results.first().unwrap();
     assert_eq!(joined_user.name, "Jane");
+
+    let profile: Profile = select!(Profile)
+        .r#where(kwargs!(Profile.profile_id = 1))
+        .fetch_one(&database.conn)
+        .await
+        .unwrap();
+    assert_eq!(profile.bio, "Loves Rust");
 }

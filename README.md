@@ -123,7 +123,7 @@ async fn main() -> Result<(), Error> {
 > // Import your models so they can be discovered for migration.
 > // The `allow(unused_imports)` attribute is useful here.
 > #[allow(unused_imports)]
-> use crate::models::*; // Assuming models are in `src/models.rs`
+> use crate::models::*; // Assuming models are in `src/model`
 > 
 > #[tokio::main]
 > async fn main() -> Result<(), Error> {

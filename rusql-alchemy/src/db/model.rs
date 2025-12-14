@@ -3,14 +3,13 @@
 //! This module provides traits and implementations for database operations,
 //! including querying, inserting, updating, and deleting records.
 
-#[cfg(not(feature = "turso"))]
-pub use sqlx::{any::AnyRow, FromRow, Row};
-
 use serde::Serialize;
+#[cfg(not(feature = "turso"))]
+use sqlx::{any::AnyRow, FromRow, Row};
 
-use super::{Arg, Kwargs, Query, PLACEHOLDER};
+use super::query::{builder, condition::Kwargs, Arg};
+use super::{Connection, PLACEHOLDER};
 use crate::Error;
-use crate::{utils::get_type_name, Connection, FutRes};
 
 /// Trait for database model operations.
 #[async_trait::async_trait]
@@ -33,7 +32,7 @@ pub trait Model {
     /// let success = User::migrate(&conn).await;
     /// println!("Migration success: {}", success);
     /// ```
-    fn migrate(conn: &'_ Connection) -> FutRes<'_, (), Error>
+    fn migrate(conn: &'_ Connection) -> crate::FutRes<'_, (), Error>
     where
         Self: Sized,
     {
@@ -115,27 +114,25 @@ pub trait Model {
     where
         Self: Sized,
     {
-        let Query {
-            placeholders,
-            fields,
-            args,
-        } = super::to_insert_query(kw);
+        let insert_query = builder::to_insert_query(kw);
 
         let query = format!(
             "insert into {table_name} ({fields}) values ({placeholders});",
-            table_name = Self::NAME
+            table_name = Self::NAME,
+            fields = insert_query.fields,
+            placeholders = insert_query.placeholders,
         );
 
         #[cfg(not(feature = "turso"))]
         {
             let mut stream = sqlx::query(&query);
-            binds!(args.iter(), stream);
+            binds!(insert_query.args.iter(), stream);
             stream.execute(conn).await?;
         }
 
         #[cfg(feature = "turso")]
         {
-            let params = binds!(args.iter());
+            let params = binds!(insert_query.args.iter());
             conn.execute(&query, params).await?;
         }
         Ok(())
@@ -188,37 +185,34 @@ pub trait Model {
         kw: Vec<Kwargs>,
         conn: &Connection,
     ) -> Result<(), Error> {
-        let Query {
-            placeholders,
-            mut args,
-            ..
-        } = super::to_update_query(kw);
+        let mut update_query = builder::to_update_query(kw);
 
-        args = args
+        update_query.args = update_query.args
             .into_iter()
             .chain([Arg {
                 value: serde_json::json!(id_value).to_string(),
-                ty: get_type_name(id_value.clone()).to_string(),
+                ty: crate::utils::get_type_name(id_value.clone()).to_string(),
             }])
             .collect();
 
-        let index_id = args.len();
+        let index_id = update_query.args.len();
         let query = format!(
             "update {table_name} set {placeholders} where {id}={PLACEHOLDER}{index_id};",
             id = Self::PK,
             table_name = Self::NAME,
+            placeholders = update_query.placeholders,
         );
 
         #[cfg(not(feature = "turso"))]
         {
             let mut stream = sqlx::query(&query);
-            binds!(args, stream);
+            binds!(update_query.args, stream);
             stream.execute(conn).await?;
         }
 
         #[cfg(feature = "turso")]
         {
-            let params = binds!(args.iter());
+            let params = binds!(update_query.args.iter());
             conn.execute(&query, params).await?;
         }
         Ok(())
@@ -299,17 +293,16 @@ pub trait Model {
     where
         Self: Sized + Unpin + for<'r> FromRow<'r, AnyRow> + Clone,
     {
-        let Query {
-            placeholders, args, ..
-        } = super::to_select_query(kw);
+        let select_query = builder::to_select_query(kw);
 
         let query = format!(
             "SELECT * FROM {table_name} WHERE {placeholders};",
-            table_name = Self::NAME
+            table_name = Self::NAME,
+            placeholders = select_query.placeholders,
         );
 
         let mut stream = sqlx::query_as::<_, Self>(&query);
-        binds!(args, stream);
+        binds!(select_query.args, stream);
         Ok(stream.fetch_all(conn).await?)
     }
     #[cfg(feature = "turso")]
@@ -317,15 +310,14 @@ pub trait Model {
     where
         Self: Sized + for<'de> serde::Deserialize<'de>,
     {
-        let Query {
-            placeholders, args, ..
-        } = super::to_select_query(kw);
+        let select_query = builder::to_select_query(kw);
 
         let query = format!(
             "SELECT * FROM {table_name} WHERE {placeholders};",
-            table_name = Self::NAME
+            table_name = Self::NAME,
+            placeholders = select_query.placeholders,
         );
-        let params = binds!(args.iter());
+        let params = binds!(select_query.args.iter());
         let mut rows = conn.query(&query, params).await?;
         let mut results = Vec::new();
         while let Some(row) = rows.next().await? {
