@@ -114,7 +114,7 @@ macro_rules! binds {
 #[macro_export]
 macro_rules! select {
     ($table: ty) => {
-        $crate::db::query::statement::SelectBuilder::new(String::from("*") , Some(String::from(stringify!($table))))
+        $crate::db::query::statement::SelectBuilder::new(String::from("*") , Some(String::from(<$table>::NAME)))
     };
     
     ($($table:ty),+) => {{

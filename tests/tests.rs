@@ -143,7 +143,7 @@ async fn test_join() {
     .await;
     assert!(r.is_ok());
 
-    // // Join with new syntax
+    // Join with new syntax
     let results: Vec<User> = select!(User, Profile)
         .inner_join::<User, Profile>(kwargs!(User.id == Profile.user_id))
         .fetch_all(&database.conn)
@@ -153,4 +153,11 @@ async fn test_join() {
     assert_eq!(results.len(), 1);
     let joined_user = results.first().unwrap();
     assert_eq!(joined_user.name, "Jane");
+
+    let profile: Profile = select!(Profile)
+        .r#where(kwargs!(Profile.profile_id = 1))
+        .fetch_one(&database.conn)
+        .await
+        .unwrap();
+    assert_eq!(profile.bio, "Loves Rust");
 }

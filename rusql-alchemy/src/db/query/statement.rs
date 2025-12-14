@@ -1,4 +1,4 @@
-use super::{builder, condition::Kwargs, Query};
+use super::{builder, condition::Kwargs, Arg};
 use crate::{
     db::{model::Model, Connection},
     Error,
@@ -93,41 +93,32 @@ impl SelectBuilder {
         self
     }
 
-    fn build_query(&self) -> (String, Vec<super::Arg>) {
+    fn build_query(&self) -> (String, Vec<Arg>) {
         let mut query = format!("SELECT {}", self.select_clause);
-        let mut all_args = Vec::new();
+        let mut args = Vec::new();
 
         if let Some(from_table) = &self.from_table {
             query.push_str(&format!(" FROM {}", from_table));
         }
 
         for join in &self.joins {
-            let Query {
-                placeholders, args, ..
-            } = builder::to_select_query(join.on_conditions.clone());
-
+            let select_query = builder::to_select_query(join.on_conditions.clone());
             query.push_str(&format!(
                 " {} JOIN {} ON {}",
-                join.join_type, join.table, placeholders
+                join.join_type, join.table, select_query.placeholders
             ));
-
-            all_args.extend(args);
+            args.extend(select_query.args);
         }
 
         if let Some(conditions) = &self.where_conditions {
-            let Query {
-                placeholders, args, ..
-            } = builder::to_select_query(conditions.clone());
-
-            query.push_str(&format!(" WHERE {}", placeholders));
-            all_args.extend(args);
+            let select_query = builder::to_select_query(conditions.clone());
+            query.push_str(&format!(" WHERE {}", select_query.placeholders));
+            args.extend(select_query.args);
         }
 
         query.push(';');
 
-        println!("{}", query);
-
-        (query, all_args)
+        (query, args)
     }
 
     #[cfg(not(feature = "turso"))]
