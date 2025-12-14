@@ -283,13 +283,9 @@ async fn main() -> Result<(), Error> {
     ).await?;
 
     // Perform an inner join to get Users
-    let results = select!(User, Profile)
-        .join::<User>(
-            JoinType::Inner,
-            Profile::NAME,
-            kwargs!(User.id == Profile.user_id),
-            &database.conn,
-        )
+    let results: Vec<User> = select!(User, Profile)
+        .inner_join::<User, Profile>(kwargs!(User.id == Profile.user_id))
+        .fetch_all(&database.conn)
         .await?;
 
     println!("Joined users: {:?}", results);
