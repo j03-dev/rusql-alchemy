@@ -35,6 +35,19 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
         format!("create table if not exists {name} ({fields});").replace('"', "")
     };
 
+    let delete = {
+        #[cfg(not(feature = "libsql"))]
+        quote!{
+            rusql_alchemy::sqlx::query(&query)
+                .bind(self. # primary_key)
+                .execute(conn)
+                .await?;
+        }
+
+        #[cfg(feature = "libsql")]
+        quote! {conn.execute(&query, rusql_alchemy::libsql::params![self.#primary_key]).await?;}
+    };
+
     let expanded = quote! {
         #[rusql_alchemy::async_trait::async_trait]
         impl Model for #name {
@@ -53,18 +66,7 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
 
             async fn delete(&self, conn: &rusql_alchemy::db::Connection) -> Result<(), rusql_alchemy::Error> {
                 let query = format!("delete from {} where {}=?1;", Self::NAME, Self::PK).replace("?", rusql_alchemy::db::PLACEHOLDER);
-
-                #[cfg(not(feature = "turso"))]
-                {
-                    rusql_alchemy::sqlx::query(&query)
-                        .bind(self.#primary_key)
-                        .execute(conn)
-                        .await?;
-                }
-
-                #[cfg(feature = "turso")]
-                conn.execute(&query, rusql_alchemy::libsql::params![self.#primary_key]).await?;
-
+                #delete
                 Ok(())
             }
         }

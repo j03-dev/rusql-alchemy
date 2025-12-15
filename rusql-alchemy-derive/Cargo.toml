@@ -13,6 +13,11 @@ description = "macro for rusql-alchemy"
 [lib]
 proc-macro = true
 
+[features]
+default = ["sqlx"]
+sqlx = []
+libsql = []
+
 [dependencies]
 proc-macro2.workspace = true
 quote.workspace = true
