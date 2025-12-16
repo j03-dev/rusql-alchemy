@@ -21,9 +21,7 @@ async fn setup_database() -> Database {
 struct User {
     #[field(primary_key = true, auto = true)]
     id: Option<Integer>,
-
     name: String,
-
     #[field(default = "user")]
     role: String,
 }
@@ -33,10 +31,8 @@ struct User {
 struct User {
     #[field(primary_key = true, auto = true)]
     id: Option<Integer>,
-
     #[field(unique = true)]
     name: String,
-
     #[field(default = "user")]
     role: String,
 }
@@ -72,13 +68,13 @@ async fn test_main() {
 
     // Create
     let r = User::create(kwargs!(name = "John"), &database.conn).await;
-    assert!(r.is_ok());
+    assert!(r.is_ok(), "{:?}", r);
     let r = User::create(kwargs!(name = "Doe"), &database.conn).await;
-    assert!(r.is_ok());
+    assert!(r.is_ok(), "{:?}", r);
 
     // Get
     let result = User::get(kwargs!(name = "John"), &database.conn).await;
-    assert!(result.is_ok());
+    assert!(result.is_ok(), "{:?}", result);
     let user = result.unwrap();
     assert!(user.is_some());
     let u = user.unwrap();
@@ -87,7 +83,7 @@ async fn test_main() {
 
     // Filter
     let results = User::filter(kwargs!(role = "user"), &database.conn).await;
-    assert!(results.is_ok());
+    assert!(results.is_ok(), "{:?}", results);
     let users = results.unwrap();
     assert!(!users.is_empty());
 
@@ -98,7 +94,7 @@ async fn test_main() {
         .unwrap();
     user_to_update.role = "admin".to_owned();
     let r = user_to_update.update(&database.conn).await;
-    assert!(r.is_ok());
+    assert!(r.is_ok(), "{:?}", r);
 
     let updated_user = User::get(kwargs!(role == "admin"), &database.conn)
         .await
@@ -108,7 +104,7 @@ async fn test_main() {
 
     // Delete
     let r = updated_user.delete(&database.conn).await;
-    assert!(r.is_ok());
+    assert!(r.is_ok(), "{:?}", r);
 
     let deleted_user = User::get(kwargs!(role == "admin"), &database.conn)
         .await
@@ -123,11 +119,11 @@ async fn test_join() {
 
     // Migrate
     let result = database.migrate().await;
-    assert!(result.is_ok());
+    assert!(result.is_ok(), "{:?}", result);
 
     // Create User
     let r = User::create(kwargs!(name = "Jane"), &database.conn).await;
-    assert!(r.is_ok());
+    assert!(r.is_ok(), "{:?}", r);
 
     // Get User
     let user = User::get(kwargs!(name = "Jane"), &database.conn)
