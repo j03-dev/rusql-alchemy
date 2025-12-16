@@ -117,8 +117,8 @@ pub trait Model {
         let insert_query = builder::to_insert_query(kw);
 
         let query = format!(
-            "insert into {table_name} ({fields}) values ({placeholders});",
-            table_name = Self::NAME,
+            "insert into {name} ({fields}) values ({placeholders});",
+            name = Self::NAME,
             fields = insert_query.fields,
             placeholders = insert_query.placeholders,
         );
@@ -187,7 +187,8 @@ pub trait Model {
     ) -> Result<(), Error> {
         let mut update_query = builder::to_update_query(kw);
 
-        update_query.args = update_query.args
+        update_query.args = update_query
+            .args
             .into_iter()
             .chain([Arg {
                 value: serde_json::json!(id_value).to_string(),
@@ -197,9 +198,9 @@ pub trait Model {
 
         let index_id = update_query.args.len();
         let query = format!(
-            "update {table_name} set {placeholders} where {id}={PLACEHOLDER}{index_id};",
+            "update {name} set {placeholders} where {id}={PLACEHOLDER}{index_id};",
             id = Self::PK,
-            table_name = Self::NAME,
+            name = Self::NAME,
             placeholders = update_query.placeholders,
         );
 
@@ -253,7 +254,7 @@ pub trait Model {
     where
         Self: Sized + Unpin + for<'r> FromRow<'r, AnyRow> + Clone,
     {
-        let query = format!("select * from {table_name}", table_name = Self::NAME);
+        let query = format!("select * from {name}", name = Self::NAME);
         Ok(sqlx::query_as::<_, Self>(&query).fetch_all(conn).await?)
     }
     #[cfg(feature = "turso")]
@@ -261,7 +262,7 @@ pub trait Model {
     where
         Self: Sized + for<'de> serde::Deserialize<'de>,
     {
-        let query = format!("select * from {table_name}", table_name = Self::NAME);
+        let query = format!("select * from {name}", name = Self::NAME);
         let mut rows = conn.query(&query, ()).await?;
         let mut results = Vec::new();
         while let Some(row) = rows.next().await? {
@@ -296,8 +297,8 @@ pub trait Model {
         let select_query = builder::to_select_query(kw);
 
         let query = format!(
-            "SELECT * FROM {table_name} WHERE {placeholders};",
-            table_name = Self::NAME,
+            "SELECT * FROM {name} WHERE {placeholders};",
+            name = Self::NAME,
             placeholders = select_query.placeholders,
         );
 
@@ -313,8 +314,8 @@ pub trait Model {
         let select_query = builder::to_select_query(kw);
 
         let query = format!(
-            "SELECT * FROM {table_name} WHERE {placeholders};",
-            table_name = Self::NAME,
+            "SELECT * FROM {name} WHERE {placeholders};",
+            name = Self::NAME,
             placeholders = select_query.placeholders,
         );
         let params = binds!(select_query.args.iter());
@@ -377,7 +378,7 @@ pub trait Model {
     where
         Self: Sized,
     {
-        let query = format!("select count(*) from {table_name}", table_name = Self::NAME);
+        let query = format!("select count(*) from {name}", name = Self::NAME);
         #[cfg(not(feature = "turso"))]
         {
             Ok(sqlx::query(&query).fetch_one(conn).await?.get(0))
@@ -453,7 +454,7 @@ where
     ///
     /// In the above example, all records from the `Product` table will be deleted.
     async fn delete(&self, conn: &Connection) -> Result<(), Error> {
-        let query = format!("delete from {table_name}", table_name = T::NAME);
+        let query = format!("delete from {name}", name = T::NAME);
         #[cfg(not(feature = "turso"))]
         {
             sqlx::query(&query).execute(conn).await?;

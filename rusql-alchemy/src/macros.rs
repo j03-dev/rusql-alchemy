@@ -111,6 +111,17 @@ macro_rules! binds {
     }};
 }
 
+macro_rules! libsql_from_row {
+    ($rows:expr) => {{
+        let mut results = Vec::new();
+        while let Some(row) = $rows.next().await? {
+            let s = libsql::de::from_row::<Self>(&row)?;
+            results.push(s);
+        }
+        results
+    }};
+}
+
 #[macro_export]
 macro_rules! select {
     ($table: ty) => {
