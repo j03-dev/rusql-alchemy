@@ -23,7 +23,7 @@ turso = ["libsql", "rusql-alchemy-derive/libsql"]
 async-trait.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-rusql-alchemy-derive = { workspace = true, features = [] }
+rusql-alchemy-derive.workspace = true
 libsql = { workspace = true, optional = true }
 sqlx = { workspace = true, features = ["runtime-tokio-rustls", "any"], optional = true }
 sqlformat.workspace = true

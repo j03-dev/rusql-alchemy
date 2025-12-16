@@ -139,7 +139,7 @@ impl Database {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust
     /// // In your main.rs
     /// use rusql_alchemy::prelude::*;
     /// use rusql_alchemy::Error;

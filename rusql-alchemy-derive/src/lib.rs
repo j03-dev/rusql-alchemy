@@ -37,10 +37,10 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
 
     let delete = {
         #[cfg(not(feature = "libsql"))]
-        quote! {rusql_alchemy::sqlx::query(&query).bind(self.#primary_key).execute(conn).await?;}
+        quote! {::rusql_alchemy::sqlx::query(&query).bind(self.#primary_key).execute(conn).await?;}
 
         #[cfg(feature = "libsql")]
-        quote! {conn.execute(&query, rusql_alchemy::libsql::params![self.#primary_key]).await?;}
+        quote! {conn.execute(&query, ::rusql_alchemy::libsql::params![self.#primary_key]).await?;}
     };
 
     let expanded = quote! {
@@ -51,15 +51,15 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
             const NAME: &'static str = stringify!(#name);
             const PK: &'static str = stringify!(#primary_key);
 
-            async fn save(&self, conn: &rusql_alchemy::db::Connection) -> Result<(), rusql_alchemy::Error> {
-                Self::create(rusql_alchemy::kwargs!(#(#create_args = self.#create_args),*),conn).await
+            async fn save(&self, conn: &::rusql_alchemy::db::Connection) -> Result<(), ::rusql_alchemy::Error> {
+                Self::create(::rusql_alchemy::kwargs!(#(#create_args = self.#create_args),*),conn).await
             }
 
-            async fn update(&self, conn: &rusql_alchemy::db::Connection) -> Result<(), rusql_alchemy::Error> {
-                Self::set(self.#primary_key, rusql_alchemy::kwargs!(#(#update_args = self.#update_args),*),conn).await
+            async fn update(&self, conn: &::rusql_alchemy::db::Connection) -> Result<(), ::rusql_alchemy::Error> {
+                Self::set(self.#primary_key, ::rusql_alchemy::kwargs!(#(#update_args = self.#update_args),*),conn).await
             }
 
-            async fn delete(&self, conn: &rusql_alchemy::db::Connection) -> Result<(), rusql_alchemy::Error> {
+            async fn delete(&self, conn: &::rusql_alchemy::db::Connection) -> Result<(), ::rusql_alchemy::Error> {
                 let query = format!("delete from {} where {}=?1;", Self::NAME, Self::PK).replace("?", rusql_alchemy::db::PLACEHOLDER);
                 #delete
                 Ok(())
@@ -72,8 +72,8 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
             }
         }
 
-        rusql_alchemy::inventory::submit! {
-            rusql_alchemy::MigrationRegistrar {
+        ::rusql_alchemy::inventory::submit! {
+            ::rusql_alchemy::MigrationRegistrar {
                 migrate_fn: #name::migrate
             }
         }
