@@ -37,12 +37,7 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
 
     let delete = {
         #[cfg(not(feature = "libsql"))]
-        quote!{
-            rusql_alchemy::sqlx::query(&query)
-                .bind(self. # primary_key)
-                .execute(conn)
-                .await?;
-        }
+        quote!{rusql_alchemy::sqlx::query(&query).bind(self. # primary_key).execute(conn).await?;}
 
         #[cfg(feature = "libsql")]
         quote! {conn.execute(&query, rusql_alchemy::libsql::params![self.#primary_key]).await?;}

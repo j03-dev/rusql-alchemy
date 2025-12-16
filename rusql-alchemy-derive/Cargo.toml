@@ -14,8 +14,7 @@ description = "macro for rusql-alchemy"
 proc-macro = true
 
 [features]
-default = ["sqlx"]
-sqlx = []
+default = []
 libsql = []
 
 [dependencies]
