@@ -3,13 +3,10 @@
 //! This module provides traits and implementations for database operations,
 //! including querying, inserting, updating, and deleting records.
 
-use serde::Serialize;
-#[cfg(not(feature = "turso"))]
-use sqlx::{any::AnyRow, FromRow, Row};
-
 use super::query::{builder, condition::Kwargs, Arg};
 use super::{Connection, PLACEHOLDER};
 use crate::{utils, Error};
+use serde::Serialize;
 
 /// Trait for database model operations.
 #[async_trait::async_trait]
@@ -181,7 +178,7 @@ pub trait Model {
     /// println!("Set success: {}", success);
     /// ```
     async fn set<T: Serialize + Clone + Send + Sync>(
-        id_value: T,
+        id: T,
         kw: Vec<Kwargs>,
         conn: &Connection,
     ) -> Result<(), Error> {
@@ -191,8 +188,8 @@ pub trait Model {
             .args
             .into_iter()
             .chain([Arg {
-                value: serde_json::json!(id_value).to_string(),
-                ty: utils::get_type_name(id_value.clone()).to_string(),
+                value: serde_json::json!(id.clone()).to_string(),
+                ty: utils::get_type_name(id).to_string(),
             }])
             .collect();
 
@@ -252,7 +249,7 @@ pub trait Model {
     #[cfg(not(feature = "turso"))]
     async fn all(conn: &Connection) -> Result<Vec<Self>, Error>
     where
-        Self: Sized + Unpin + for<'r> FromRow<'r, AnyRow> + Clone,
+        Self: Sized + Unpin + for<'r> sqlx::FromRow<'r, sqlx::any::AnyRow> + Clone,
     {
         let query = format!("select * from {name}", name = Self::NAME);
         Ok(sqlx::query_as::<_, Self>(&query).fetch_all(conn).await?)
@@ -288,7 +285,7 @@ pub trait Model {
     #[cfg(not(feature = "turso"))]
     async fn filter(kw: Vec<Kwargs>, conn: &Connection) -> Result<Vec<Self>, Error>
     where
-        Self: Sized + Unpin + for<'r> FromRow<'r, AnyRow> + Clone,
+        Self: Sized + Unpin + for<'r> sqlx::FromRow<'r, sqlx::any::AnyRow> + Clone,
     {
         let select_query = builder::to_select_query(kw);
 
@@ -340,7 +337,7 @@ pub trait Model {
     #[cfg(not(feature = "turso"))]
     async fn get(kw: Vec<Kwargs>, conn: &Connection) -> Result<Option<Self>, Error>
     where
-        Self: Sized + Unpin + for<'r> FromRow<'r, AnyRow> + Clone,
+        Self: Sized + Unpin + for<'r> sqlx::FromRow<'r, sqlx::any::AnyRow> + Clone,
     {
         Ok(Self::filter(kw, conn).await?.first().cloned())
     }
@@ -373,7 +370,8 @@ pub trait Model {
         let query = format!("select count(*) from {name}", name = Self::NAME);
         #[cfg(not(feature = "turso"))]
         {
-            Ok(sqlx::query(&query).fetch_one(conn).await?.get(0))
+            let slf = sqlx::query(&query).fetch_one(conn).await?;
+            Ok(sqlx::Row::try_get(&slf, 0)?)
         }
 
         #[cfg(feature = "turso")]
@@ -394,6 +392,7 @@ pub trait Model {
 pub trait Delete {
     async fn delete(&self, conn: &Connection) -> Result<(), Error>;
 }
+
 #[async_trait::async_trait]
 impl<T> Delete for Vec<T>
 where

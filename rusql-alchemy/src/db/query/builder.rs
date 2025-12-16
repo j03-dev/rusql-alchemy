@@ -19,7 +19,7 @@ pub fn to_update_query(kw: Vec<Kwargs>) -> Query {
                 value,
                 ty: value_type,
             });
-            placeholders.push(format!("{field}={PLACEHOLDER}{index}",));
+            placeholders.push(format!("{field}={PLACEHOLDER}{index}"));
         }
     }
 
@@ -50,7 +50,7 @@ pub fn to_select_query(kw: Vec<Kwargs>) -> Query {
                         value,
                         ty: value_type,
                     });
-                    placeholders.push(format!("{field}{comparison_operator}{PLACEHOLDER}{index}",));
+                    placeholders.push(format!("{field}{comparison_operator}{PLACEHOLDER}{index}"));
                 }
             }
             Kwargs::LogicalOperator { operator } => {

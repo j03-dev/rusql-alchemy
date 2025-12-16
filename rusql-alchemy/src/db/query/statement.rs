@@ -25,19 +25,19 @@ impl std::fmt::Display for JoinType {
 
 pub struct SelectBuilder {
     select_clause: String,
-    from_table: Option<String>,
+    from_table: Option<&'static str>,
     joins: Vec<JoinClause>,
     where_conditions: Option<Vec<Kwargs>>,
 }
 
 struct JoinClause {
     join_type: JoinType,
-    table: String,
+    table: &'static str,
     on_conditions: Vec<Kwargs>,
 }
 
 impl SelectBuilder {
-    pub fn new(select_clause: String, from_table: Option<String>) -> Self {
+    pub fn new(select_clause: String, from_table: Option<&'static str>) -> Self {
         Self {
             select_clause,
             from_table,
@@ -48,12 +48,12 @@ impl SelectBuilder {
 
     pub fn inner_join<Base: Model, Join: Model>(mut self, on: Vec<Kwargs>) -> Self {
         if self.from_table.is_none() {
-            self.from_table = Some(Base::NAME.to_string());
+            self.from_table = Some(Base::NAME);
         }
 
         self.joins.push(JoinClause {
             join_type: JoinType::Inner,
-            table: Join::NAME.to_string(),
+            table: Join::NAME,
             on_conditions: on,
         });
 
@@ -62,12 +62,12 @@ impl SelectBuilder {
 
     pub fn left_join<Base: Model, Join: Model>(mut self, on: Vec<Kwargs>) -> Self {
         if self.from_table.is_none() {
-            self.from_table = Some(Base::NAME.to_string());
+            self.from_table = Some(Base::NAME);
         }
 
         self.joins.push(JoinClause {
             join_type: JoinType::Left,
-            table: Join::NAME.to_string(),
+            table: Join::NAME,
             on_conditions: on,
         });
 
@@ -76,12 +76,12 @@ impl SelectBuilder {
 
     pub fn right_join<Base: Model, Join: Model>(mut self, on: Vec<Kwargs>) -> Self {
         if self.from_table.is_none() {
-            self.from_table = Some(Base::NAME.to_string());
+            self.from_table = Some(Base::NAME);
         }
 
         self.joins.push(JoinClause {
             join_type: JoinType::Right,
-            table: Join::NAME.to_string(),
+            table: Join::NAME,
             on_conditions: on,
         });
 
