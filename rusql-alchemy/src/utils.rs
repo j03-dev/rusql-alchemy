@@ -1,5 +1,3 @@
-use crate::db::query::Arg;
-
 pub fn get_type_name<T: Sized>(_: T) -> &'static str {
     std::any::type_name::<T>()
 }
@@ -12,4 +10,17 @@ pub fn to_string(value: impl Into<serde_json::Value>) -> String {
         _ => json_value,
     }
     .to_string()
+}
+
+#[cfg(feature = "turso")]
+pub async fn libsql_from_row<T>(mut rows: libsql::Rows) -> Result<Vec<T>, crate::Error>
+where
+    T: for<'de> serde::Deserialize<'de>,
+{
+    let mut results = Vec::new();
+    while let Some(row) = rows.next().await? {
+        let s = libsql::de::from_row::<T>(&row)?;
+        results.push(s);
+    }
+    Ok(results)
 }

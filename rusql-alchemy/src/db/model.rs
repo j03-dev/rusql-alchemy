@@ -9,7 +9,8 @@ use sqlx::{any::AnyRow, FromRow, Row};
 
 use super::query::{builder, condition::Kwargs, Arg};
 use super::{Connection, PLACEHOLDER};
-use crate::Error;
+#[allow(unused_imports)]
+use crate::{utils, Error};
 
 /// Trait for database model operations.
 #[async_trait::async_trait]
@@ -263,12 +264,8 @@ pub trait Model {
         Self: Sized + for<'de> serde::Deserialize<'de>,
     {
         let query = format!("select * from {name}", name = Self::NAME);
-        let mut rows = conn.query(&query, ()).await?;
-        let mut results = Vec::new();
-        while let Some(row) = rows.next().await? {
-            let s = libsql::de::from_row::<Self>(&row)?;
-            results.push(s);
-        }
+        let rows = conn.query(&query, ()).await?;
+        let results = utils::libsql_from_row(rows).await?;
         Ok(results)
     }
 
@@ -319,12 +316,8 @@ pub trait Model {
             placeholders = select_query.placeholders,
         );
         let params = binds!(select_query.args.iter());
-        let mut rows = conn.query(&query, params).await?;
-        let mut results = Vec::new();
-        while let Some(row) = rows.next().await? {
-            let s = libsql::de::from_row::<Self>(&row)?;
-            results.push(s);
-        }
+        let rows = conn.query(&query, params).await?;
+        let results = utils::libsql_from_row(rows).await?;
         Ok(results)
     }
 

@@ -79,15 +79,12 @@ macro_rules! binds {
         for arg in $args {
             let value = arg.value.replace('"', "");
             let ty = arg.ty.replace('"', "");
-            if ty == "i32" || ty == "bool" {
-                $stream = $stream.bind(value.parse::<i32>().unwrap());
-            } else if ty == "f64" {
-                $stream = $stream.bind(value.parse::<f64>().unwrap());
-            } else if ty.contains("Option") && value == "null" {
-                $stream = $stream.bind(Option::<String>::None);
-            } else {
-                $stream = $stream.bind(value);
-            }
+            $stream = match ty.as_str() {
+                "i32" | "bool" => $stream.bind(value.parse::<i32>()?),
+                "f64" => $stream.bind(value.parse::<f64>()?),
+                _ if ty.contains("Option") && value == "null" => $stream.bind(Option::<String>::None),
+                _ => $stream.bind(value),
+            };
         }
     }};
 
@@ -97,28 +94,14 @@ macro_rules! binds {
         for arg in $args {
             let value = arg.value.replace('"', "");
             let ty = arg.ty.replace('"', "");
-            if ty == "i32" || ty == "bool" {
-                params.push(Value::Integer(value.parse::<i64>().unwrap()));
-            } else if ty == "f64" {
-                params.push(Value::Real(value.parse::<f64>().unwrap()));
-            } else if ty.contains("Option") && value == "null" {
-                params.push(Value::Null);
-            } else {
-                params.push(Value::Text(value));
-            }
+            match ty.as_str() {
+                "i32" | "bool" => params.push(Value::Integer(value.parse::<i64>()?)),
+                "f64" => params.push(Value::Real(value.parse::<f64>()?)),
+                _ if ty.contains("Option") && value == "null" => params.push(Value::Null),
+                _ => params.push(Value::Text(value)),
+            };
         }
         libsql::params_from_iter(params)
-    }};
-}
-
-macro_rules! libsql_from_row {
-    ($rows:expr) => {{
-        let mut results = Vec::new();
-        while let Some(row) = $rows.next().await? {
-            let s = libsql::de::from_row::<Self>(&row)?;
-            results.push(s);
-        }
-        results
     }};
 }
 
@@ -127,7 +110,7 @@ macro_rules! select {
     ($table: ty) => {
         $crate::db::query::statement::SelectBuilder::new(String::from("*") , Some(String::from(<$table>::NAME)))
     };
-    
+
     ($($table:ty),+) => {{
         let select_fields = vec![$(format!("{}.*", <$table>::NAME)),+].join(", ");
         $crate::db::query::statement::SelectBuilder::new(select_fields, None)
