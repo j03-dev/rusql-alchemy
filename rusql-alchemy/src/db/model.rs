@@ -9,7 +9,6 @@ use sqlx::{any::AnyRow, FromRow, Row};
 
 use super::query::{builder, condition::Kwargs, Arg};
 use super::{Connection, PLACEHOLDER};
-#[allow(unused_imports)]
 use crate::{utils, Error};
 
 /// Trait for database model operations.
@@ -193,7 +192,7 @@ pub trait Model {
             .into_iter()
             .chain([Arg {
                 value: serde_json::json!(id_value).to_string(),
-                ty: crate::utils::get_type_name(id_value.clone()).to_string(),
+                ty: utils::get_type_name(id_value.clone()).to_string(),
             }])
             .collect();
 
@@ -449,14 +448,10 @@ where
     async fn delete(&self, conn: &Connection) -> Result<(), Error> {
         let query = format!("delete from {name}", name = T::NAME);
         #[cfg(not(feature = "turso"))]
-        {
-            sqlx::query(&query).execute(conn).await?;
-        }
+        sqlx::query(&query).execute(conn).await?;
 
         #[cfg(feature = "turso")]
-        {
-            conn.execute(&query, ()).await?;
-        }
+        conn.execute(&query, ()).await?;
         Ok(())
     }
 }
