@@ -59,6 +59,7 @@ pub trait Model {
             Ok(())
         })
     }
+
     /// Saves the current model instance to the database.
     ///
     /// # Arguments
