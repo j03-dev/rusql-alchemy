@@ -233,6 +233,7 @@ pub trait Model {
     where
         Self: Sized;
 
+    #[cfg(not(feature = "turso"))]
     /// Retrieves all instances of the model from the database.
     ///
     /// # Arguments
@@ -246,7 +247,6 @@ pub trait Model {
     /// let users = User::all(&conn).await;
     /// println!("{:#?}", users);
     /// ```
-    #[cfg(not(feature = "turso"))]
     async fn all(conn: &Connection) -> Result<Vec<Self>, Error>
     where
         Self: Sized + Unpin + for<'r> sqlx::FromRow<'r, sqlx::any::AnyRow> + Clone,
@@ -254,7 +254,21 @@ pub trait Model {
         let query = format!("select * from {name}", name = Self::NAME);
         Ok(sqlx::query_as::<_, Self>(&query).fetch_all(conn).await?)
     }
+
     #[cfg(feature = "turso")]
+    /// Retrieves all instances of the model from the database.
+    ///
+    /// # Arguments
+    /// * `conn` - The database connection.
+    ///
+    /// # Returns
+    /// A vector of all instances of the model.
+    ///
+    /// # Example
+    /// ```
+    /// let users = User::all(&conn).await;
+    /// println!("{:#?}", users);
+    /// ```
     async fn all(conn: &Connection) -> Result<Vec<Self>, Error>
     where
         Self: Sized + for<'de> serde::Deserialize<'de>,
@@ -265,6 +279,7 @@ pub trait Model {
         Ok(results)
     }
 
+    #[cfg(not(feature = "turso"))]
     /// Filters instances of the model based on the provided parameters.
     ///
     /// # Arguments
@@ -282,7 +297,6 @@ pub trait Model {
     /// ).await;
     /// println!("{:#?}", users);
     /// ```
-    #[cfg(not(feature = "turso"))]
     async fn filter(kw: Vec<Kwargs>, conn: &Connection) -> Result<Vec<Self>, Error>
     where
         Self: Sized + Unpin + for<'r> sqlx::FromRow<'r, sqlx::any::AnyRow> + Clone,
@@ -299,7 +313,25 @@ pub trait Model {
         binds!(select_query.args, stream);
         Ok(stream.fetch_all(conn).await?)
     }
+
     #[cfg(feature = "turso")]
+    /// Filters instances of the model based on the provided parameters.
+    ///
+    /// # Arguments
+    /// * `kw` - The key-value arguments for filtering.
+    /// * `conn` - The database connection.
+    ///
+    /// # Returns
+    /// A vector of instances matching the filter criteria.
+    ///
+    /// # Example
+    /// ```
+    /// let users = User::filter(
+    ///     kwargs!(age <= 18).and(kwargs!(weight == 80.0)),
+    ///     &conn,
+    /// ).await;
+    /// println!("{:#?}", users);
+    /// ```
     async fn filter(kw: Vec<Kwargs>, conn: &Connection) -> Result<Vec<Self>, Error>
     where
         Self: Sized + for<'de> serde::Deserialize<'de>,
@@ -317,6 +349,7 @@ pub trait Model {
         Ok(results)
     }
 
+    #[cfg(not(feature = "turso"))]
     /// Retrieves the first instance of the model matching the filter criteria.
     ///
     /// # Arguments
@@ -334,7 +367,6 @@ pub trait Model {
     /// ).await;
     /// println!("{:#?}", user);
     /// ```
-    #[cfg(not(feature = "turso"))]
     async fn get(kw: Vec<Kwargs>, conn: &Connection) -> Result<Option<Self>, Error>
     where
         Self: Sized + Unpin + for<'r> sqlx::FromRow<'r, sqlx::any::AnyRow> + Clone,
@@ -343,6 +375,23 @@ pub trait Model {
     }
 
     #[cfg(feature = "turso")]
+    /// Retrieves the first instance of the model matching the filter criteria.
+    ///
+    /// # Arguments
+    /// * `kw` - The key-value arguments for filtering.
+    /// * `conn` - The database connection.
+    ///
+    /// # Returns
+    /// An optional instance matching the filter criteria.
+    ///
+    /// # Example
+    /// ```
+    /// let user = User::get(
+    ///     kwargs!(email == "24nomeniavo@gmail.com").and(kwargs!(password == "strongpassword")),
+    ///     &conn,
+    /// ).await;
+    /// println!("{:#?}", user);
+    /// ```
     async fn get(kw: Vec<Kwargs>, conn: &Connection) -> Result<Option<Self>, Error>
     where
         Self: Sized + Clone + for<'de> serde::Deserialize<'de>,
