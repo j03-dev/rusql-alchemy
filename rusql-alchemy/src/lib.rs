@@ -15,11 +15,11 @@ pub use sqlx;
 
 pub type Error = Box<dyn std::error::Error + Send + Sync>;
 
-type FutureResult<'fut, T, E> =
+type FutureResult<'fut, T, E = Error> =
     std::pin::Pin<Box<dyn std::future::Future<Output = Result<T, E>> + Send + 'fut>>;
 
 pub struct MigrationRegistrar {
-    pub migrate_fn: for<'m> fn(&'m db::Connection) -> FutureResult<'m, (), Error>,
+    pub migrate_fn: for<'m> fn(&'m db::Connection) -> FutureResult<'m, ()>,
 }
 
 inventory::collect!(MigrationRegistrar);

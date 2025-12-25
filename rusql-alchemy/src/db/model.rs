@@ -29,7 +29,7 @@ pub trait Model {
     /// let success = User::migrate(&conn).await;
     /// println!("Migration success: {}", success);
     /// ```
-    fn migrate(conn: &'_ Connection) -> FutureResult<'_, (), Error>
+    fn migrate(conn: &'_ Connection) -> FutureResult<'_, ()>
     where
         Self: Sized,
     {
