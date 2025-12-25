@@ -5,7 +5,7 @@
 
 use super::query::{builder, condition::Kwargs, Arg};
 use super::{Connection, PLACEHOLDER};
-use crate::{utils, Error};
+use crate::{utils, Error, FutureResult};
 use serde::Serialize;
 
 /// Trait for database model operations.
@@ -29,7 +29,7 @@ pub trait Model {
     /// let success = User::migrate(&conn).await;
     /// println!("Migration success: {}", success);
     /// ```
-    fn migrate(conn: &'_ Connection) -> crate::FutRes<'_, (), Error>
+    fn migrate(conn: &'_ Connection) -> FutureResult<'_, (), Error>
     where
         Self: Sized,
     {

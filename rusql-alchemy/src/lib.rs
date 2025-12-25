@@ -7,20 +7,19 @@ pub mod utils;
 pub use async_trait;
 pub use chrono;
 pub use inventory;
-pub use rusql_alchemy_derive as derive;
 #[cfg(feature = "turso")]
 pub use libsql;
+pub use rusql_alchemy_derive as derive;
 #[cfg(not(feature = "turso"))]
 pub use sqlx;
 
-use std::{future::Future, pin::Pin};
-
 pub type Error = Box<dyn std::error::Error + Send + Sync>;
 
-type FutRes<'fut, T, E> = Pin<Box<dyn Future<Output = Result<T, E>> + Send + 'fut>>;
+type FutureResult<'fut, T, E> =
+    std::pin::Pin<Box<dyn std::future::Future<Output = Result<T, E>> + Send + 'fut>>;
 
 pub struct MigrationRegistrar {
-    pub migrate_fn: for<'m> fn(&'m db::Connection) -> FutRes<'m, (), Error>,
+    pub migrate_fn: for<'m> fn(&'m db::Connection) -> FutureResult<'m, (), Error>,
 }
 
 inventory::collect!(MigrationRegistrar);
