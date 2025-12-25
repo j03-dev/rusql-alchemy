@@ -173,14 +173,8 @@ impl SelectBuilder {
         let (query, args) = self.build_query();
         let params = binds!(args.iter());
 
-        let mut rows = conn.query(&query, params).await?;
-        let mut results = Vec::new();
-
-        while let Some(row) = rows.next().await? {
-            let s = libsql::de::from_row::<Output>(&row)?;
-            results.push(s);
-        }
-
+        let rows = conn.query(&query, params).await?;
+        let results = crate::utils::libsql_from_row(rows).await?;
         Ok(results)
     }
 

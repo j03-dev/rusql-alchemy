@@ -59,6 +59,7 @@ struct ModelField {
     size: Option<usize>,
     default: Option<TokenStream>,
     foreign_key: Option<TokenStream>,
+    on_delete: Option<String>,
 }
 
 fn generate_field_schema(
@@ -73,7 +74,7 @@ fn generate_field_schema(
     let unique = construct_unique(&attributes.unique);
     let default = construct_default_sql_value(&attributes.default, &inner_type);
     let nullable = construct_nullable(field_type);
-    let foreign_key = construct_foreign_key(&attributes.foreign_key);
+    let foreign_key = construct_foreign_key(&attributes.foreign_key, &attributes.on_delete);
 
     quote! { #field_name #sql_type #primary_key #unique #default #nullable #foreign_key }
 }
@@ -94,12 +95,38 @@ fn construct_primary_key(
     }
 }
 
-fn construct_foreign_key(foreign_key: &Option<TokenStream>) -> TokenStream {
-    match foreign_key {
-        Some(fk) => match fk.to_string().split_once(".") {
-            Some((table, field)) => quote! { references #table(#field) },
-            _ => panic!("Invalid foreign key format"),
+fn construct_foreign_key(
+    foreign_key: &Option<TokenStream>,
+    on_delete: &Option<String>,
+) -> TokenStream {
+    match (foreign_key, on_delete) {
+        (Some(fk), Some(od)) => match fk.to_string().split_once(".") {
+            Some((table, field)) => {
+                let on_delete = match od.to_lowercase().as_str() {
+                    "cascade" => quote! {on delete cascade},
+                    "no_action" => quote! {on delete no action},
+                    "restrict" => quote! {on delete restrict},
+                    "set_default" => quote! {on delete set default},
+                    "set_null" => quote! {on delete set null},
+                    other => panic!(
+                        r#"Invalid on_delete value: '{}'.
+                         Allowed value are: cascade, restrict, no_action, set_null, set_default."#,
+                        other
+                    ),
+                };
+                quote! { references #table(#field) #on_delete }
+            }
+            _ => panic!(
+                r#"Invalid foreign key format.
+                Excepted format: 'table.column'
+                "#
+            ),
         },
+        (Some(_), None) => panic!(
+            r#"Missing on_delete strategy for foreign key.
+            Please specify one: cascade, restrict, no_action, set_null, set_default.
+            "#
+        ),
         _ => quote! {},
     }
 }
@@ -121,7 +148,8 @@ fn construct_sql_type(inner_type: &str, size: Option<usize>) -> TokenStream {
             None => quote! { varchar(255)},
         },
         other => panic!(
-            "Unsupported type: {}, only 'Text' 'String' 'Float' 'Boolean' 'Serial' 'Integer' 'Date' 'DateTime' are available!",
+            r#" Unsupported type: {}.
+            Only' Text' 'String' 'Float' 'Boolean' 'Serial' 'Integer' 'Date' 'DateTime' are available!"#,
             other
         ),
     }
@@ -183,7 +211,9 @@ fn generate_default_field(
         Some(value) => {
             let value = value.to_string().replace('"', "");
             match (inner_type.as_str(), value.as_str()) {
-                ("Date", "now") => quote! { rusql_alchemy::chrono::Utc::now().format("%Y-%m-%d").to_string() },
+                ("Date", "now") => {
+                    quote! { rusql_alchemy::chrono::Utc::now().format("%Y-%m-%d").to_string() }
+                }
                 ("DateTime", "now") => {
                     quote! { rusql_alchemy::chrono::Utc::now().format("%Y-%m-%d %H:%M:%S").to_string() }
                 }

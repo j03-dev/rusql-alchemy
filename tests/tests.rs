@@ -42,7 +42,7 @@ struct User {
 struct Profile {
     #[field(primary_key = true, auto = true)]
     profile_id: Option<Integer>,
-    #[field(foreign_key=User.id)]
+    #[field(foreign_key=User.id, on_delete="cascade")]
     user_id: Integer,
     bio: String,
 }
@@ -52,7 +52,7 @@ struct Profile {
 struct Profile {
     #[field(primary_key = true, auto = true)]
     profile_id: Option<Integer>,
-    #[field(foreign_key=User.id)]
+    #[field(foreign_key=User.id, on_delete="cascade")]
     user_id: Integer,
     bio: String,
 }

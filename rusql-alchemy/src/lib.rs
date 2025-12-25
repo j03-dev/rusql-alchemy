@@ -19,10 +19,8 @@ pub type Error = Box<dyn std::error::Error + Send + Sync>;
 
 type FutRes<'fut, T, E> = Pin<Box<dyn Future<Output = Result<T, E>> + Send + 'fut>>;
 
-type MigrateFn = for<'m> fn(&'m db::Connection) -> FutRes<'m, (), Error>;
-
 pub struct MigrationRegistrar {
-    pub migrate_fn: MigrateFn,
+    pub migrate_fn: for<'m> fn(&'m db::Connection) -> FutRes<'m, (), Error>,
 }
 
 inventory::collect!(MigrationRegistrar);
