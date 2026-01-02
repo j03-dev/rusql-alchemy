@@ -37,10 +37,10 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
 
     let delete = {
         #[cfg(not(feature = "libsql"))]
-        quote! {::rusql_alchemy::sqlx::query(&query).bind(self.#primary_key).execute(conn).await?;}
+        quote! {::rusql_alchemy::sqlx::query(&query).bind(self.#primary_key.clone()).execute(conn).await?;}
 
         #[cfg(feature = "libsql")]
-        quote! {conn.execute(&query, ::rusql_alchemy::libsql::params![self.#primary_key]).await?;}
+        quote! {conn.execute(&query, ::rusql_alchemy::libsql::params![self.#primary_key.clone()]).await?;}
     };
 
     let expanded = quote! {
@@ -56,7 +56,7 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
             }
 
             async fn update(&self, conn: &::rusql_alchemy::db::Connection) -> Result<(), ::rusql_alchemy::Error> {
-                Self::set(self.#primary_key, ::rusql_alchemy::kwargs!(#(#update_args = self.#update_args),*),conn).await
+                Self::set(self.#primary_key.clone(), ::rusql_alchemy::kwargs!(#(#update_args = self.#update_args),*),conn).await
             }
 
             async fn delete(&self, conn: &::rusql_alchemy::db::Connection) -> Result<(), ::rusql_alchemy::Error> {
