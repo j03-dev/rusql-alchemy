@@ -1,7 +1,7 @@
-use super::{builder, condition::Kwargs, Arg};
+use super::{Arg, builder, condition::Kwargs};
 use crate::{
-    db::{model::Model, Connection},
     Error,
+    db::{Connection, model::Model},
 };
 
 pub enum JoinType {

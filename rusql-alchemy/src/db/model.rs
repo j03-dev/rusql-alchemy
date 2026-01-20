@@ -3,9 +3,9 @@
 //! This module provides traits and implementations for database operations,
 //! including querying, inserting, updating, and deleting records.
 
-use super::query::{builder, condition::Kwargs, Arg};
+use super::query::{Arg, builder, condition::Kwargs};
 use super::{Connection, PLACEHOLDER};
-use crate::{utils, Error, FutureResult};
+use crate::{Error, FutureResult, utils};
 use serde::Serialize;
 
 /// Trait for database model operations.

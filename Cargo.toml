@@ -1,6 +1,6 @@
 [workspace.package]
 version = "0.5.7"
-edition = "2021"
+edition = "2024"
 authors = ["FITAHIANA Nomeniavo Joe <24nomeniavo@gmail.com>"]
 keywords = ["orm", "rust", "django-orm", "lib"]
 license = "Apache-2.0"
