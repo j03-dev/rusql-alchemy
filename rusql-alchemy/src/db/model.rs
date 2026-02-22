@@ -8,7 +8,51 @@ use super::{Connection, PLACEHOLDER};
 use crate::{Error, FutureResult, utils};
 use serde::Serialize;
 
-/// Trait for database model operations.
+/// `Model` is a foundational trait in `rusql-alchemy` that provides an interface
+/// for Rust structs to interact with a database table. By deriving or implementing
+/// this trait, your struct gains capabilities for schema management (migrations)
+/// and CRUD operations (Create, Read, Update, Delete).
+///
+/// This trait is typically implemented automatically using the `#[derive(Model)]`
+/// procedural macro from `rusql_alchemy_derive`.
+///
+/// # Provided Methods
+///
+/// The `Model` trait provides default implementations for `up` and `down` methods
+/// which execute the SQL defined in `Self::UP` and `Self::DOWN` respectively.
+/// It also defines other asynchronous methods for CRUD operations which must be
+/// implemented for the specific model.
+///
+/// # Examples
+///
+/// Below is an example of a `User` struct deriving the `Model` trait.
+/// This automatically provides the `UP`, `DOWN`, `NAME`, `PK` constants
+/// and implements the necessary methods.
+///
+/// ```rust
+/// use rusql_alchemy::prelude::*;
+/// use sqlx::FromRow;
+///
+/// #[derive(Model, Clone, FromRow, Debug)]
+/// struct User {
+///     #[field(primary_key = true, auto = true)]
+///     id: Option<Integer>,
+///     name: String,
+///     #[field(default = "user")]
+///     role: String,
+/// }
+///
+/// #[tokio::main]
+/// async fn main() -> Result<(), rusql_alchemy::Error> {
+///     let database = Database::new("sqlite::memory:").await?;
+///     let conn = &database.conn;
+///
+///     User::up(conn).await?;
+///     User::down(conn).await?;
+///
+///     Ok(())
+/// }
+/// ```
 #[async_trait::async_trait]
 pub trait Model {
     const UP: &'static str;
@@ -16,6 +60,46 @@ pub trait Model {
     const NAME: &'static str;
     const PK: &'static str;
 
+    /// Executes the `UP` SQL statement for this model, creating its table or
+    /// applying schema changes.
+    ///
+    /// This method provides a default implementation that executes the SQL
+    /// defined in `Self::UP`. It is typically called as part of a larger
+    /// migration process orchestrated by `Database::up()`.
+    ///
+    /// # Arguments
+    ///
+    /// *   `conn` - A reference to the database connection.
+    ///
+    /// # Returns
+    ///
+    /// A `FutureResult` indicating success (`Ok(())`) or an `Error` on failure.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rusql_alchemy::prelude::*;
+    /// use sqlx::FromRow;
+    ///
+    /// #[derive(Model, Clone, FromRow, Debug)]
+    /// struct User {
+    ///     #[field(primary_key = true, auto = true)]
+    ///     id: Option<Integer>,
+    ///     name: String,
+    ///     #[field(default = "user")]
+    ///     role: String,
+    /// }
+    ///
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), rusql_alchemy::Error> {
+    ///     let database = Database::new("sqlite::memory:").await?;
+    ///     let conn = &database.conn;
+    ///
+    ///     User::up(conn).await?;
+    ///
+    ///     Ok(())
+    /// }
+    /// ```
     fn up(conn: &'_ Connection) -> FutureResult<'_, ()>
     where
         Self: Sized,
@@ -41,6 +125,45 @@ pub trait Model {
         })
     }
 
+    /// Executes the `DOWN` SQL statement for this model, typically dropping its table.
+    ///
+    /// This method provides a default implementation that executes the SQL
+    /// defined in `Self::DOWN`. It is typically called as part of a larger
+    /// migration rollback process orchestrated by `Database::down()`.
+    ///
+    /// # Arguments
+    ///
+    /// *   `conn` - A reference to the database connection.
+    ///
+    /// # Returns
+    ///
+    /// A `FutureResult` indicating success (`Ok(())`) or an `Error` on failure.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use rusql_alchemy::prelude::*;
+    /// use sqlx::FromRow;
+    ///
+    /// #[derive(Model, Clone, FromRow, Debug)]
+    /// struct User {
+    ///     #[field(primary_key = true, auto = true)]
+    ///     id: Option<Integer>,
+    ///     name: String,
+    ///     #[field(default = "user")]
+    ///     role: String,
+    /// }
+    ///
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), rusql_alchemy::Error> {
+    ///     let database = Database::new("sqlite::memory:").await?;
+    ///     let conn = &database.conn;
+    ///
+    ///     User::down(conn).await?;
+    ///
+    ///     Ok(())
+    /// }
+    /// ```
     fn down(conn: &'_ Connection) -> FutureResult<'_, ()>
     where
         Self: Sized,

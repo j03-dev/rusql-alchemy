@@ -107,13 +107,13 @@ async fn main() -> Result<(), Error> {
     let database = Database::new_local("local.db").await?;
 
     // Run migrations to create the necessary tables
-    database.migrate().await?;
+    database.up().await?;
 
     Ok(())
 }
 ```
 
-> **NB:** For migrations to work correctly, the models must be imported into the binary where `database.migrate()` is called. This allows the migration system to discover your models. If your models are in a separate module (e.g., `src/models.rs`), ensure you import them:
+> **NB:** For migrations to work correctly, the models must be imported into the binary where `database.up()` is called. This allows the migration system to discover your models. If your models are in a separate module (e.g., `src/models.rs`), ensure you import them:
 > 
 > ```rust
 > // In your main.rs
@@ -128,10 +128,98 @@ async fn main() -> Result<(), Error> {
 > #[tokio::main]
 > async fn main() -> Result<(), Error> {
 >     let database = Database::new_local("local.db").await?;
->     database.migrate().await?;
+>     database.up().await?;
 >     Ok(())
 > }
 > ```
+
+### Database Migrations (`Database.up`/`Database.down`)
+
+The `Database` struct provides `up()` and `down()` methods to manage your database schema by running registered migrations.
+
+*   **`database.up()`**: Executes all registered "up" migrations, typically creating tables or applying schema changes.
+*   **`database.down()`**: Executes all registered "down" migrations, typically reverting schema changes like dropping tables.
+
+These methods iterate through `MigrationRegistrar` instances, which are automatically collected when your models derive the `Model` trait and are imported into your binary.
+
+#### Examples
+
+**Running Up Migrations:**
+
+```rust
+use rusql_alchemy::prelude::*;
+use rusql_alchemy::Error;
+
+#[tokio::main]
+async fn main() -> Result<(), Error> {
+    let database = Database::new("sqlite::memory:").await?;
+    database.up().await?;
+    println!("All registered 'up' migrations executed.");
+    Ok(())
+}
+```
+
+**Running Down Migrations:**
+
+```rust
+use rusql_alchemy::prelude::*;
+use rusql_alchemy::Error;
+
+#[tokio::main]
+async fn main() -> Result<(), Error> {
+    let database = Database::new("sqlite::memory:").await?;
+    // First run up migrations to create tables
+    database.up().await?;
+    println!("All registered 'up' migrations executed.");
+
+    // Then run down migrations to drop tables
+    database.down().await?;
+    println!("All registered 'down' migrations executed.");
+    Ok(())
+}
+```
+
+### Model Trait for Schema Management
+
+The `Model` trait is central to defining your database models and includes methods for individual model schema management. When you derive `#[derive(Model)]` for your struct, it automatically implements the `Model` trait, including constants for SQL statements and default `up()` and `down()` methods specific to that model.
+
+*   **`Model::UP`**: A `&'static str` containing the SQL to create the table for the specific model.
+*   **`Model::DOWN`**: A `&'static str` containing the SQL to drop the table for the specific model.
+*   **`Model::NAME`**: A `&'static str` representing the name of the database table.
+*   **`Model::PK`**: A `&'static str` representing the primary key column name.
+*   **`Model::up(conn)`**: Executes `Model::UP` to create or alter the model's table.
+*   **`Model::down(conn)`**: Executes `Model::DOWN` to drop the model's table.
+
+#### Example: Individual Model Migrations
+
+```rust
+use rusql_alchemy::prelude::*;
+use sqlx::FromRow; // Required for sqlx-based features
+
+#[derive(Debug, Clone, Model, FromRow)]
+struct Product {
+    #[field(primary_key=true, auto=true)]
+    id: Option<Integer>,
+    name: String,
+    price: Float,
+}
+
+#[tokio::main]
+async fn main() -> Result<(), rusql_alchemy::Error> {
+    let database = Database::new("sqlite::memory:").await?;
+    let conn = &database.conn;
+
+    // Create the 'products' table using the Product model's up method
+    Product::up(conn).await?;
+    println!("Product table created using Model::up().");
+
+    // Drop the 'products' table using the Product model's down method
+    Product::down(conn).await?;
+    println!("Product table dropped using Model::down().");
+
+    Ok(())
+}
+```
 
 ##  CRUD Operations
 
@@ -266,7 +354,7 @@ use rusql_alchemy::Error;
 #[tokio::main]
 async fn main() -> Result<(), Error> {
     let database = Database::new_local("local.db").await?;
-    database.migrate().await?;
+    database.up().await?;
 
     // Create a user
     User::create(kwargs!(name = "Jane", age = 25), &database.conn).await?;

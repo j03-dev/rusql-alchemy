@@ -17,6 +17,6 @@ turso = ["rusql-alchemy/turso"]
 
 [dependencies]
 sqlx.workspace = true
-tokio.workspace = true
 serde.workspace = true
 rusql-alchemy = { workspace = true, features = [] }
+tokio = { version = "1", features = ["full"] }
