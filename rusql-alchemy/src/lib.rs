@@ -19,7 +19,8 @@ type FutureResult<'fut, T, E = Error> =
     std::pin::Pin<Box<dyn std::future::Future<Output = Result<T, E>> + Send + 'fut>>;
 
 pub struct MigrationRegistrar {
-    pub migrate_fn: for<'m> fn(&'m db::Connection) -> FutureResult<'m, ()>,
+    pub up_fn: for<'m> fn(&'m db::Connection) -> FutureResult<'m, ()>,
+    pub down_fn: for<'m> fn(&'m db::Connection) -> FutureResult<'m, ()>,
 }
 
 inventory::collect!(MigrationRegistrar);
@@ -128,33 +129,16 @@ impl Database {
         Ok(Self { conn })
     }
 
-    /// Runs database migrations.
-    ///
-    /// This method iterates over all registered models and applies their migrations
-    /// to the database. For migrations to be discovered, the models must be
-    /// imported into the binary where this method is called.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// // In your main.rs
-    /// use rusql_alchemy::prelude::*;
-    /// use rusql_alchemy::Error;
-    ///
-    /// // Import your models so they can be discovered for migration.
-    /// #[allow(unused_imports)]
-    /// use crate::models::*;
-    ///
-    /// #[tokio::main]
-    /// async fn main() -> Result<(), Error> {
-    ///     let database = Database::new_local("local.db").await?;
-    ///     database.migrate().await?;
-    ///     Ok(())
-    /// }
-    /// ```
-    pub async fn migrate(&self) -> Result<(), Error> {
+    pub async fn up(&self) -> Result<(), Error> {
         for model in inventory::iter::<MigrationRegistrar> {
-            (model.migrate_fn)(&self.conn).await?;
+            (model.up_fn)(&self.conn).await?;
+        }
+        Ok(())
+    }
+
+    pub async fn down(&self) -> Result<(), Error> {
+        for model in inventory::iter::<MigrationRegistrar> {
+            (model.down_fn)(&self.conn).await?;
         }
         Ok(())
     }

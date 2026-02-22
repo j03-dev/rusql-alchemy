@@ -63,7 +63,7 @@ async fn test_main() {
     let database = setup_database().await;
 
     // Migrate
-    let result = database.migrate().await;
+    let result = database.up().await;
     assert!(result.is_ok());
 
     // Create
@@ -118,7 +118,7 @@ async fn test_join() {
     let database = setup_database().await;
 
     // Migrate
-    let result = database.migrate().await;
+    let result = database.up().await;
     assert!(result.is_ok(), "{:?}", result);
 
     // Create User

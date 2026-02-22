@@ -74,7 +74,8 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
 
         ::rusql_alchemy::inventory::submit! {
             ::rusql_alchemy::MigrationRegistrar {
-                migrate_fn: #name::migrate
+                up_fn: #name::up,
+                down_fn: #name::down,
             }
         }
     };

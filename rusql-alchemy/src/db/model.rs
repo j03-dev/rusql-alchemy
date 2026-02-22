@@ -16,20 +16,7 @@ pub trait Model {
     const NAME: &'static str;
     const PK: &'static str;
 
-    /// Migrates the model schema to the database
-    ///
-    /// # Arguments
-    /// * `conn` - The database connection
-    ///
-    /// # Returns
-    /// `true` if the migration was successful, `false` otherwise
-    ///
-    /// # Example
-    /// ```rust
-    /// let success = User::migrate(&conn).await;
-    /// println!("Migration success: {}", success);
-    /// ```
-    fn migrate(conn: &'_ Connection) -> FutureResult<'_, ()>
+    fn up(conn: &'_ Connection) -> FutureResult<'_, ()>
     where
         Self: Sized,
     {
@@ -45,16 +32,35 @@ pub trait Model {
             }
 
             #[cfg(not(feature = "turso"))]
-            {
-                sqlx::query(Self::DOWN).execute(conn).await?;
-                sqlx::query(Self::UP).execute(conn).await?;
-            }
+            sqlx::query(Self::UP).execute(conn).await?;
 
             #[cfg(feature = "turso")]
+            conn.execute(Self::UP, ()).await?;
+
+            Ok(())
+        })
+    }
+
+    fn down(conn: &'_ Connection) -> FutureResult<'_, ()>
+    where
+        Self: Sized,
+    {
+        Box::pin(async move {
+            #[cfg(debug_assertions)]
             {
-                conn.execute(Self::DOWN, ()).await?;
-                conn.execute(Self::UP, ()).await?;
+                let formatted_sql = sqlformat::format(
+                    Self::DOWN,
+                    &sqlformat::QueryParams::None,
+                    &sqlformat::FormatOptions::default(),
+                );
+                println!("{formatted_sql}");
             }
+
+            #[cfg(not(feature = "turso"))]
+            sqlx::query(Self::DOWN).execute(conn).await?;
+
+            #[cfg(feature = "turso")]
+            conn.execute(Self::DOWN, ()).await?;
 
             Ok(())
         })
@@ -481,7 +487,7 @@ where
     /// # }
     /// #
     /// #[tokio::main]
-    /// async fn main() -> Result<(), rusql_alchemy::error> {
+    /// async fn main() -> Result<(), rusql_alchemy::Error> {
     ///     let conn = Database::new().await?.conn;
     ///
     ///     let products = Product::all(&conn).await?;
