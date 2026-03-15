@@ -131,23 +131,17 @@ impl Database {
 
     /// Runs all registered database migrations in an "up" direction.
     ///
-    /// This method iterates through all `MigrationRegistrar` instances collected
-    /// via `inventory::collect!` and executes their `up_fn`. This is typically used
-    /// to create or alter database schemas.
-    ///
     /// # Returns
-    ///
     /// A `Result` indicating success (`Ok(())`) or an `Error` if any migration fails.
     ///
     /// # Examples
-    ///
     /// ```rust
     /// use rusql_alchemy::prelude::*;
     /// #[tokio::main]
     /// async fn main() -> Result<(), rusql_alchemy::Error> {
-    /// let database = Database::new("sqlite::memory:").await?;
-    /// database.up().await?;
-    /// Ok(())
+    ///     let database = Database::new("sqlite::memory:").await?;
+    ///     database.up().await?;
+    ///     Ok(())
     /// }
     /// ```
     pub async fn up(&self) -> Result<(), Error> {
@@ -159,23 +153,17 @@ impl Database {
 
     /// Runs all registered database migrations in a "down" direction.
     ///
-    /// This method iterates through all `MigrationRegistrar` instances collected
-    /// via `inventory::collect!` and executes their `down_fn`. This is typically used
-    /// to revert database schema changes, e.g., dropping tables.
-    ///
     /// # Returns
-    ///
     /// A `Result` indicating success (`Ok(())`) or an `Error` if any migration fails.
     ///
     /// # Examples
-    ///
     /// ```rust
     /// use rusql_alchemy::prelude::*;
     /// #[tokio::main]
     /// async fn main() -> Result<(), rusql_alchemy::Error> {
-    /// let database = Database::new("sqlite::memory:").await?;
-    /// database.down().await?;
-    /// Ok(())
+    ///     let database = Database::new("sqlite::memory:").await?;
+    ///     database.down().await?;
+    ///     Ok(())
     /// }
     /// ```
     pub async fn down(&self) -> Result<(), Error> {
