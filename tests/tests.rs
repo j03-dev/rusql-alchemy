@@ -24,6 +24,8 @@ struct User {
     name: String,
     #[field(default = "user")]
     role: String,
+    #[field(default = "now")]
+    created_at: DateTime,
 }
 
 #[cfg(feature = "turso")]
@@ -35,6 +37,8 @@ struct User {
     name: String,
     #[field(default = "user")]
     role: String,
+    #[feild(default = "now")]
+    created_at: DateTime,
 }
 
 #[cfg(not(feature = "turso"))]
@@ -45,6 +49,8 @@ struct Profile {
     #[field(foreign_key=User.id, on_delete="cascade")]
     user_id: Integer,
     bio: String,
+    #[field(default = "now")]
+    created_at: DateTime,
 }
 
 #[cfg(feature = "turso")]
@@ -55,6 +61,8 @@ struct Profile {
     #[field(foreign_key=User.id, on_delete="cascade")]
     user_id: Integer,
     bio: String,
+    #[feild(default = "now")]
+    created_at: DateTime,
 }
 
 #[tokio::test]
