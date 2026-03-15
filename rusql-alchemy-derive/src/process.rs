@@ -191,6 +191,10 @@ fn construct_default_sql_value(default: &Option<TokenStream>, inner_type: &str) 
                 ("Boolean", "false") => quote! { default 0 },
                 (_, "now") => panic!("The keyword 'now' only works with Date or DateTime type!"),
                 ("Boolean", _) => panic!("Invalid boolean default value, use 'true' or 'false'!"),
+                ("String", _) | ("Text", _) => {
+                    let value = format!("'{value}'");
+                    quote! { default #value }
+                }
                 _ => quote! { default #value },
             }
         }
