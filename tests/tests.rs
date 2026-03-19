@@ -25,7 +25,7 @@ struct User {
     #[field(default = "user")]
     role: String,
     #[field(default = "now")]
-    created_at: DateTime,
+    at: DateTime,
 }
 
 #[cfg(feature = "turso")]
@@ -37,8 +37,8 @@ struct User {
     name: String,
     #[field(default = "user")]
     role: String,
-    #[feild(default = "now")]
-    created_at: DateTime,
+    #[field(default = "now")]
+    at: DateTime,
 }
 
 #[cfg(not(feature = "turso"))]
@@ -61,7 +61,7 @@ struct Profile {
     #[field(foreign_key=User.id, on_delete="cascade")]
     user_id: Integer,
     bio: String,
-    #[feild(default = "now")]
+    #[field(default = "now")]
     created_at: DateTime,
 }
 
