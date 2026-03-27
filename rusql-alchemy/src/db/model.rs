@@ -633,3 +633,21 @@ where
         Ok(())
     }
 }
+
+#[async_trait::async_trait]
+pub trait Save {
+    async fn save(&self, conn: &Connection) -> Result<(), Error>;
+}
+
+#[async_trait::async_trait]
+impl<T> Save for Vec<T>
+where
+    T: Model + Sync,
+{
+    async fn save(&self, conn: &Connection) -> Result<(), Error> {
+        for m in self.iter() {
+            m.save(conn).await?;
+        }
+        Ok(())
+    }
+}
