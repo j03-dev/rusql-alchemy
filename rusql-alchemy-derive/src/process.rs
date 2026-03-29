@@ -10,6 +10,18 @@ pub struct Output {
     pub update_args: Vec<TokenStream>,
 }
 
+#[derive(ExtractAttributes, Default, Debug)]
+#[deluxe(attributes(field))]
+struct ModelField {
+    primary_key: Option<bool>,
+    auto: Option<bool>,
+    unique: Option<bool>,
+    size: Option<usize>,
+    default: Option<TokenStream>,
+    foreign_key: Option<TokenStream>,
+    on_delete: Option<String>,
+}
+
 pub fn process_fields(fields: &syn::punctuated::Punctuated<syn::Field, syn::Token![,]>) -> Output {
     let mut primary_key = TokenStream::new();
     let mut default_fields = Vec::new();
@@ -48,18 +60,6 @@ pub fn process_fields(fields: &syn::punctuated::Punctuated<syn::Field, syn::Toke
         create_args,
         update_args,
     }
-}
-
-#[derive(ExtractAttributes, Default, Debug)]
-#[deluxe(attributes(field))]
-struct ModelField {
-    primary_key: Option<bool>,
-    auto: Option<bool>,
-    unique: Option<bool>,
-    size: Option<usize>,
-    default: Option<TokenStream>,
-    foreign_key: Option<TokenStream>,
-    on_delete: Option<String>,
 }
 
 fn generate_field_schema(
