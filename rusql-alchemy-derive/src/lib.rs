@@ -57,7 +57,7 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
         ));
 
         down.push_str(&format!("drop trigger if exists {name};", name = attr.name));
-    }
+   }
 
     let delete = {
         #[cfg(not(feature = "libsql"))]
