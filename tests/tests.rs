@@ -23,7 +23,7 @@ struct User {
     id: Option<Integer>,
     name: String,
     #[field(default = "user")]
-    role: String,
+    role: Option<String>,
     #[field(default = "now")]
     at: DateTime,
 }
@@ -36,7 +36,7 @@ struct User {
     #[field(unique = true)]
     name: String,
     #[field(default = "user")]
-    role: String,
+    role: Option<String>,
     #[field(default = "now")]
     at: DateTime,
 }
@@ -75,8 +75,15 @@ async fn test_main() {
     assert!(result.is_ok());
 
     // Create
-    let r = User::create(kwargs!(name = "John"), &database.conn).await;
+    let user = User {
+        name: "John".to_string(),
+        ..Default::default()
+    };
+    let r = user.save(&database.conn).await;
     assert!(r.is_ok(), "{:?}", r);
+    let new_user = r.unwrap();
+    assert_eq!(new_user.id, Some(1));
+    assert_eq!(new_user.role, Some("user".to_string()));
     let r = User::create(kwargs!(name = "Doe"), &database.conn).await;
     assert!(r.is_ok(), "{:?}", r);
 
@@ -87,7 +94,7 @@ async fn test_main() {
     assert!(user.is_some());
     let u = user.unwrap();
     assert_eq!(u.name, "John");
-    assert_eq!(u.role, "user");
+    assert_eq!(u.role, Some("user".to_string()));
 
     // Filter
     let results = User::filter(kwargs!(role = "user"), &database.conn).await;
@@ -100,7 +107,7 @@ async fn test_main() {
         .await
         .unwrap()
         .unwrap();
-    user_to_update.role = "admin".to_owned();
+    user_to_update.role = Some("admin".to_owned());
     let r = user_to_update.update(&database.conn).await;
     assert!(r.is_ok(), "{:?}", r);
 
@@ -108,7 +115,7 @@ async fn test_main() {
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(updated_user.role, "admin");
+    assert_eq!(updated_user.role, Some("admin".to_string()));
 
     // Delete
     let r = updated_user.delete(&database.conn).await;

@@ -57,7 +57,7 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
         ));
 
         down.push_str(&format!("drop trigger if exists {name};", name = attr.name));
-   }
+    }
 
     let delete = {
         #[cfg(not(feature = "libsql"))]
@@ -75,7 +75,7 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
             const NAME: &'static str = stringify!(#name);
             const PK: &'static str = stringify!(#primary_key);
 
-            async fn save(&self, conn: &::rusql_alchemy::db::Connection) -> Result<(), ::rusql_alchemy::Error> {
+            async fn save(&self, conn: &::rusql_alchemy::db::Connection) -> Result<Self, ::rusql_alchemy::Error> {
                 Self::create(::rusql_alchemy::kwargs!(#(#create_args = self.#create_args),*),conn).await
             }
 

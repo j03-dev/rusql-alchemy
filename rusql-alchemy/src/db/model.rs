@@ -210,7 +210,7 @@ pub trait Model {
     /// let success = user.save(&conn).await;
     /// println!("Save success: {}", success);
     /// ```
-    async fn save(&self, conn: &Connection) -> Result<(), Error>
+    async fn save(&self, conn: &Connection) -> Result<Self, Error>
     where
         Self: Sized;
 
@@ -237,32 +237,65 @@ pub trait Model {
     /// ).await;
     /// println!("Create success: {}", success);
     /// ```
-    async fn create(kw: Vec<Kwargs>, conn: &Connection) -> Result<(), Error>
+    #[cfg(not(feature = "turso"))]
+    async fn create(kw: Vec<Kwargs>, conn: &Connection) -> Result<Self, Error>
     where
-        Self: Sized,
+        Self: Sized + Unpin + for<'r> sqlx::FromRow<'r, sqlx::any::AnyRow> + Clone,
     {
         let insert_query = builder::to_insert_query(kw);
 
         let query = format!(
-            "insert into {name} ({fields}) values ({placeholders});",
+            "insert into {name} ({fields}) values ({placeholders}) returning *;",
+            name = Self::NAME,
+            fields = insert_query.fields,
+            placeholders = insert_query.placeholders,
+        );
+        let mut stream = sqlx::query_as::<_, Self>(&query);
+        binds!(insert_query.args.iter(), stream);
+        Ok(stream.fetch_one(conn).await?)
+    }
+
+    /// Creates a new model instance with the specified parameters.
+    ///
+    /// # Arguments
+    /// * `kw` - The key-value arguments for the new instance.
+    /// * `conn` - The database connection.
+    ///
+    /// # Returns
+    /// `true` if creation is successful, `false` otherwise.
+    ///
+    /// # Example
+    /// ```
+    /// let success = User::create(
+    ///     kwargs!(
+    ///         name = "joe",
+    ///         email = "24nomeniavo@gmail.com",
+    ///         password = "strongpassword",
+    ///         age = 19,
+    ///         weight = 80.1
+    ///     ),
+    ///     &conn,
+    /// ).await;
+    /// println!("Create success: {}", success);
+    /// ```
+    #[cfg(feature = "turso")]
+    async fn create(kw: Vec<Kwargs>, conn: &Connection) -> Result<Self, Error>
+    where
+        Self: Sized + for<'de> serde::Deserialize<'de>,
+    {
+        let insert_query = builder::to_insert_query(kw);
+
+        let query = format!(
+            "insert into {name} ({fields}) values ({placeholders}) returning *;",
             name = Self::NAME,
             fields = insert_query.fields,
             placeholders = insert_query.placeholders,
         );
 
-        #[cfg(not(feature = "turso"))]
-        {
-            let mut stream = sqlx::query(&query);
-            binds!(insert_query.args.iter(), stream);
-            stream.execute(conn).await?;
-        }
-
-        #[cfg(feature = "turso")]
-        {
-            let params = binds!(insert_query.args.iter());
-            conn.execute(&query, params).await?;
-        }
-        Ok(())
+        let params = binds!(insert_query.args.iter());
+        let mut rows = conn.query(&query, params).await?;
+        let row = rows.next().await?.unwrap();
+        Ok(libsql::de::from_row(&row)?)
     }
 
     /// Updates the current model instance in the database.
