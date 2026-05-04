@@ -86,6 +86,8 @@ async fn test_main() {
     assert_eq!(new_user.role, Some("user".to_string()));
     let r = User::create(kwargs!(name = "Doe"), &database.conn).await;
     assert!(r.is_ok(), "{:?}", r);
+    let new_user = r.unwrap();
+    assert_eq!(new_user.id, Some(2));
 
     // Get
     let result = User::get(kwargs!(name = "John"), &database.conn).await;

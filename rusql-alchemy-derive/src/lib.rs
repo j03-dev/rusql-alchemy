@@ -1,23 +1,12 @@
-use deluxe::ExtractAttributes;
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{Data, DeriveInput, Fields, parse_macro_input};
 
 mod process;
 
-#[derive(ExtractAttributes, Default, Debug)]
-#[deluxe(attributes(trigger))]
-struct TriggerField {
-    name: String,
-    event: String,
-    on: String,
-    action: String,
-}
-
-#[proc_macro_derive(Model, attributes(field, trigger))]
+#[proc_macro_derive(Model, attributes(field))]
 pub fn model_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
-    let trigger_attr = TriggerField::extract_attributes(&mut input.clone()).ok();
 
     let name = input.ident;
 
@@ -37,7 +26,7 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
         update_args,
     } = process::process_fields(fields);
 
-    let mut up = {
+    let up = {
         let fields = schema_fields
             .iter()
             .map(|f| f.to_string())
@@ -45,19 +34,7 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
             .join(", ");
         format!("create table if not exists {name} ({fields});").replace('"', "")
     };
-    let mut down = format!("drop table if exists {name};");
-
-    if let Some(attr) = trigger_attr {
-        up.push_str(&format!(
-            "create trigger if not exists {name} {event} on {on} BEGIN {action} END;",
-            name = attr.name,
-            event = attr.event,
-            on = attr.on,
-            action = attr.action,
-        ));
-
-        down.push_str(&format!("drop trigger if exists {name};", name = attr.name));
-    }
+    let down = format!("drop table if exists {name};");
 
     let delete = {
         #[cfg(not(feature = "libsql"))]

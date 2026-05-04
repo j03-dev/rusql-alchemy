@@ -180,10 +180,10 @@ pub trait Model {
             }
 
             #[cfg(not(feature = "turso"))]
-            sqlx::raw_sql(Self::DOWN).execute(conn).await?;
+            sqlx::query(Self::DOWN).execute(conn).await?;
 
             #[cfg(feature = "turso")]
-            conn.execute_batch(Self::DOWN).await?;
+            conn.execute(Self::DOWN, ()).await?;
 
             Ok(())
         })
