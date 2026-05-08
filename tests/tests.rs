@@ -1,16 +1,18 @@
+#![allow(dead_code)]
+
 use rusql_alchemy::prelude::*;
 
-#[allow(dead_code)]
-async fn setup_database() -> Database {
-    #[cfg(not(feature = "turso"))]
-    {
-        Database::new("sqlite:file:cache?mode=memory&cache=shared")
-            .await
-            .expect("failed to init database")
-    }
+async fn setup_database(_name: &str) -> Database {
     #[cfg(feature = "turso")]
     {
         Database::new_local(":memory:")
+            .await
+            .expect("failed to init database")
+    }
+
+    #[cfg(not(feature = "turso"))]
+    {
+        Database::new(&format!("sqlite:file:{_name}?mode=memory&cache=shared"))
             .await
             .expect("failed to init database")
     }
@@ -68,7 +70,7 @@ struct Profile {
 #[tokio::test]
 async fn test_main() {
     // Setup
-    let database = setup_database().await;
+    let database = setup_database("test_main").await;
 
     // Migrate
     let result = database.up().await;
@@ -132,7 +134,7 @@ async fn test_main() {
 #[tokio::test]
 async fn test_join() {
     // Setup
-    let database = setup_database().await;
+    let database = setup_database("test_join").await;
 
     // Migrate
     let result = database.up().await;
