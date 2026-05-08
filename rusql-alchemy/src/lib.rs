@@ -145,9 +145,7 @@ impl Database {
     /// }
     /// ```
     pub async fn up(&self) -> Result<(), Error> {
-        let mut models: Vec<_> = inventory::iter::<MigrationRegistrar>.into_iter().collect();
-        models.reverse();
-        for model in models {
+        for model in inventory::iter::<MigrationRegistrar> {
             (model.up_fn)(&self.conn).await?;
         }
         Ok(())
