@@ -15,12 +15,9 @@ pub use sqlx;
 
 pub type Error = Box<dyn std::error::Error + Send + Sync>;
 
-type FutureResult<'fut, T, E = Error> =
-    std::pin::Pin<Box<dyn std::future::Future<Output = Result<T, E>> + Send + 'fut>>;
-
 pub struct MigrationRegistrar {
-    pub up_fn: for<'m> fn(&'m db::Connection) -> FutureResult<'m, ()>,
-    pub down_fn: for<'m> fn(&'m db::Connection) -> FutureResult<'m, ()>,
+    pub up_schema: &'static str,
+    pub down_schema: &'static str,
 }
 
 inventory::collect!(MigrationRegistrar);
@@ -146,7 +143,11 @@ impl Database {
     /// ```
     pub async fn up(&self) -> Result<(), Error> {
         for model in inventory::iter::<MigrationRegistrar> {
-            (model.up_fn)(&self.conn).await?;
+            #[cfg(not(feature = "turso"))]
+            sqlx::raw_sql(model.up_schema).execute(&self.conn).await?;
+
+            #[cfg(feature = "turso")]
+            self.conn.execute_batch(model.up_schema).await?;
         }
         Ok(())
     }
@@ -170,7 +171,11 @@ impl Database {
         let mut models: Vec<_> = inventory::iter::<MigrationRegistrar>.into_iter().collect();
         models.reverse();
         for model in models {
-            (model.down_fn)(&self.conn).await?;
+            #[cfg(not(feature = "turso"))]
+            sqlx::raw_sql(model.down_schema).execute(&self.conn).await?;
+
+            #[cfg(feature = "turso")]
+            self.conn.execute_batch(model.down_schema).await?;
         }
         Ok(())
     }
