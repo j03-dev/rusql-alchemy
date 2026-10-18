@@ -26,7 +26,7 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
         update_args,
     } = process::process_fields(fields);
 
-    let up = {
+    let schema = {
         let fields = schema_fields
             .iter()
             .map(|f| f.to_string())
@@ -34,7 +34,6 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
             .join(", ");
         format!("create table if not exists {name} ({fields});").replace('"', "")
     };
-    let down = format!("drop table if exists {name};");
 
     let delete = {
         #[cfg(not(feature = "libsql"))]
@@ -47,8 +46,7 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
     let expanded = quote! {
         #[rusql_alchemy::async_trait::async_trait]
         impl Model for #name {
-            const UP: &'static str = #up;
-            const DOWN: &'static str = #down;
+            const SCHEMA: &'static str = #schema;
             const NAME: &'static str = stringify!(#name);
             const PK: &'static str = stringify!(#primary_key);
 
@@ -74,13 +72,11 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
         }
 
         ::rusql_alchemy::inventory::submit! {
-            ::rusql_alchemy::MigrationRegistrar {
-                up_schema: #name::UP,
-                down_schema: #name::DOWN,
+            ::rusql_alchemy::Schemas {
+                schema: #name::SCHEMA,
             }
         }
     };
 
     expanded.into()
 }
-

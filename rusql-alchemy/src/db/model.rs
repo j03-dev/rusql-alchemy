@@ -55,8 +55,7 @@ use serde::Serialize;
 /// ```
 #[async_trait::async_trait]
 pub trait Model {
-    const UP: &'static str;
-    const DOWN: &'static str;
+    const SCHEMA: &'static str;
     const NAME: &'static str;
     const PK: &'static str;
 

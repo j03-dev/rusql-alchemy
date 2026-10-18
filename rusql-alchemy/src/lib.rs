@@ -15,12 +15,11 @@ pub use sqlx;
 
 pub type Error = Box<dyn std::error::Error + Send + Sync>;
 
-pub struct MigrationRegistrar {
-    pub up_schema: &'static str,
-    pub down_schema: &'static str,
+pub struct Schemas {
+    pub schema: &'static str,
 }
 
-inventory::collect!(MigrationRegistrar);
+inventory::collect!(Schemas);
 
 /// Represents a database connection and provides methods for interacting with it.
 ///
@@ -142,41 +141,41 @@ impl Database {
     /// }
     /// ```
     pub async fn up(&self) -> Result<(), Error> {
-        for model in inventory::iter::<MigrationRegistrar> {
+        for model in inventory::iter::<Schemas> {
             #[cfg(not(feature = "turso"))]
-            sqlx::raw_sql(model.up_schema).execute(&self.conn).await?;
+            sqlx::raw_sql(model.schema).execute(&self.conn).await?;
 
             #[cfg(feature = "turso")]
-            self.conn.execute_batch(model.up_schema).await?;
+            self.conn.execute_batch(model.schema).await?;
         }
         Ok(())
     }
 
-    /// Runs all registered database migrations in a "down" direction.
-    ///
-    /// # Returns
-    /// A `Result` indicating success (`Ok(())`) or an `Error` if any migration fails.
-    ///
-    /// # Examples
-    /// ```rust
-    /// use rusql_alchemy::prelude::*;
-    /// #[tokio::main]
-    /// async fn main() -> Result<(), rusql_alchemy::Error> {
-    ///     let database = Database::new("sqlite::memory:").await?;
-    ///     database.down().await?;
-    ///     Ok(())
-    /// }
-    /// ```
-    pub async fn down(&self) -> Result<(), Error> {
-        let mut models: Vec<_> = inventory::iter::<MigrationRegistrar>.into_iter().collect();
-        models.reverse();
-        for model in models {
-            #[cfg(not(feature = "turso"))]
-            sqlx::raw_sql(model.down_schema).execute(&self.conn).await?;
+    // /// Runs all registered database migrations in a "down" direction.
+    // ///
+    // /// # Returns
+    // /// A `Result` indicating success (`Ok(())`) or an `Error` if any migration fails.
+    // ///
+    // /// # Examples
+    // /// ```rust
+    // /// use rusql_alchemy::prelude::*;
+    // /// #[tokio::main]
+    // /// async fn main() -> Result<(), rusql_alchemy::Error> {
+    // ///     let database = Database::new("sqlite::memory:").await?;
+    // ///     database.down().await?;
+    // ///     Ok(())
+    // /// }
+    // /// ```
+    // pub async fn down(&self) -> Result<(), Error> {
+    //     let mut models: Vec<_> = inventory::iter::<Schemas>.into_iter().collect();
+    //     models.reverse();
+    //     for model in models {
+    //         #[cfg(not(feature = "turso"))]
+    //         sqlx::raw_sql(model.down_schema).execute(&self.conn).await?;
 
-            #[cfg(feature = "turso")]
-            self.conn.execute_batch(model.down_schema).await?;
-        }
-        Ok(())
-    }
+    //         #[cfg(feature = "turso")]
+    //         self.conn.execute_batch(model.down_schema).await?;
+    //     }
+    //     Ok(())
+    // }
 }

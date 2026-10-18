@@ -5,7 +5,7 @@ pub use super::async_trait::async_trait;
 pub use super::chrono;
 pub use super::derive::Model;
 pub use super::inventory;
-pub use super::{Database, MigrationRegistrar, db::Connection};
+pub use super::{Database, Schemas, db::Connection};
 pub use super::{
     db::model::*, db::query::condition::*, db::query::statement::*, db::types::*, kwargs, select,
 };
