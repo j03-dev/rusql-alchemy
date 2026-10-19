@@ -43,14 +43,9 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
         quote! {conn.execute(&query, ::rusql_alchemy::libsql::params![self.#primary_key.clone()]).await?;}
     };
 
-    let expanded = quote! {
-        #[rusql_alchemy::async_trait::async_trait]
-        impl Model for #name {
-            const SCHEMA: &'static str = #schema;
-            const NAME: &'static str = stringify!(#name);
-            const PK: &'static str = stringify!(#primary_key);
-
-            #[cfg(not(feature = "turso"))]
+    let save = {
+        #[cfg(not(feature = "libsql"))]
+        quote! {
             async fn save<'e, E>(&self, conn: E) -> ::std::result::Result<Self, ::rusql_alchemy::Error>
             where
                 Self: Sized,
@@ -62,9 +57,14 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
                 )
                 .await
             }
+        }
 
-            #[cfg(feature = "turso")]
-            async fn save(&self, conn: &::rusql_alchemy::db::Connection) -> ::std::result::Result<Self, ::rusql_alchemy::Error>
+        #[cfg(feature = "libsql")]
+        quote! {
+            async fn save(
+                &self,
+                conn: &::rusql_alchemy::db::Connection,
+            ) -> ::std::result::Result<Self, ::rusql_alchemy::Error>
             where
                 Self: Sized,
             {
@@ -74,6 +74,17 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
                 )
                 .await
             }
+        }
+    };
+
+    let expanded = quote! {
+        #[rusql_alchemy::async_trait::async_trait]
+        impl Model for #name {
+            const SCHEMA: &'static str = #schema;
+            const NAME: &'static str = stringify!(#name);
+            const PK: &'static str = stringify!(#primary_key);
+
+            #save
 
             async fn update(&self, conn: &::rusql_alchemy::db::Connection) -> ::std::result::Result<(), ::rusql_alchemy::Error> {
                 Self::set(self.#primary_key.clone(), ::rusql_alchemy::kwargs!(#(#update_args = self.#update_args),*),conn).await
