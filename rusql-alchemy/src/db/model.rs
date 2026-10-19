@@ -80,6 +80,13 @@ pub trait Model {
     /// let success = user.save(&conn).await;
     /// println!("Save success: {}", success);
     /// ```
+    #[cfg(not(feature = "turso"))]
+    async fn save<'e, E>(&self, conn: E) -> Result<Self, Error>
+    where
+        Self: Sized,
+        E: sqlx::Executor<'e, Database = sqlx::Any> + Send;
+
+    #[cfg(feature = "turso")]
     async fn save(&self, conn: &Connection) -> Result<Self, Error>
     where
         Self: Sized;
@@ -108,9 +115,10 @@ pub trait Model {
     /// println!("Create success: {}", success);
     /// ```
     #[cfg(not(feature = "turso"))]
-    async fn create(kw: Vec<Kwargs>, conn: &Connection) -> Result<Self, Error>
+    async fn create<'e, E>(kw: Vec<Kwargs>, conn: E) -> Result<Self, Error>
     where
         Self: Sized + Unpin + for<'r> sqlx::FromRow<'r, sqlx::any::AnyRow> + Clone,
+        E: sqlx::Executor<'e, Database = sqlx::Any> + Send,
     {
         let insert_query = builder::to_insert_query(kw);
 

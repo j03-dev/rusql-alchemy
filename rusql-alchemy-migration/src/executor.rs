@@ -67,15 +67,27 @@ pub async fn apply(
     up: &str,
     checksum: String,
 ) -> Result<()> {
-    execute(up, conn).await?;
-
-    RusqlAlchemyMigration {
+    let record = RusqlAlchemyMigration {
         version: migration.version.to_string(),
         name: migration.name.clone(),
         checksum,
+    };
+
+    #[cfg(feature = "turso")]
+    {
+        let tx = conn.transaction().await?;
+        tx.execute_batch(up).await?;
+        record.save(conn).await?;
+        tx.commit().await?;
     }
-    .save(conn)
-    .await?;
+
+    #[cfg(not(feature = "turso"))]
+    {
+        let mut tx = conn.begin().await?;
+        sqlx::raw_sql(up).execute(&mut *tx).await?;
+        record.save(&mut *tx).await?;
+        tx.commit().await?;
+    }
 
     Ok(())
 }

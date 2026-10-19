@@ -50,8 +50,29 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
             const NAME: &'static str = stringify!(#name);
             const PK: &'static str = stringify!(#primary_key);
 
-            async fn save(&self, conn: &::rusql_alchemy::db::Connection) -> ::std::result::Result<Self, ::rusql_alchemy::Error> {
-                Self::create(::rusql_alchemy::kwargs!(#(#create_args = self.#create_args),*),conn).await
+            #[cfg(not(feature = "turso"))]
+            async fn save<'e, E>(&self, conn: E) -> ::std::result::Result<Self, ::rusql_alchemy::Error>
+            where
+                Self: Sized,
+                E: sqlx::Executor<'e, Database = sqlx::Any> + Send,
+            {
+                Self::create(
+                    ::rusql_alchemy::kwargs!(#(#create_args = self.#create_args),*),
+                    conn,
+                )
+                .await
+            }
+
+            #[cfg(feature = "turso")]
+            async fn save(&self, conn: &::rusql_alchemy::db::Connection) -> ::std::result::Result<Self, ::rusql_alchemy::Error>
+            where
+                Self: Sized,
+            {
+                Self::create(
+                    ::rusql_alchemy::kwargs!(#(#create_args = self.#create_args),*),
+                    conn,
+                )
+                .await
             }
 
             async fn update(&self, conn: &::rusql_alchemy::db::Connection) -> ::std::result::Result<(), ::rusql_alchemy::Error> {
