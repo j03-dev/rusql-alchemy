@@ -22,3 +22,4 @@ serde.workspace = true
 rusql-alchemy = { workspace = true, features = [] }
 tokio = { version = "1", features = ["full"] }
 sha2.workspace = true
+sqlparser.workspace = true
