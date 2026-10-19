@@ -19,6 +19,11 @@ pub struct SchemaDiff {
     pub down: String,
 }
 
+impl SchemaDiff {
+    pub fn is_empty(&self) -> bool {
+        self.up.is_empty() && self.down.is_empty()
+    }
+}
 /// One table-level difference between two schemas.
 enum Change<'a> {
     Create(&'a CreateTable),

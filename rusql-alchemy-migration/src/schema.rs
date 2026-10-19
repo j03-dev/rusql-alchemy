@@ -55,6 +55,12 @@ impl Schema {
     pub fn contains(&self, name: &str) -> bool {
         self.tables.contains_key(name)
     }
+
+    pub fn without(mut self, name: &str) -> Self {
+        self.tables
+            .retain(|table, _| !table.eq_ignore_ascii_case(name));
+        self
+    }
 }
 
 #[cfg(test)]

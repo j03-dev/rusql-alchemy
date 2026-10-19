@@ -69,7 +69,13 @@ pub fn make_migration(directory: &str, name: Option<&str>) -> Result<Option<Stri
         return Ok(None);
     }
 
-    let changes = diff::between(&Schema::parse(&previous)?, &Schema::parse(&current)?);
+    let changes = diff::between(
+        &Schema::parse(&previous)?.without(executor::HISTORY_TABLE),
+        &Schema::parse(&current)?.without(executor::HISTORY_TABLE),
+    );
+    if changes.is_empty() {
+        return Ok(None);
+    }
     let version = latest.map_or(Version::FIRST, |latest| latest.version.next());
 
     migrations

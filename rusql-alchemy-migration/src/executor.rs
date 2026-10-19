@@ -17,6 +17,8 @@ use super::{
     store::{MigrationEntry, Version},
 };
 
+pub const HISTORY_TABLE: &str = RusqlAlchemyMigration::NAME;
+
 // The struct name determines the table name, so it must not be renamed
 // without a data migration for existing databases.
 #[cfg(not(feature = "turso"))]
