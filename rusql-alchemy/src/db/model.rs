@@ -128,7 +128,7 @@ pub trait Model {
             fields = insert_query.fields,
             placeholders = insert_query.placeholders,
         );
-        let mut stream = sqlx::query_as::<_, Self>(&query);
+        let mut stream = sqlx::query_as::<_, Self>(sqlx::AssertSqlSafe(query));
         binds!(insert_query.args.iter(), stream);
         Ok(stream.fetch_one(conn).await?)
     }
@@ -244,7 +244,7 @@ pub trait Model {
 
         #[cfg(not(feature = "turso"))]
         {
-            let mut stream = sqlx::query(&query);
+            let mut stream = sqlx::query(sqlx::AssertSqlSafe(query));
             binds!(update_query.args, stream);
             stream.execute(conn).await?;
         }
@@ -293,7 +293,9 @@ pub trait Model {
         Self: Sized + Unpin + for<'r> sqlx::FromRow<'r, sqlx::any::AnyRow> + Clone,
     {
         let query = format!("select * from {name}", name = Self::NAME);
-        Ok(sqlx::query_as::<_, Self>(&query).fetch_all(conn).await?)
+        Ok(sqlx::query_as::<_, Self>(sqlx::AssertSqlSafe(query))
+            .fetch_all(conn)
+            .await?)
     }
 
     #[cfg(feature = "turso")]
@@ -350,7 +352,7 @@ pub trait Model {
             placeholders = select_query.placeholders,
         );
 
-        let mut stream = sqlx::query_as::<_, Self>(&query);
+        let mut stream = sqlx::query_as::<_, Self>(sqlx::AssertSqlSafe(query));
         binds!(select_query.args, stream);
         Ok(stream.fetch_all(conn).await?)
     }
@@ -460,7 +462,9 @@ pub trait Model {
         let query = format!("select count(*) from {name}", name = Self::NAME);
         #[cfg(not(feature = "turso"))]
         {
-            let slf = sqlx::query(&query).fetch_one(conn).await?;
+            let slf = sqlx::query(sqlx::AssertSqlSafe(query))
+                .fetch_one(conn)
+                .await?;
             Ok(sqlx::Row::try_get(&slf, 0)?)
         }
 
@@ -537,7 +541,9 @@ where
     async fn delete(&self, conn: &Connection) -> Result<(), Error> {
         let query = format!("delete from {name}", name = T::NAME);
         #[cfg(not(feature = "turso"))]
-        sqlx::query(&query).execute(conn).await?;
+        sqlx::query(sqlx::AssertSqlSafe(query))
+            .execute(conn)
+            .await?;
 
         #[cfg(feature = "turso")]
         conn.execute(&query, ()).await?;

@@ -128,7 +128,7 @@ impl SelectBuilder {
     {
         let (query, args) = self.build_query();
 
-        let mut stream = sqlx::query_as::<_, Output>(&query);
+        let mut stream = sqlx::query_as::<_, Output>(sqlx::AssertSqlSafe(query));
         binds!(args, stream);
 
         Ok(stream.fetch_one(conn).await?)
@@ -159,7 +159,7 @@ impl SelectBuilder {
     {
         let (query, args) = self.build_query();
 
-        let mut stream = sqlx::query_as::<_, Output>(&query);
+        let mut stream = sqlx::query_as::<_, Output>(sqlx::AssertSqlSafe(query));
         binds!(args, stream);
 
         Ok(stream.fetch_all(conn).await?)
@@ -185,7 +185,7 @@ impl SelectBuilder {
     {
         let (query, args) = self.build_query();
 
-        let mut stream = sqlx::query_as::<_, Output>(&query);
+        let mut stream = sqlx::query_as::<_, Output>(sqlx::AssertSqlSafe(query));
         binds!(args, stream);
 
         Ok(stream.fetch_optional(conn).await?)

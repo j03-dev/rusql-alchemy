@@ -86,7 +86,9 @@ pub async fn apply(
     #[cfg(not(feature = "turso"))]
     {
         let mut tx = conn.begin().await?;
-        sqlx::raw_sql(up).execute(&mut *tx).await?;
+        sqlx::raw_sql(sqlx::AssertSqlSafe(up))
+            .execute(&mut *tx)
+            .await?;
         record.save(&mut *tx).await?;
         tx.commit().await?;
     }
@@ -101,7 +103,9 @@ async fn execute(sql: &str, conn: &Connection) -> Result<()> {
     conn.execute_batch(sql).await?;
 
     #[cfg(not(feature = "turso"))]
-    sqlx::raw_sql(sql).execute(conn).await?;
+    sqlx::raw_sql(sqlx::AssertSqlSafe(sql))
+        .execute(conn)
+        .await?;
 
     Ok(())
 }

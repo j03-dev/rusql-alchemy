@@ -25,7 +25,7 @@ serde.workspace = true
 serde_json.workspace = true
 rusql-alchemy-derive.workspace = true
 libsql = { workspace = true, optional = true }
-sqlx = { workspace = true, features = ["runtime-tokio-rustls", "any"], optional = true }
+sqlx = { workspace = true, features = ["runtime-tokio" ,"tls-rustls", "any"], optional = true }
 sqlformat.workspace = true
 chrono.workspace = true
 inventory.workspace = true
