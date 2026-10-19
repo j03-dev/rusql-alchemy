@@ -23,6 +23,9 @@ const UP: &str = "up.sql";
 const DOWN: &str = "down.sql";
 const SCHEMA: &str = "schema.sql";
 
+/// Label used when a migration is written without a usable name.
+const DEFAULT_NAME: &str = "schema_change";
+
 /// Position of a migration in the history.
 ///
 /// Versions compare numerically, so `0002` and `2` are the same version.
@@ -151,16 +154,45 @@ impl MigrationDir {
         }
     }
 
-    /// Writes a new migration. Fails instead of overwriting an existing one.
-    pub fn write(&self, version: Version, diff: &SchemaDiff, schema: &str) -> Result<()> {
-        let dir = self.root.join(format!("{version}_schema_change"));
+    /// Writes a new migration and returns its directory name.
+    ///
+    /// `name` is free text and is normalized with [`slug`]; an empty or
+    /// unusable name falls back to `schema_change`. Fails instead of
+    /// overwriting an existing migration.
+    pub fn write(
+        &self,
+        version: Version,
+        name: &str,
+        diff: &SchemaDiff,
+        schema: &str,
+    ) -> Result<String> {
+        let label = Some(slug(name))
+            .filter(|label| !label.is_empty())
+            .unwrap_or_else(|| DEFAULT_NAME.to_owned());
+
+        let dir_name = format!("{version}_{label}");
+        let dir = self.root.join(&dir_name);
 
         fs::create_dir(&dir).map_err(|err| io_error("create", &dir, err))?;
 
         write(&dir.join(UP), &diff.up)?;
         write(&dir.join(DOWN), &diff.down)?;
-        write(&dir.join(SCHEMA), schema)
+        write(&dir.join(SCHEMA), schema)?;
+
+        Ok(dir_name)
     }
+}
+
+/// Normalizes free text into a directory-safe label: lowercase ASCII
+/// letters and digits separated by single underscores.
+///
+/// `"First migration!"` becomes `"first_migration"`.
+pub fn slug(text: &str) -> String {
+    text.split(|c: char| !c.is_ascii_alphanumeric())
+        .filter(|word| !word.is_empty())
+        .map(str::to_ascii_lowercase)
+        .collect::<Vec<_>>()
+        .join("_")
 }
 
 /// Fingerprint of a migration's scripts, used to detect edits after the
@@ -269,7 +301,8 @@ mod tests {
             down: "DOWN".into(),
         };
 
-        dir.write(Version::FIRST, &diff, "SCHEMA").unwrap();
+        let created = dir.write(Version::FIRST, "", &diff, "SCHEMA").unwrap();
+        assert_eq!(created, "0001_schema_change");
 
         let entries = dir.scan().unwrap();
         assert_eq!(entries[0].name, "0001_schema_change");
@@ -277,7 +310,38 @@ mod tests {
         assert_eq!(entries[0].read_down().unwrap(), "DOWN");
         assert_eq!(dir.previous_schema(entries.last()).unwrap(), "SCHEMA");
 
-        assert!(dir.write(Version::FIRST, &diff, "SCHEMA").is_err());
+        assert!(dir.write(Version::FIRST, "", &diff, "SCHEMA").is_err());
+    }
+
+    #[test]
+    fn write_normalizes_the_name() {
+        let tmp = TempDir::new("named");
+        let dir = MigrationDir::new(&tmp.0);
+        let diff = SchemaDiff {
+            up: String::new(),
+            down: String::new(),
+        };
+
+        let created = dir
+            .write(Version::FIRST, "First migration!", &diff, "")
+            .unwrap();
+        assert_eq!(created, "0001_first_migration");
+
+        let created = dir.write(Version::FIRST.next(), "!!!", &diff, "").unwrap();
+        assert_eq!(created, "0002_schema_change");
+
+        let names: Vec<_> = dir.scan().unwrap().into_iter().map(|m| m.name).collect();
+        assert_eq!(names, ["0001_first_migration", "0002_schema_change"]);
+    }
+
+    #[test]
+    fn slug_normalizes_text() {
+        assert_eq!(slug("first migration"), "first_migration");
+        assert_eq!(slug("  Add  User--Table!! "), "add_user_table");
+        assert_eq!(slug("already_snake_case"), "already_snake_case");
+        assert_eq!(slug("v2 schema"), "v2_schema");
+        assert_eq!(slug("../etc/passwd"), "etc_passwd");
+        assert_eq!(slug("???"), "");
     }
 
     #[test]
