@@ -5,7 +5,7 @@
 
 use super::query::{Arg, builder, condition::Kwargs};
 use super::{Connection, PLACEHOLDER};
-use crate::{Error, FutureResult, utils};
+use crate::{Error, utils};
 use serde::Serialize;
 
 /// `Model` is a foundational trait in `rusql-alchemy` that provides an interface
@@ -55,139 +55,9 @@ use serde::Serialize;
 /// ```
 #[async_trait::async_trait]
 pub trait Model {
-    const UP: &'static str;
-    const DOWN: &'static str;
+    const SCHEMA: &'static str;
     const NAME: &'static str;
     const PK: &'static str;
-
-    /// Executes the `UP` SQL statement for this model, creating its table or
-    /// applying schema changes.
-    ///
-    /// This method provides a default implementation that executes the SQL
-    /// defined in `Self::UP`. It is typically called as part of a larger
-    /// migration process orchestrated by `Database::up()`.
-    ///
-    /// # Arguments
-    ///
-    /// *   `conn` - A reference to the database connection.
-    ///
-    /// # Returns
-    ///
-    /// A `FutureResult` indicating success (`Ok(())`) or an `Error` on failure.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rusql_alchemy::prelude::*;
-    /// use sqlx::FromRow;
-    ///
-    /// #[derive(Model, Clone, FromRow, Debug)]
-    /// struct User {
-    ///     #[field(primary_key = true, auto = true)]
-    ///     id: Option<Integer>,
-    ///     name: String,
-    ///     #[field(default = "user")]
-    ///     role: String,
-    /// }
-    ///
-    /// #[tokio::main]
-    /// async fn main() -> Result<(), rusql_alchemy::Error> {
-    ///     let database = Database::new("sqlite::memory:").await?;
-    ///     let conn = &database.conn;
-    ///
-    ///     User::up(conn).await?;
-    ///
-    ///     Ok(())
-    /// }
-    /// ```
-    fn up(conn: &'_ Connection) -> FutureResult<'_, ()>
-    where
-        Self: Sized,
-    {
-        Box::pin(async move {
-            #[cfg(debug_assertions)]
-            {
-                let formatted_sql = sqlformat::format(
-                    Self::UP,
-                    &sqlformat::QueryParams::None,
-                    &sqlformat::FormatOptions::default(),
-                );
-                println!("{formatted_sql}");
-            }
-
-            #[cfg(not(feature = "turso"))]
-            sqlx::raw_sql(Self::UP).execute(conn).await?;
-
-            #[cfg(feature = "turso")]
-            conn.execute_batch(Self::UP).await?;
-
-            Ok(())
-        })
-    }
-
-    /// Executes the `DOWN` SQL statement for this model, typically dropping its table.
-    ///
-    /// This method provides a default implementation that executes the SQL
-    /// defined in `Self::DOWN`. It is typically called as part of a larger
-    /// migration rollback process orchestrated by `Database::down()`.
-    ///
-    /// # Arguments
-    ///
-    /// *   `conn` - A reference to the database connection.
-    ///
-    /// # Returns
-    ///
-    /// A `FutureResult` indicating success (`Ok(())`) or an `Error` on failure.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use rusql_alchemy::prelude::*;
-    /// use sqlx::FromRow;
-    ///
-    /// #[derive(Model, Clone, FromRow, Debug)]
-    /// struct User {
-    ///     #[field(primary_key = true, auto = true)]
-    ///     id: Option<Integer>,
-    ///     name: String,
-    ///     #[field(default = "user")]
-    ///     role: String,
-    /// }
-    ///
-    /// #[tokio::main]
-    /// async fn main() -> Result<(), rusql_alchemy::Error> {
-    ///     let database = Database::new("sqlite::memory:").await?;
-    ///     let conn = &database.conn;
-    ///
-    ///     User::down(conn).await?;
-    ///
-    ///     Ok(())
-    /// }
-    /// ```
-    fn down(conn: &'_ Connection) -> FutureResult<'_, ()>
-    where
-        Self: Sized,
-    {
-        Box::pin(async move {
-            #[cfg(debug_assertions)]
-            {
-                let formatted_sql = sqlformat::format(
-                    Self::DOWN,
-                    &sqlformat::QueryParams::None,
-                    &sqlformat::FormatOptions::default(),
-                );
-                println!("{formatted_sql}");
-            }
-
-            #[cfg(not(feature = "turso"))]
-            sqlx::query(Self::DOWN).execute(conn).await?;
-
-            #[cfg(feature = "turso")]
-            conn.execute(Self::DOWN, ()).await?;
-
-            Ok(())
-        })
-    }
 
     /// Saves the current model instance to the database.
     ///
@@ -210,6 +80,13 @@ pub trait Model {
     /// let success = user.save(&conn).await;
     /// println!("Save success: {}", success);
     /// ```
+    #[cfg(not(feature = "turso"))]
+    async fn save<'e, E>(&self, conn: E) -> Result<Self, Error>
+    where
+        Self: Sized,
+        E: sqlx::Executor<'e, Database = sqlx::Any> + Send;
+
+    #[cfg(feature = "turso")]
     async fn save(&self, conn: &Connection) -> Result<Self, Error>
     where
         Self: Sized;
@@ -238,9 +115,10 @@ pub trait Model {
     /// println!("Create success: {}", success);
     /// ```
     #[cfg(not(feature = "turso"))]
-    async fn create(kw: Vec<Kwargs>, conn: &Connection) -> Result<Self, Error>
+    async fn create<'e, E>(kw: Vec<Kwargs>, conn: E) -> Result<Self, Error>
     where
         Self: Sized + Unpin + for<'r> sqlx::FromRow<'r, sqlx::any::AnyRow> + Clone,
+        E: sqlx::Executor<'e, Database = sqlx::Any> + Send,
     {
         let insert_query = builder::to_insert_query(kw);
 
@@ -250,7 +128,7 @@ pub trait Model {
             fields = insert_query.fields,
             placeholders = insert_query.placeholders,
         );
-        let mut stream = sqlx::query_as::<_, Self>(&query);
+        let mut stream = sqlx::query_as::<_, Self>(sqlx::AssertSqlSafe(query));
         binds!(insert_query.args.iter(), stream);
         Ok(stream.fetch_one(conn).await?)
     }
@@ -366,7 +244,7 @@ pub trait Model {
 
         #[cfg(not(feature = "turso"))]
         {
-            let mut stream = sqlx::query(&query);
+            let mut stream = sqlx::query(sqlx::AssertSqlSafe(query));
             binds!(update_query.args, stream);
             stream.execute(conn).await?;
         }
@@ -415,7 +293,9 @@ pub trait Model {
         Self: Sized + Unpin + for<'r> sqlx::FromRow<'r, sqlx::any::AnyRow> + Clone,
     {
         let query = format!("select * from {name}", name = Self::NAME);
-        Ok(sqlx::query_as::<_, Self>(&query).fetch_all(conn).await?)
+        Ok(sqlx::query_as::<_, Self>(sqlx::AssertSqlSafe(query))
+            .fetch_all(conn)
+            .await?)
     }
 
     #[cfg(feature = "turso")]
@@ -472,7 +352,7 @@ pub trait Model {
             placeholders = select_query.placeholders,
         );
 
-        let mut stream = sqlx::query_as::<_, Self>(&query);
+        let mut stream = sqlx::query_as::<_, Self>(sqlx::AssertSqlSafe(query));
         binds!(select_query.args, stream);
         Ok(stream.fetch_all(conn).await?)
     }
@@ -582,7 +462,9 @@ pub trait Model {
         let query = format!("select count(*) from {name}", name = Self::NAME);
         #[cfg(not(feature = "turso"))]
         {
-            let slf = sqlx::query(&query).fetch_one(conn).await?;
+            let slf = sqlx::query(sqlx::AssertSqlSafe(query))
+                .fetch_one(conn)
+                .await?;
             Ok(sqlx::Row::try_get(&slf, 0)?)
         }
 
@@ -659,7 +541,9 @@ where
     async fn delete(&self, conn: &Connection) -> Result<(), Error> {
         let query = format!("delete from {name}", name = T::NAME);
         #[cfg(not(feature = "turso"))]
-        sqlx::query(&query).execute(conn).await?;
+        sqlx::query(sqlx::AssertSqlSafe(query))
+            .execute(conn)
+            .await?;
 
         #[cfg(feature = "turso")]
         conn.execute(&query, ()).await?;
