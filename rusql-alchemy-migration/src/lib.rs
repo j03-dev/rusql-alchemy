@@ -44,7 +44,7 @@ pub async fn cli(
             println!("Migrations applied");
         }
         Command::Rollback => match rollback(database, directory).await? {
-            Some(canceled) => println!("Revert migration {canceled}"),
+            Some(reverted) => println!("Reverted migration {reverted}"),
             None => println!("Nothing changed"),
         },
         Command::Help => println!("{}", command::USAGE),
