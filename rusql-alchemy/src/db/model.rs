@@ -59,6 +59,7 @@ pub trait Model {
     const NAME: &'static str;
     const PK: &'static str;
 
+    #[cfg(not(feature = "turso"))]
     /// Saves the current model instance to the database.
     ///
     /// # Arguments
@@ -80,13 +81,33 @@ pub trait Model {
     /// let success = user.save(&conn).await;
     /// println!("Save success: {}", success);
     /// ```
-    #[cfg(not(feature = "turso"))]
     async fn save<'e, E>(&self, conn: E) -> Result<Self, Error>
     where
         Self: Sized,
         E: sqlx::Executor<'e, Database = sqlx::Any> + Send;
 
     #[cfg(feature = "turso")]
+    /// Saves the current model instance to the database.
+    ///
+    /// # Arguments
+    /// * `conn` - The database connection.
+    ///
+    /// # Returns
+    /// `true` if save is successful, `false` otherwise.
+    ///
+    /// # Example
+    /// ```
+    /// let user = User {
+    ///     name: "johnDoe@gmail.com".to_string(),
+    ///     email: "21john@gmail.com".to_string(),
+    ///     password: "p455w0rd".to_string(),
+    ///     age: 18,
+    ///     weight: 60.0,
+    ///     ..Default::default()
+    /// };
+    /// let success = user.save(&conn).await;
+    /// println!("Save success: {}", success);
+    /// ```
     async fn save(&self, conn: &Connection) -> Result<Self, Error>
     where
         Self: Sized;
