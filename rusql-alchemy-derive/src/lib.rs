@@ -56,7 +56,6 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
                 E: sqlx::Executor<'e, Database = sqlx::Any> + Send,
             {
                 let query = format!("delete from {} where {}=?1;", Self::NAME, Self::PK).replace("?", rusql_alchemy::db::PLACEHOLDER);
-
                 ::rusql_alchemy::sqlx::query(::rusql_alchemy::sqlx::AssertSqlSafe(query)).bind(self.#primary_key.clone()).execute(conn).await?;
                 Ok(())
             }
@@ -64,9 +63,13 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
 
         #[cfg(feature = "libsql")]
         quote! {
-            async fn delete(&self, conn: &::rusql_alchemy::db::Connection) -> ::std::result::Result<(), ::rusql_alchemy::Error> {
-               let query = format!("delete from {} where {}=?1;", Self::NAME, Self::PK).replace("?", rusql_alchemy::db::PLACEHOLDER);
+            async fn delete(&self, conn: &::rusql_alchemy::db::Connection) -> ::std::result::Result<(), ::rusql_alchemy::Error>
+            where
+                Self: Sized
+            {
+                let query = format!("delete from {} where {}=?1;", Self::NAME, Self::PK).replace("?", rusql_alchemy::db::PLACEHOLDER);
                 conn.execute(&query, ::rusql_alchemy::libsql::params![self.#primary_key.clone()]).await?;
+                Ok(())
             }
         }
     };
