@@ -4,9 +4,10 @@
 //!
 //! # Atomicity
 //!
-//! A migration's SQL runs first and its history row is saved afterwards, so
-//! the two steps are not one transaction on any backend. A failure in
-//! between can leave a migration applied but not recorded.
+//! On `sqlx` backends the migration's SQL and its history row run inside one
+//! transaction, so either both are applied or neither is. On Turso the SQL
+//! runs in a transaction while the history row is written after it: a failure
+//! in between can leave a migration applied but not recorded.
 
 use std::collections::BTreeMap;
 

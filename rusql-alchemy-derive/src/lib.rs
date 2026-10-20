@@ -1,3 +1,15 @@
+//! Derive macro for the `Model` trait.
+//!
+//! `#[derive(Model)]` (with `#[field(...)]` attributes) implements
+//! `rusql_alchemy::db::model::Model` for a struct and:
+//!
+//! * builds `SCHEMA` (`create table if not exists ...`) from the fields,
+//! * sets `NAME` (the struct name) and `PK` (the `primary_key` field),
+//! * implements `save`, `update` and `delete`,
+//! * implements `Default` for the struct,
+//! * submits the schema to `inventory`, so `Database::up()` and
+//!   `rusql-alchemy-migration` discover the model.
+
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{Data, DeriveInput, Fields, parse_macro_input};

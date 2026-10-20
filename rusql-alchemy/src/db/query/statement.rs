@@ -1,3 +1,5 @@
+//! Fluent `SELECT` builder used by the `select!` macro.
+
 use super::{Arg, builder, condition::Kwargs};
 use crate::{
     Error,

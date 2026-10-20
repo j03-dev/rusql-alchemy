@@ -1,4 +1,4 @@
-//! RusQL Alchemy: A Rust ORM library for SQL databases
+//! Models: the `Model` trait and the collection helpers `Delete` and `Save`.
 //!
 //! This module provides traits and implementations for database operations,
 //! including querying, inserting, updating, and deleting records.
@@ -10,26 +10,27 @@ use serde::Serialize;
 
 /// `Model` is a foundational trait in `rusql-alchemy` that provides an interface
 /// for Rust structs to interact with a database table. By deriving or implementing
-/// this trait, your struct gains capabilities for schema management (migrations)
-/// and CRUD operations (Create, Read, Update, Delete).
+/// this trait, your struct gains capabilities for schema registration (used by
+/// [`Database::up`](crate::Database::up) and `rusql-alchemy-migration`) and CRUD
+/// operations (Create, Read, Update, Delete).
 ///
 /// This trait is typically implemented automatically using the `#[derive(Model)]`
 /// procedural macro from `rusql_alchemy_derive`.
 ///
-/// # Provided Methods
+/// # Constants
 ///
-/// The `Model` trait provides default implementations for `up` and `down` methods
-/// which execute the SQL defined in `Self::UP` and `Self::DOWN` respectively.
-/// It also defines other asynchronous methods for CRUD operations which must be
-/// implemented for the specific model.
+/// * `SCHEMA` — the `create table if not exists ...` statement for this model.
+/// * `NAME` — the table name.
+/// * `PK` — the primary key column name.
+///
+/// Deriving the macro also submits `SCHEMA` to `inventory`, registers a
+/// `Default` impl, and implements `save`, `update` and `delete`.
 ///
 /// # Examples
 ///
 /// Below is an example of a `User` struct deriving the `Model` trait.
-/// This automatically provides the `UP`, `DOWN`, `NAME`, `PK` constants
-/// and implements the necessary methods.
 ///
-/// ```rust
+/// ```ignore
 /// use rusql_alchemy::prelude::*;
 /// use sqlx::FromRow;
 ///
@@ -45,10 +46,9 @@ use serde::Serialize;
 /// #[tokio::main]
 /// async fn main() -> Result<(), rusql_alchemy::Error> {
 ///     let database = Database::new("sqlite::memory:").await?;
-///     let conn = &database.conn;
 ///
-///     User::up(conn).await?;
-///     User::down(conn).await?;
+///     // Creates the `User` table, and every other registered model's table
+///     database.up().await?;
 ///
 ///     Ok(())
 /// }
@@ -66,10 +66,12 @@ pub trait Model {
     /// * `conn` - The database connection.
     ///
     /// # Returns
-    /// `true` if save is successful, `false` otherwise.
+    /// `Ok(self)` with the persisted instance as returned by the database
+    /// (including generated fields such as an auto-incremented primary key),
+    /// or an `Error` if the insert failed.
     ///
     /// # Example
-    /// ```
+    /// ```ignore
     /// let user = User {
     ///     name: "johnDoe@gmail.com".to_string(),
     ///     email: "21john@gmail.com".to_string(),
@@ -78,8 +80,9 @@ pub trait Model {
     ///     weight: 60.0,
     ///     ..Default::default()
     /// };
-    /// let success = user.save(&conn).await;
-    /// println!("Save success: {}", success);
+    /// // Returns the persisted instance, with generated fields filled in
+    /// let saved = user.save(&conn).await?;
+    /// println!("Saved with id: {:?}", saved.id);
     /// ```
     async fn save<'e, E>(&self, conn: E) -> Result<Self, Error>
     where
@@ -93,10 +96,12 @@ pub trait Model {
     /// * `conn` - The database connection.
     ///
     /// # Returns
-    /// `true` if save is successful, `false` otherwise.
+    /// `Ok(self)` with the persisted instance as returned by the database
+    /// (including generated fields such as an auto-incremented primary key),
+    /// or an `Error` if the insert failed.
     ///
     /// # Example
-    /// ```
+    /// ```ignore
     /// let user = User {
     ///     name: "johnDoe@gmail.com".to_string(),
     ///     email: "21john@gmail.com".to_string(),
@@ -105,8 +110,9 @@ pub trait Model {
     ///     weight: 60.0,
     ///     ..Default::default()
     /// };
-    /// let success = user.save(&conn).await;
-    /// println!("Save success: {}", success);
+    /// // Returns the persisted instance, with generated fields filled in
+    /// let saved = user.save(&conn).await?;
+    /// println!("Saved with id: {:?}", saved.id);
     /// ```
     async fn save(&self, conn: &Connection) -> Result<Self, Error>
     where
@@ -119,11 +125,13 @@ pub trait Model {
     /// * `conn` - The database connection.
     ///
     /// # Returns
-    /// `true` if creation is successful, `false` otherwise.
+    /// `Ok(model)` with the created instance as returned by the database
+    /// (including defaults and generated fields), or an `Error` if the
+    /// insert failed.
     ///
     /// # Example
-    /// ```
-    /// let success = User::create(
+    /// ```ignore
+    /// let user = User::create(
     ///     kwargs!(
     ///         name = "joe",
     ///         email = "24nomeniavo@gmail.com",
@@ -132,8 +140,8 @@ pub trait Model {
     ///         weight = 80.1
     ///     ),
     ///     &conn,
-    /// ).await;
-    /// println!("Create success: {}", success);
+    /// ).await?;
+    /// println!("Created user: {:?}", user);
     /// ```
     #[cfg(not(feature = "turso"))]
     async fn create<'e, E>(kw: Vec<Kwargs>, conn: E) -> Result<Self, Error>
@@ -161,11 +169,13 @@ pub trait Model {
     /// * `conn` - The database connection.
     ///
     /// # Returns
-    /// `true` if creation is successful, `false` otherwise.
+    /// `Ok(model)` with the created instance as returned by the database
+    /// (including defaults and generated fields), or an `Error` if the
+    /// insert failed.
     ///
     /// # Example
-    /// ```
-    /// let success = User::create(
+    /// ```ignore
+    /// let user = User::create(
     ///     kwargs!(
     ///         name = "joe",
     ///         email = "24nomeniavo@gmail.com",
@@ -174,8 +184,8 @@ pub trait Model {
     ///         weight = 80.1
     ///     ),
     ///     &conn,
-    /// ).await;
-    /// println!("Create success: {}", success);
+    /// ).await?;
+    /// println!("Created user: {:?}", user);
     /// ```
     #[cfg(feature = "turso")]
     async fn create(kw: Vec<Kwargs>, conn: &Connection) -> Result<Self, Error>
@@ -203,17 +213,16 @@ pub trait Model {
     /// * `conn` - The database connection.
     ///
     /// # Returns
-    /// `true` if update is successful, `false` otherwise.
+    /// `Ok(())` on success, or an `Error` if the update failed.
     ///
     /// # Example
-    /// ```
+    /// ```ignore
     /// if let Some(mut user) = User::get(
-    ///     kwargs!(email == "24nomeniavo@gmail.com").and(kwargs!(password == "strongpassword")),
+    ///     kwargs!(email == "24nomeniavo@gmail.com"),
     ///     &conn,
-    /// ).await {
+    /// ).await? {
     ///     user.role = "admin".to_string();
-    ///     let success = user.update(&conn).await;
-    ///     println!("Update success: {}", success);
+    ///     user.update(&conn).await?;
     /// }
     /// ```
     async fn update(&self, conn: &Connection) -> Result<(), Error>
@@ -223,21 +232,20 @@ pub trait Model {
     /// Updates a specific model instance identified by its primary key with the given parameters.
     ///
     /// # Arguments
-    /// * `id_value` - The value of the primary key.
+    /// * `id` - The value of the primary key.
     /// * `kw` - The key-value arguments for the update.
     /// * `conn` - The database connection.
     ///
     /// # Returns
-    /// `true` if update is successful, `false` otherwise.
+    /// `Ok(())` on success, or an `Error` if the update failed.
     ///
     /// # Example
-    /// ```
-    /// let success = User::set(
+    /// ```ignore
+    /// User::set(
     ///     user_id,
     ///     kwargs!(role = "admin"),
     ///     &conn,
-    /// ).await;
-    /// println!("Set success: {}", success);
+    /// ).await?;
     /// ```
     async fn set<T: Serialize + Clone + Send + Sync>(
         id: T,
@@ -284,12 +292,11 @@ pub trait Model {
     /// * `conn` - The database connection.
     ///
     /// # Returns
-    /// `true` if delete is successful, `false` otherwise.
+    /// `Ok(())` on success, or an `Error` if the delete failed.
     ///
     /// # Example
-    /// ```
-    /// let success = user.delete(&conn).await;
-    /// println!("Delete success: {}", success);
+    /// ```ignore
+    /// user.delete(&conn).await?;
     /// ```
     async fn delete(&self, conn: &Connection) -> Result<(), Error>
     where
@@ -305,8 +312,8 @@ pub trait Model {
     /// A vector of all instances of the model.
     ///
     /// # Example
-    /// ```
-    /// let users = User::all(&conn).await;
+    /// ```ignore
+    /// let users = User::all(&conn).await?;
     /// println!("{:#?}", users);
     /// ```
     async fn all(conn: &Connection) -> Result<Vec<Self>, Error>
@@ -329,8 +336,8 @@ pub trait Model {
     /// A vector of all instances of the model.
     ///
     /// # Example
-    /// ```
-    /// let users = User::all(&conn).await;
+    /// ```ignore
+    /// let users = User::all(&conn).await?;
     /// println!("{:#?}", users);
     /// ```
     async fn all(conn: &Connection) -> Result<Vec<Self>, Error>
@@ -354,11 +361,11 @@ pub trait Model {
     /// A vector of instances matching the filter criteria.
     ///
     /// # Example
-    /// ```
+    /// ```ignore
     /// let users = User::filter(
-    ///     kwargs!(age <= 18).and(kwargs!(weight == 80.0)),
+    ///     kwargs!(age <= 18),
     ///     &conn,
-    /// ).await;
+    /// ).await?;
     /// println!("{:#?}", users);
     /// ```
     async fn filter(kw: Vec<Kwargs>, conn: &Connection) -> Result<Vec<Self>, Error>
@@ -389,11 +396,11 @@ pub trait Model {
     /// A vector of instances matching the filter criteria.
     ///
     /// # Example
-    /// ```
+    /// ```ignore
     /// let users = User::filter(
-    ///     kwargs!(age <= 18).and(kwargs!(weight == 80.0)),
+    ///     kwargs!(age <= 18),
     ///     &conn,
-    /// ).await;
+    /// ).await?;
     /// println!("{:#?}", users);
     /// ```
     async fn filter(kw: Vec<Kwargs>, conn: &Connection) -> Result<Vec<Self>, Error>
@@ -424,11 +431,8 @@ pub trait Model {
     /// An optional instance matching the filter criteria.
     ///
     /// # Example
-    /// ```
-    /// let user = User::get(
-    ///     kwargs!(email == "24nomeniavo@gmail.com").and(kwargs!(password == "strongpassword")),
-    ///     &conn,
-    /// ).await;
+    /// ```ignore
+    /// let user = User::get(kwargs!(email == "24nomeniavo@gmail.com"), &conn).await?;
     /// println!("{:#?}", user);
     /// ```
     async fn get(kw: Vec<Kwargs>, conn: &Connection) -> Result<Option<Self>, Error>
@@ -449,11 +453,8 @@ pub trait Model {
     /// An optional instance matching the filter criteria.
     ///
     /// # Example
-    /// ```
-    /// let user = User::get(
-    ///     kwargs!(email == "24nomeniavo@gmail.com").and(kwargs!(password == "strongpassword")),
-    ///     &conn,
-    /// ).await;
+    /// ```ignore
+    /// let user = User::get(kwargs!(email == "24nomeniavo@gmail.com"), &conn).await?;
     /// println!("{:#?}", user);
     /// ```
     async fn get(kw: Vec<Kwargs>, conn: &Connection) -> Result<Option<Self>, Error>
@@ -472,9 +473,9 @@ pub trait Model {
     /// The count of instances.
     ///
     /// # Example
-    /// ```
-    /// let count = User::count(&conn).await;
-    /// println!("User count: {}", count);
+    /// ```ignore
+    /// let count = User::count(&conn).await?;
+    /// println!("User count: {count}");
     /// ```
     async fn count(conn: &Connection) -> Result<i64, Error>
     where
@@ -505,6 +506,7 @@ pub trait Model {
 /// Trait for deleting database records.
 #[async_trait::async_trait]
 pub trait Delete {
+    /// Deletes the record, or every record for a `Vec<T>`, from the table.
     async fn delete(&self, conn: &Connection) -> Result<(), Error>;
 }
 
@@ -522,10 +524,10 @@ where
     /// * `conn` - The database connection.
     ///
     /// # Returns
-    /// `true` if deletion is successful, `false` otherwise.
+    /// `Ok(())` on success, or an `Error` if the delete failed.
     ///
     /// # Example
-    /// ```
+    /// ```ignore
     /// # use rusql_alchemy::prelude::*;
     /// # use sqlx::FromRow;
     /// #
@@ -547,14 +549,15 @@ where
     /// #
     /// #[tokio::main]
     /// async fn main() -> Result<(), rusql_alchemy::Error> {
-    ///     let conn = Database::new().await?.conn;
+    ///     let database = Database::new("sqlite::memory:").await?;
+    ///     let conn = &database.conn;
     ///
-    ///     let products = Product::all(&conn).await?;
-    ///     let success = products.delete(&conn).await;
-    ///     println!("Products delete success: {}", success);
+    ///     let products = Product::all(conn).await?;
+    ///     products.delete(conn).await?;
     ///
-    ///     let products = Product::all(&conn).await;
-    ///     println!("Remaining products: {:#?}", products);
+    ///     let remaining = Product::all(conn).await?;
+    ///     println!("Remaining products: {:#?}", remaining);
+    ///     Ok(())
     /// }
     /// ```
     ///
@@ -572,8 +575,15 @@ where
     }
 }
 
+/// Trait for saving collections of models.
+///
+/// A `Vec<T>` saves every element in order and stops on the first error.
 #[async_trait::async_trait]
 pub trait Save {
+    /// Saves every element of the collection, in order.
+    ///
+    /// # Returns
+    /// `Ok(())` when all saves succeeded, or the first `Error` encountered.
     async fn save(&self, conn: &Connection) -> Result<(), Error>;
 }
 
