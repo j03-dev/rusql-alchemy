@@ -87,7 +87,8 @@ fn construct_primary_key(
     if is_primary_key.unwrap_or(false) {
         let auto = match (is_auto, inner_type) {
             (Some(true), _) => quote! { autoincrement },
-            (None, "Serial") | _ => quote! {},
+            (None, "Serial") => quote! {},
+            _ => quote! {},
         };
         quote! { primary key #auto }
     } else {
@@ -249,17 +250,18 @@ fn generate_default_field(
 }
 
 fn extract_inner_type(field_type: &syn::Type) -> String {
-    if let syn::Type::Path(type_path) = field_type {
-        if let Some(path_segment) = type_path.path.segments.last() {
-            if path_segment.ident == "Option" {
-                if let syn::PathArguments::AngleBracketed(args) = &path_segment.arguments {
-                    if let Some(syn::GenericArgument::Type(inner_type)) = args.args.first() {
-                        return extract_inner_type(inner_type);
-                    }
-                }
-            }
-            return path_segment.ident.to_string();
+    if let syn::Type::Path(type_path) = field_type
+        && let Some(path_segment) = type_path.path.segments.last()
+    {
+        if path_segment.ident == "Option"
+            && let syn::PathArguments::AngleBracketed(args) = &path_segment.arguments
+            && let Some(syn::GenericArgument::Type(inner_type)) = args.args.first()
+        {
+            return extract_inner_type(inner_type);
         }
+
+        return path_segment.ident.to_string();
     }
+
     panic!("Invalid type")
 }
