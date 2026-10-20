@@ -24,20 +24,20 @@ pub const HISTORY_TABLE: &str = RusqlAlchemyMigration::NAME;
 // without a data migration for existing databases.
 #[cfg(not(feature = "turso"))]
 #[derive(Model, Clone, FromRow)]
-struct RusqlAlchemyMigration {
+pub struct RusqlAlchemyMigration {
     #[field(primary_key = true)]
-    version: String,
-    name: String,
-    checksum: String,
+    pub version: String,
+    pub name: String,
+    pub checksum: String,
 }
 
 #[cfg(feature = "turso")]
 #[derive(Model, serde::Deserialize, Clone)]
-struct RusqlAlchemyMigration {
+pub struct RusqlAlchemyMigration {
     #[field(primary_key = true)]
-    version: String,
-    name: String,
-    checksum: String,
+    pub version: String,
+    pub name: String,
+    pub checksum: String,
 }
 
 /// Creates the history table if it does not exist yet.
@@ -46,7 +46,7 @@ pub async fn ensure_history_table(conn: &Connection) -> Result<()> {
 }
 
 /// Checksums of the migrations that were already applied, by version.
-pub async fn applied_checksums(conn: &Connection) -> Result<BTreeMap<Version, String>> {
+pub async fn applied(conn: &Connection) -> Result<BTreeMap<Version, RusqlAlchemyMigration>> {
     RusqlAlchemyMigration::all(conn)
         .await?
         .into_iter()
@@ -58,7 +58,7 @@ pub async fn applied_checksums(conn: &Connection) -> Result<BTreeMap<Version, St
                 )
             })?;
 
-            Ok::<_, Error>((version, record.checksum))
+            Ok::<_, Error>((version, record))
         })
         .collect()
 }
@@ -91,6 +91,38 @@ pub async fn apply(
             .execute(&mut *tx)
             .await?;
         record.save(&mut *tx).await?;
+        tx.commit().await?;
+    }
+
+    Ok(())
+}
+
+pub async fn get_last_migration(conn: &Connection) -> Result<Option<RusqlAlchemyMigration>> {
+    let mut migrations = RusqlAlchemyMigration::all(conn).await?;
+    migrations.reverse();
+    Ok(migrations.iter().take(1).next().cloned())
+}
+
+pub async fn revert(
+    conn: &Connection,
+    last_migration: &RusqlAlchemyMigration,
+    down: &str,
+) -> Result<()> {
+    #[cfg(feature = "turso")]
+    {
+        let tx = conn.transaction().await?;
+        tx.execute_batch(down).await?;
+        last_migration.delete(conn).await?;
+        tx.commit().await?;
+    }
+
+    #[cfg(not(feature = "turso"))]
+    {
+        let mut tx = conn.begin().await?;
+        sqlx::raw_sql(sqlx::AssertSqlSafe(down))
+            .execute(&mut *tx)
+            .await?;
+        last_migration.delete(&mut *tx).await?;
         tx.commit().await?;
     }
 

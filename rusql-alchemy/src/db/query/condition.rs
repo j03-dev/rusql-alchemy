@@ -10,9 +10,7 @@ pub enum Kwargs {
         comparison_operator: String,
     },
     /// An `and` / `or` joining the conditions before and after it.
-    LogicalOperator {
-        operator: String,
-    },
+    LogicalOperator { operator: String },
 }
 
 /// Appends an `or` between `self` and `kwargs`.

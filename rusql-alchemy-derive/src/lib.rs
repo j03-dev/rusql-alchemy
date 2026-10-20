@@ -49,10 +49,26 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
 
     let delete = {
         #[cfg(not(feature = "libsql"))]
-        quote! {::rusql_alchemy::sqlx::query(::rusql_alchemy::sqlx::AssertSqlSafe(query)).bind(self.#primary_key.clone()).execute(conn).await?;}
+        quote! {
+            async fn delete<'e, E>(&self, conn: E) -> ::std::result::Result<(), ::rusql_alchemy::Error>
+            where
+                Self: Sized,
+                E: sqlx::Executor<'e, Database = sqlx::Any> + Send,
+            {
+                let query = format!("delete from {} where {}=?1;", Self::NAME, Self::PK).replace("?", rusql_alchemy::db::PLACEHOLDER);
+
+                ::rusql_alchemy::sqlx::query(::rusql_alchemy::sqlx::AssertSqlSafe(query)).bind(self.#primary_key.clone()).execute(conn).await?;
+                Ok(())
+            }
+        }
 
         #[cfg(feature = "libsql")]
-        quote! {conn.execute(&query, ::rusql_alchemy::libsql::params![self.#primary_key.clone()]).await?;}
+        quote! {
+            async fn delete(&self, conn: &::rusql_alchemy::db::Connection) -> ::std::result::Result<(), ::rusql_alchemy::Error> {
+               let query = format!("delete from {} where {}=?1;", Self::NAME, Self::PK).replace("?", rusql_alchemy::db::PLACEHOLDER);
+                conn.execute(&query, ::rusql_alchemy::libsql::params![self.#primary_key.clone()]).await?;
+            }
+        }
     };
 
     let save = {
@@ -98,15 +114,12 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
 
             #save
 
+            #delete
+
             async fn update(&self, conn: &::rusql_alchemy::db::Connection) -> ::std::result::Result<(), ::rusql_alchemy::Error> {
                 Self::set(self.#primary_key.clone(), ::rusql_alchemy::kwargs!(#(#update_args = self.#update_args),*),conn).await
             }
 
-            async fn delete(&self, conn: &::rusql_alchemy::db::Connection) -> ::std::result::Result<(), ::rusql_alchemy::Error> {
-                let query = format!("delete from {} where {}=?1;", Self::NAME, Self::PK).replace("?", rusql_alchemy::db::PLACEHOLDER);
-                #delete
-                Ok(())
-            }
         }
 
         impl Default for #name {

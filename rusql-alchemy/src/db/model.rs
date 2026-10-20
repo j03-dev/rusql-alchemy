@@ -286,6 +286,25 @@ pub trait Model {
         Ok(())
     }
 
+    #[cfg(not(feature = "turso"))]
+    /// Deletes the current model instance from the database.
+    ///
+    /// # Arguments
+    /// * `conn` - The database connection.
+    ///
+    /// # Returns
+    /// `Ok(())` on success, or an `Error` if the delete failed.
+    ///
+    /// # Example
+    /// ```ignore
+    /// user.delete(&conn).await?;
+    /// ```
+    async fn delete<'e, E>(&self, conn: E) -> Result<(), Error>
+    where
+        Self: Sized,
+        E: sqlx::Executor<'e, Database = sqlx::Any> + Send;
+
+    #[cfg(feature = "turso")]
     /// Deletes the current model instance from the database.
     ///
     /// # Arguments
