@@ -1,20 +1,24 @@
+//! The condition types produced by the `kwargs!` macro.
+
 #[derive(Debug, Clone)]
 pub enum Kwargs {
+    /// A single `field <operator> value` comparison.
     Condition {
         field: String,
         value: String,
         value_type: String,
         comparison_operator: String,
     },
-    LogicalOperator {
-        operator: String,
-    },
+    /// An `and` / `or` joining the conditions before and after it.
+    LogicalOperator { operator: String },
 }
 
+/// Appends an `or` between `self` and `kwargs`.
 pub trait Or {
     fn or(self, kwargs: Vec<Kwargs>) -> Vec<Kwargs>;
 }
 
+/// Appends an `and` between `self` and `kwargs`.
 pub trait And {
     fn and(self, kwargs: Vec<Kwargs>) -> Vec<Kwargs>;
 }

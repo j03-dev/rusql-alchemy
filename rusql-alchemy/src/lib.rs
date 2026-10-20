@@ -1,3 +1,12 @@
+//! Rusql Alchemy: a Django-inspired ORM for Rust.
+//!
+//! Define models with `#[derive(Model)]`, apply their schema with
+//! [`Database::up`], then query with the CRUD methods on [`Model`](db::model::Model)
+//! and the `select!` macro.
+//!
+//! Versioned, file-based migrations live in the companion
+//! `rusql-alchemy-migration` crate.
+
 #[macro_use]
 mod macros;
 pub mod db;
@@ -15,6 +24,7 @@ pub use sqlx;
 
 pub type Error = Box<dyn std::error::Error + Send + Sync>;
 
+/// A model schema registered with `inventory` by `#[derive(Model)]`.
 pub struct Schemas {
     pub schema: &'static str,
 }
@@ -25,7 +35,11 @@ inventory::collect!(Schemas);
 ///
 /// The `Database` struct is the primary entry point for interacting with the database.
 /// It holds the connection pool and provides methods for creating new connections,
-/// running migrations, and performing other database-level operations.
+/// applying the schema declared by your models, and performing other database-level
+/// operations.
+///
+/// For versioned migrations — generating `up.sql` / `down.sql` files and applying
+/// only the pending ones — see the companion `rusql-alchemy-migration` crate.
 pub struct Database {
     pub conn: db::Connection,
 }
@@ -125,13 +139,20 @@ impl Database {
         Ok(Self { conn })
     }
 
-    /// Runs all registered database migrations in an "up" direction.
+    /// Applies the schema of every registered model.
+    ///
+    /// Each `#[derive(Model)]` submits its `SCHEMA` constant (a
+    /// `create table if not exists ...` statement) to `inventory`; this method
+    /// executes them all. It is idempotent: running it twice is harmless.
+    ///
+    /// It only creates missing tables — it does not alter existing ones when a
+    /// model changes. For that, use the `rusql-alchemy-migration` crate.
     ///
     /// # Returns
-    /// A `Result` indicating success (`Ok(())`) or an `Error` if any migration fails.
+    /// A `Result` indicating success (`Ok(())`) or an `Error` if any statement fails.
     ///
     /// # Examples
-    /// ```rust
+    /// ```ignore
     /// use rusql_alchemy::prelude::*;
     /// #[tokio::main]
     /// async fn main() -> Result<(), rusql_alchemy::Error> {
@@ -150,32 +171,4 @@ impl Database {
         }
         Ok(())
     }
-
-    // /// Runs all registered database migrations in a "down" direction.
-    // ///
-    // /// # Returns
-    // /// A `Result` indicating success (`Ok(())`) or an `Error` if any migration fails.
-    // ///
-    // /// # Examples
-    // /// ```rust
-    // /// use rusql_alchemy::prelude::*;
-    // /// #[tokio::main]
-    // /// async fn main() -> Result<(), rusql_alchemy::Error> {
-    // ///     let database = Database::new("sqlite::memory:").await?;
-    // ///     database.down().await?;
-    // ///     Ok(())
-    // /// }
-    // /// ```
-    // pub async fn down(&self) -> Result<(), Error> {
-    //     let mut models: Vec<_> = inventory::iter::<Schemas>.into_iter().collect();
-    //     models.reverse();
-    //     for model in models {
-    //         #[cfg(not(feature = "turso"))]
-    //         sqlx::raw_sql(model.down_schema).execute(&self.conn).await?;
-
-    //         #[cfg(feature = "turso")]
-    //         self.conn.execute_batch(model.down_schema).await?;
-    //     }
-    //     Ok(())
-    // }
 }

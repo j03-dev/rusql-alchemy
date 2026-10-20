@@ -1822,7 +1822,7 @@ dependencies = [
 
 [[package]]
 name = "rusql-alchemy"
-version = "0.5.9"
+version = "0.6.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -1838,7 +1838,7 @@ dependencies = [
 
 [[package]]
 name = "rusql-alchemy-derive"
-version = "0.5.9"
+version = "0.6.0"
 dependencies = [
  "deluxe",
  "proc-macro2",
@@ -1848,7 +1848,7 @@ dependencies = [
 
 [[package]]
 name = "rusql-alchemy-migration"
-version = "0.5.9"
+version = "0.6.0"
 dependencies = [
  "rusql-alchemy",
  "serde",
@@ -2426,7 +2426,7 @@ dependencies = [
 
 [[package]]
 name = "tests"
-version = "0.5.9"
+version = "0.6.0"
 dependencies = [
  "rusql-alchemy",
  "serde",

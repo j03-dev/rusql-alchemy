@@ -1,5 +1,5 @@
 [workspace.package]
-version = "0.5.9"
+version = "0.6.0"
 edition = "2024"
 authors = ["FITAHIANA Nomeniavo Joe <24nomeniavo@gmail.com>"]
 keywords = ["orm", "rust", "django-orm", "lib"]
@@ -33,13 +33,13 @@ chrono = "0.4.42"
 
 inventory = "0.3"
 
-rusql-alchemy = { path = "rusql-alchemy", version = "0.5.7", default-features = false }
-rusql-alchemy-derive = { path = "rusql-alchemy-derive", version = "0.5.7" }
+rusql-alchemy = { path = "rusql-alchemy", version = "0.6.0", default-features = false }
+rusql-alchemy-derive = { path = "rusql-alchemy-derive", version = "0.6.0" }
 
 # macro
 proc-macro2 = "1"
 quote = "1.0.42"
-syn = "=2.0"
+syn = "=2.0" # do not upgrade yet
 deluxe = "0.5"
 
 sha2 = "0.11.1"

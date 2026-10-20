@@ -43,6 +43,10 @@ pub async fn cli(
             migrate(database, directory).await?;
             println!("Migrations applied");
         }
+        Command::Rollback => match rollback(database, directory).await? {
+            Some(reverted) => println!("Reverted migration {reverted}"),
+            None => println!("Nothing changed"),
+        },
         Command::Help => println!("{}", command::USAGE),
     }
 
@@ -90,14 +94,15 @@ pub async fn migrate(database: &Database, directory: &str) -> Result<()> {
     let conn = &database.conn;
 
     executor::ensure_history_table(conn).await?;
-    let applied = executor::applied_checksums(conn).await?;
+    let applied = executor::applied(conn).await?;
 
     for migration in MigrationDir::new(directory).scan()? {
         let up = migration.read_up()?;
-        let checksum = store::checksum(&up, &migration.read_down()?);
+        let down = migration.read_down()?;
+        let checksum = store::checksum(&up, &down);
 
         match applied.get(&migration.version) {
-            Some(stored) if *stored == checksum => {}
+            Some(stored) if stored.checksum == checksum => {}
             Some(_) => {
                 return Err(format!(
                     "migration {} was modified after being applied",
@@ -110,6 +115,43 @@ pub async fn migrate(database: &Database, directory: &str) -> Result<()> {
     }
 
     Ok(())
+}
+
+/// Reverts the latest applied migration and returns its name, or `None`
+/// when nothing is applied.
+///
+/// Runs its `down.sql` and removes its history row in one transaction.
+/// Fails if its directory is missing or its files were edited since.
+pub async fn rollback(database: &Database, directory: &str) -> Result<Option<String>> {
+    let conn = &database.conn;
+
+    executor::get_last_migration(conn).await?;
+    let applied = executor::applied(conn).await?;
+
+    let Some((version, last)) = applied.last_key_value() else {
+        return Ok(None);
+    };
+
+    let migration = MigrationDir::new(directory)
+        .scan()?
+        .into_iter()
+        .find(|migration| migration.version == *version)
+        .ok_or_else(|| format!("migration {version} is applied but its directory missing"))?;
+
+    let down = migration.read_down()?;
+    let up = migration.read_up()?;
+
+    if store::checksum(&up, &down) != last.checksum {
+        return Err(format!(
+            "migration {} was modified after being applied",
+            migration.name
+        )
+        .into());
+    }
+
+    executor::revert(conn, last, &down).await?;
+
+    Ok(Some(migration.name))
 }
 
 /// The schema declared by every registered model.

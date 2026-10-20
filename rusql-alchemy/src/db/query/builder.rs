@@ -1,3 +1,5 @@
+//! Turns `Vec<Kwargs>` conditions into SQL fragments and bind arguments.
+
 use super::condition::Kwargs;
 use super::{Arg, Query};
 use crate::db::PLACEHOLDER;

@@ -8,6 +8,7 @@ Usage: <program> <command> [arguments]
 Commands:
   make-migration [name]   Generate a migration from the current models
   migrate                 Apply every pending migration
+  rollback                Revert the latest applied migration
   help                    Show this message";
 
 #[derive(Debug, PartialEq, Eq)]
@@ -16,6 +17,7 @@ pub enum Command {
     MakeMigration {
         name: Option<String>,
     },
+    Rollback,
     Migrate,
     Help,
 }
@@ -40,6 +42,10 @@ impl Command {
             Some("migrate") => match args.next() {
                 None => Ok(Self::Migrate),
                 Some(extra) => Err(format!("unexpected argument `{extra}` for `migrate`").into()),
+            },
+            Some("rollback") => match args.next() {
+                None => Ok(Self::Rollback),
+                Some(extra) => Err(format!("unexpected argument `{extra}` for `rollback`").into()),
             },
             Some("help" | "-h" | "--help") => Ok(Self::Help),
             Some(other) => Err(format!("unknown command `{other}`\n\n{USAGE}").into()),

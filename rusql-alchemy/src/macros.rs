@@ -1,11 +1,20 @@
-/// A macro to create a vector of `Condition::FieldCondition` for different comparison operators.
+/// A macro to create a `Vec<Kwargs>` of conditions for query methods like
+/// `get`, `filter` and `set`.
 ///
-/// This macro supports generating conditions for field-value pairs using various comparison operators:
-/// `=`, `==`, `!=`, `<`, `<=`, `>`, `>=`.
+/// Supported forms:
+///
+/// * `field = value`, `field == value`, `field != value`, `field < value`,
+///   `field <= value`, `field > value`, `field >= value` — a column compared to a value.
+/// * `table.column = other_table.other_column` — a column compared to another
+///   column, for joins and `where` clauses.
+///
+/// Combine conditions with the `And` / `Or` traits: `kwargs!(a = 1).and(kwargs!(b == 2))`.
 ///
 /// # Example
 ///
-/// ```
+/// ```ignore
+/// use rusql_alchemy::kwargs;
+///
 /// let conditions = kwargs!(
 ///     field1 = value1,
 ///     field2 == value2,
@@ -15,6 +24,9 @@
 ///     field6 > value6,
 ///     field7 >= value7,
 /// );
+///
+/// // Column to column, e.g. for a join
+/// let on = kwargs!(User.id == Profile.user_id);
 /// ```
 #[macro_export]
 macro_rules! kwargs {
@@ -107,6 +119,24 @@ macro_rules! binds {
     }};
 }
 
+/// Starts a [`SelectBuilder`](crate::db::query::statement::SelectBuilder).
+///
+/// * `select!(User)` — a single table; you can chain `.r#where(...)`.
+/// * `select!(User, Profile)` — a join query selecting `User.*` and `Profile.*`;
+///   chain `.inner_join::<User, Profile>(kwargs!(User.id == Profile.user_id))`
+///   (or `left_join` / `right_join`), then run it with `fetch_one`, `fetch_all`
+///   or `fetch_optional`.
+///
+/// # Example
+///
+/// ```ignore
+/// use rusql_alchemy::prelude::*;
+///
+/// let users: Vec<User> = select!(User, Profile)
+///     .inner_join::<User, Profile>(kwargs!(User.id == Profile.user_id))
+///     .fetch_all(&conn)
+///     .await?;
+/// ```
 #[macro_export]
 macro_rules! select {
     ($table: ty) => {

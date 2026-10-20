@@ -6,7 +6,8 @@ Welcome to Rusql Alchemy! This project is a personal challenge to create a simpl
 
 *   **Django-like Model Definitions:** Define your database models using simple Rust structs and derive macros.
 *   **Simple & Expressive Query API:** Fetch, create, update, and delete records with an intuitive and chainable API.
-*   **Automatic Migrations:** Keep your database schema in sync with your models effortlessly.
+*   **Schema Sync:** Keep your database schema in sync with your models with a single `database.up()` call.
+*   **Versioned Migrations:** The companion `rusql-alchemy-migration` crate diffs your models against the last snapshot and writes numbered `up.sql` / `down.sql` migrations, then applies only the ones you have not run yet — with checksums to catch edited migrations.
 *   **Multi-Database Support:** Works with PostgreSQL, MySQL, SQLite, and Turso out of the box.
 *   **Asynchronous from the Ground Up:** Built with `async`/`.await` for modern, non-blocking applications.
 
@@ -25,34 +26,41 @@ Depending on the database you want to use, add one of the following to your `Car
 **For PostgreSQL:**
 ```toml
 [dependencies]
-rusql-alchemy = { version = "0.5.9", default-features = false, features = ["postgres"] }
-sqlx = "0.8"
+rusql-alchemy = { version = "0.6.0", default-features = false, features = ["postgres"] }
+sqlx = "0.9"
 tokio = { version = "1", features = ["full"] }
 ```
 
 **For MySQL:**
 ```toml
 [dependencies]
-rusql-alchemy = { version = "0.5.9", default-features = false, features = ["mysql"] }
-sqlx = "0.8"
+rusql-alchemy = { version = "0.6.0", default-features = false, features = ["mysql"] }
+sqlx = "0.9"
 tokio = { version = "1", features = ["full"] }
 ```
 
 **For SQLite:**
 ```toml
 [dependencies]
-rusql-alchemy = "0.5.9" 
-sqlx = "0.8"
+rusql-alchemy = "0.6.0" 
+sqlx = "0.9"
 tokio = { version = "1", features = ["full"] }
 ```
 
 **For Turso:**
 ```toml
 [dependencies]
-rusql-alchemy = { version = "0.5.9", default-features = false, features = ["turso"] }
+rusql-alchemy = { version = "0.6.0", default-features = false, features = ["turso"] }
 serde = "1.0"
 tokio = { version = "1", features = ["full"] }
 ```
+
+**Optional — versioned migrations:**
+```toml
+[dependencies]
+rusql-alchemy-migration = { version = "0.6.0", default-features = false, features = ["sqlite"] }
+```
+> `rusql-alchemy-migration` ships `sqlite` (default) and `turso` features — pick the same one you chose for `rusql-alchemy`. See [Versioned Migrations](#versioned-migrations-rusql-alchemy-migration) below.
 
 ### 2. Define Your Models
 
@@ -89,9 +97,9 @@ struct User {
 > }
 > ```
 
-### 3. Connect to Your Database & Run Migrations
+### 3. Connect to Your Database & Apply Your Schema
 
-Instantiate the `Database` and run your migrations.
+Instantiate the `Database` and apply the schema declared by your models.
 
 ```rust
 use rusql_alchemy::prelude::*;
@@ -106,25 +114,25 @@ async fn main() -> Result<(), Error> {
     // For local development with Turso
     let database = Database::new_local("local.db").await?;
 
-    // Run migrations to create the necessary tables
+    // Create the tables declared by your models (idempotent)
     database.up().await?;
 
     Ok(())
 }
 ```
 
-> **NB:** For migrations to work correctly, the models must be imported into the binary where `database.up()` is called. This allows the migration system to discover your models. If your models are in a separate module (e.g., `src/models.rs`), ensure you import them:
-> 
+> **NB:** For `database.up()` to see your models, they must be imported into the binary that calls it. Each `#[derive(Model)]` registers its schema through `inventory`, so an unused import is enough. If your models live in a separate module (e.g., `src/models.rs`), import them:
+>
 > ```rust
 > // In your main.rs
 > use rusql_alchemy::prelude::*;
 > use rusql_alchemy::Error;
-> 
-> // Import your models so they can be discovered for migration.
+>
+> // Import your models so they can be registered for schema sync.
 > // The `allow(unused_imports)` attribute is useful here.
 > #[allow(unused_imports)]
-> use crate::models::*; // Assuming models are in `src/model`
-> 
+> use crate::models::*; // Assuming models are in `src/models.rs`
+>
 > #[tokio::main]
 > async fn main() -> Result<(), Error> {
 >     let database = Database::new_local("local.db").await?;
@@ -133,18 +141,12 @@ async fn main() -> Result<(), Error> {
 > }
 > ```
 
-### Database Migrations (`Database.up`/`Database.down`)
+### Schema Sync (`Database.up`)
 
-The `Database` struct provides `up()` and `down()` methods to manage your database schema by running registered migrations.
+`database.up()` executes the `SCHEMA` constant of every registered model — one `create table if not exists ...` statement per model — in registration order.
 
-*   **`database.up()`**: Executes all registered "up" migrations, typically creating tables or applying schema changes.
-*   **`database.down()`**: Executes all registered "down" migrations, typically reverting schema changes like dropping tables.
-
-These methods iterate through `MigrationRegistrar` instances, which are automatically collected when your models derive the `Model` trait and are imported into your binary.
-
-#### Examples
-
-**Running Up Migrations:**
+*   Idempotent: running it twice is harmless, so it is safe to call on every startup.
+*   It only creates tables. It does **not** alter existing tables when a model changes; for that, use [versioned migrations](#versioned-migrations-rusql-alchemy-migration) below.
 
 ```rust
 use rusql_alchemy::prelude::*;
@@ -154,43 +156,20 @@ use rusql_alchemy::Error;
 async fn main() -> Result<(), Error> {
     let database = Database::new("sqlite::memory:").await?;
     database.up().await?;
-    println!("All registered 'up' migrations executed.");
-    Ok(())
-}
-```
-
-**Running Down Migrations:**
-
-```rust
-use rusql_alchemy::prelude::*;
-use rusql_alchemy::Error;
-
-#[tokio::main]
-async fn main() -> Result<(), Error> {
-    let database = Database::new("sqlite::memory:").await?;
-    // First run up migrations to create tables
-    database.up().await?;
-    println!("All registered 'up' migrations executed.");
-
-    // Then run down migrations to drop tables
-    database.down().await?;
-    println!("All registered 'down' migrations executed.");
+    println!("All registered model schemas applied.");
     Ok(())
 }
 ```
 
 ### Model Trait for Schema Management
 
-The `Model` trait is central to defining your database models and includes methods for individual model schema management. When you derive `#[derive(Model)]` for your struct, it automatically implements the `Model` trait, including constants for SQL statements and default `up()` and `down()` methods specific to that model.
+When you derive `#[derive(Model)]` for your struct, it implements the `Model` trait and registers the model's schema with `inventory`.
 
-*   **`Model::UP`**: A `&'static str` containing the SQL to create the table for the specific model.
-*   **`Model::DOWN`**: A `&'static str` containing the SQL to drop the table for the specific model.
+*   **`Model::SCHEMA`**: A `&'static str` containing the `CREATE TABLE IF NOT EXISTS` statement for the model.
 *   **`Model::NAME`**: A `&'static str` representing the name of the database table.
 *   **`Model::PK`**: A `&'static str` representing the primary key column name.
-*   **`Model::up(conn)`**: Executes `Model::UP` to create or alter the model's table.
-*   **`Model::down(conn)`**: Executes `Model::DOWN` to drop the model's table.
 
-#### Example: Individual Model Migrations
+The derive also provides `save`, `update` and `delete` implementations, a `Default` impl for every field, and the schema registration used by `database.up()`.
 
 ```rust
 use rusql_alchemy::prelude::*;
@@ -207,19 +186,99 @@ struct Product {
 #[tokio::main]
 async fn main() -> Result<(), rusql_alchemy::Error> {
     let database = Database::new("sqlite::memory:").await?;
-    let conn = &database.conn;
 
-    // Create the 'products' table using the Product model's up method
-    Product::up(conn).await?;
-    println!("Product table created using Model::up().");
+    // Create the 'products' table along with every other registered model
+    database.up().await?;
 
-    // Drop the 'products' table using the Product model's down method
-    Product::down(conn).await?;
-    println!("Product table dropped using Model::down().");
+    println!("Table '{}' created (PK: '{}').", Product::NAME, Product::PK);
 
     Ok(())
 }
 ```
+
+### Versioned Migrations (`rusql-alchemy-migration`)
+
+`Database::up()` is great for prototypes and fresh databases, but it never changes an existing table. The companion crate **`rusql-alchemy-migration`** adds Django-style, file-based migrations:
+
+*   **Diff your models** against the schema of the last migration and write a new, numbered migration directory.
+*   **Apply only pending migrations**, in order, recording them in a history table.
+*   **Detect tampering**: every applied migration is checksummed, and editing a migration that already ran is an error.
+
+```toml
+[dependencies]
+rusql-alchemy-migration = { version = "0.6.0", default-features = false, features = ["sqlite"] }
+```
+
+> The crate exposes `sqlite` (default) and `turso` features. Use the same backend feature you picked for `rusql-alchemy`.
+
+#### How it works
+
+`make_migration` collects `Model::SCHEMA` from every registered model (sorted, so registration order cannot create false diffs), compares it to the `schema.sql` snapshot stored inside the latest migration, and writes the difference:
+
+```text
+migrations/
+├── 0001_first_migration/
+│   ├── up.sql        <- statements to go from the previous schema to this one
+│   ├── down.sql      <- the inverse, in reverse order
+│   └── schema.sql    <- full schema snapshot after this migration
+└── 0002_add_email/
+    ├── up.sql
+    ├── down.sql
+    └── schema.sql
+```
+
+`migrate` then walks the directory from oldest to newest and runs every migration whose version is missing from the `RusqlAlchemyMigration` history table.
+
+#### API
+
+*   **`migration::make_migration(directory, name)`** — writes a migration into `directory` if the models changed since the last snapshot, and returns its directory name. `name` is free text (`"first migration"` → `0001_first_migration`) and defaults to `schema_change`. Returns `None` when nothing changed.
+*   **`migration::migrate(database, directory)`** — applies every pending migration, each inside a transaction, and records it. Fails if an already-applied migration was edited afterwards.
+*   **`migration::rollback(database, directory)`** — reverts the latest applied migration (runs its `down.sql`, removes its history row, all in one transaction). Returns its name, or `None` if nothing is applied. Fails if the migration's directory is missing or it was edited after being applied.
+*   **`migration::cli(database, directory, args)`** — a small command line over all: `make-migration [name]`, `migrate`, `rollback`, `help`.
+
+#### Example: a `main` that doubles as a CLI
+
+```rust
+use rusql_alchemy::prelude::*;
+use rusql_alchemy::Error;
+
+// Import your models so they are registered for diffing.
+#[allow(unused_imports)]
+use crate::models::*;
+
+#[tokio::main]
+async fn main() -> Result<(), Error> {
+    let database = Database::new_local("local.db").await?;
+
+    // Usage: <program> make-migration [name] | migrate | rollback | help
+    rusql_alchemy_migration::cli(&database, "migrations", std::env::args().skip(1)).await
+}
+```
+
+Or call the functions directly:
+
+```rust
+use rusql_alchemy::prelude::*;
+use rusql_alchemy::Error;
+
+#[tokio::main]
+async fn main() -> Result<(), Error> {
+    let database = Database::new_local("local.db").await?;
+
+    // 1. Generate a migration after changing your models
+    match rusql_alchemy_migration::make_migration("migrations", Some("first migration"))? {
+        Some(created) => println!("Created migration {created}"),
+        None => println!("No changes detected"),
+    }
+
+    // 2. Apply everything that has not run yet
+    rusql_alchemy_migration::migrate(&database, "migrations").await?;
+
+    Ok(())
+}
+```
+
+> **Rollback:** each migration also gets a `down.sql` with the inverse statements. You can revert the latest applied migration with `rollback` (or `migration::rollback(...)`). The command checks the migration was not modified after it was applied.
 
 ##  CRUD Operations
 
@@ -325,7 +384,7 @@ async fn main() -> Result<(), Error> {
 
 ## JOIN Operations
 
-Rusql Alchemy supports `INNER JOIN` operations, allowing you to query data from multiple tables at once.
+Rusql Alchemy supports `INNER`, `LEFT` and `RIGHT` joins, allowing you to query data from multiple tables at once.
 
 First, define the models with a foreign key relationship. Assuming the `User` model from before, we can define a `Profile` model:
 
@@ -344,7 +403,7 @@ struct Profile {
 }
 ```
 
-Then, you can use the `select!` macro to perform a join. The `join` method returns a `Vec<T>` where `T` is the type specified in `join::<T>`.
+Then, you can use the `select!` macro to build the query. `inner_join::<Base, Join>(on)` adds the join clause, and `fetch_all::<T>()` (or `fetch_one` / `fetch_optional`) executes it and returns rows decoded as `T`.
 
 ```rust
 use rusql_alchemy::prelude::*;
