@@ -1,21 +1,16 @@
 #![allow(dead_code)]
 
 use rusql_alchemy::prelude::*;
-use tokio::sync::OnceCell;
 
-async fn conn() -> Result<&'static Connection, rusql_alchemy::Error> {
-    static CONN: OnceCell<Connection> = OnceCell::const_new();
-    CONN.get_or_try_init(|| async move {
-        #[cfg(feature = "turso")]
-        let database = Database::new_local(":memory:").await?;
+async fn conn(_name: &str) -> Result<Connection, rusql_alchemy::Error> {
+    #[cfg(feature = "turso")]
+    let database = Database::new_local(":memory:").await?;
 
-        #[cfg(not(feature = "turso"))]
-        let database = Database::new("sqlite:file:test_name?mode=memory&cache=shared").await?;
+    #[cfg(not(feature = "turso"))]
+    let database = Database::new(&format!("sqlite:file:{_name}?mode=memory&cache=shared")).await?;
 
-        database.up().await?;
-        Ok(database.conn)
-    })
-    .await
+    database.up().await?;
+    Ok(database.conn)
 }
 
 #[cfg(not(feature = "turso"))]
@@ -70,7 +65,7 @@ struct Profile {
 #[tokio::test]
 async fn test_main() {
     // Setup
-    let conn = conn().await.unwrap();
+    let ref conn = conn("test_main").await.unwrap();
 
     // Create
     let user = User {
@@ -128,7 +123,7 @@ async fn test_main() {
 #[tokio::test]
 async fn test_join() {
     // Setup
-    let conn = conn().await.unwrap();
+    let ref conn = conn("test_join").await.unwrap();
 
     // Create User
     let r = User::create(kwargs!(name = "Jane"), conn).await;
