@@ -125,7 +125,7 @@ pub async fn migrate(database: &Database, directory: &str) -> Result<()> {
 pub async fn rollback(database: &Database, directory: &str) -> Result<Option<String>> {
     let conn = &database.conn;
 
-    executor::get_last_migration(conn).await?;
+    executor::ensure_history_table(conn).await?;
     let applied = executor::applied(conn).await?;
 
     let Some((version, last)) = applied.last_key_value() else {

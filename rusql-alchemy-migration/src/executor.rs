@@ -97,12 +97,6 @@ pub async fn apply(
     Ok(())
 }
 
-pub async fn get_last_migration(conn: &Connection) -> Result<Option<RusqlAlchemyMigration>> {
-    let mut migrations = RusqlAlchemyMigration::all(conn).await?;
-    migrations.reverse();
-    Ok(migrations.iter().take(1).next().cloned())
-}
-
 pub async fn revert(
     conn: &Connection,
     last_migration: &RusqlAlchemyMigration,
