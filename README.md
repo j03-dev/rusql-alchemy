@@ -233,7 +233,8 @@ migrations/
 
 *   **`migration::make_migration(directory, name)`** — writes a migration into `directory` if the models changed since the last snapshot, and returns its directory name. `name` is free text (`"first migration"` → `0001_first_migration`) and defaults to `schema_change`. Returns `None` when nothing changed.
 *   **`migration::migrate(database, directory)`** — applies every pending migration, each inside a transaction, and records it. Fails if an already-applied migration was edited afterwards.
-*   **`migration::cli(database, directory, args)`** — a small command line over both: `make-migration [name]`, `migrate`, `help`.
+*   **`migration::rollback(database, directory)`** — reverts the latest applied migration (runs its `down.sql`, removes its history row, all in one transaction). Returns its name, or `None` if nothing is applied. Fails if the migration's directory is missing or it was edited after being applied.
+*   **`migration::cli(database, directory, args)`** — a small command line over all: `make-migration [name]`, `migrate`, `rollback`, `help`.
 
 #### Example: a `main` that doubles as a CLI
 
@@ -249,7 +250,7 @@ use crate::models::*;
 async fn main() -> Result<(), Error> {
     let database = Database::new_local("local.db").await?;
 
-    // Usage: <program> make-migration [name] | migrate | help
+    // Usage: <program> make-migration [name] | migrate | rollback | help
     rusql_alchemy_migration::cli(&database, "migrations", std::env::args().skip(1)).await
 }
 ```
@@ -277,7 +278,7 @@ async fn main() -> Result<(), Error> {
 }
 ```
 
-> **Rollback:** each migration also gets a `down.sql` with the inverse statements. There is no `rollback` command yet — run the script manually if you need to revert one.
+> **Rollback:** each migration also gets a `down.sql` with the inverse statements. You can revert the latest applied migration with `rollback` (or `migration::rollback(...)`). The command checks the migration was not modified after it was applied.
 
 ##  CRUD Operations
 
