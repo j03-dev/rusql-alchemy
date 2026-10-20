@@ -8,6 +8,7 @@ Usage: <program> <command> [arguments]
 Commands:
   make-migration [name]   Generate a migration from the current models
   migrate                 Apply every pending migration
+  rollback                Revert the latest applied migration
   help                    Show this message";
 
 #[derive(Debug, PartialEq, Eq)]
