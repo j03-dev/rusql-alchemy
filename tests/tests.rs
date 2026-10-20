@@ -1,21 +1,21 @@
 #![allow(dead_code)]
 
 use rusql_alchemy::prelude::*;
+use tokio::sync::OnceCell;
 
-async fn setup_database(_name: &str) -> Database {
-    #[cfg(feature = "turso")]
-    {
-        Database::new_local(":memory:")
-            .await
-            .expect("failed to init database")
-    }
+async fn conn() -> Result<&'static Connection, rusql_alchemy::Error> {
+    static CONN: OnceCell<Connection> = OnceCell::const_new();
+    CONN.get_or_try_init(|| async move {
+        #[cfg(feature = "turso")]
+        let database = Database::new_local(":memory:").await?;
 
-    #[cfg(not(feature = "turso"))]
-    {
-        Database::new(&format!("sqlite:file:{_name}?mode=memory&cache=shared"))
-            .await
-            .expect("failed to init database")
-    }
+        #[cfg(not(feature = "turso"))]
+        let database = Database::new("sqlite:file:test_name?mode=memory&cache=shared").await?;
+
+        database.up().await?;
+        Ok(database.conn)
+    })
+    .await
 }
 
 #[cfg(not(feature = "turso"))]
@@ -70,29 +70,25 @@ struct Profile {
 #[tokio::test]
 async fn test_main() {
     // Setup
-    let database = setup_database("test_main").await;
-
-    // Migrate
-    let result = database.up().await;
-    assert!(result.is_ok());
+    let conn = conn().await.unwrap();
 
     // Create
     let user = User {
         name: "John".to_string(),
         ..Default::default()
     };
-    let r = user.save(&database.conn).await;
+    let r = user.save(conn).await;
     assert!(r.is_ok(), "{:?}", r);
     let new_user = r.unwrap();
     assert_eq!(new_user.id, Some(1));
     assert_eq!(new_user.role, Some("user".to_string()));
-    let r = User::create(kwargs!(name = "Doe"), &database.conn).await;
+    let r = User::create(kwargs!(name = "Doe"), conn).await;
     assert!(r.is_ok(), "{:?}", r);
     let new_user = r.unwrap();
     assert_eq!(new_user.id, Some(2));
 
     // Get
-    let result = User::get(kwargs!(name = "John"), &database.conn).await;
+    let result = User::get(kwargs!(name = "John"), conn).await;
     assert!(result.is_ok(), "{:?}", result);
     let user = result.unwrap();
     assert!(user.is_some());
@@ -101,67 +97,57 @@ async fn test_main() {
     assert_eq!(u.role, Some("user".to_string()));
 
     // Filter
-    let results = User::filter(kwargs!(role = "user"), &database.conn).await;
+    let results = User::filter(kwargs!(role = "user"), conn).await;
     assert!(results.is_ok(), "{:?}", results);
     let users = results.unwrap();
     assert!(!users.is_empty());
 
     // Update
-    let mut user_to_update = User::get(kwargs!(name = "John"), &database.conn)
+    let mut user_to_update = User::get(kwargs!(name = "John"), conn)
         .await
         .unwrap()
         .unwrap();
     user_to_update.role = Some("admin".to_owned());
-    let r = user_to_update.update(&database.conn).await;
+    let r = user_to_update.update(&conn).await;
     assert!(r.is_ok(), "{:?}", r);
 
-    let updated_user = User::get(kwargs!(role == "admin"), &database.conn)
+    let updated_user = User::get(kwargs!(role == "admin"), conn)
         .await
         .unwrap()
         .unwrap();
     assert_eq!(updated_user.role, Some("admin".to_string()));
 
     // Delete
-    let r = updated_user.delete(&database.conn).await;
+    let r = updated_user.delete(conn).await;
     assert!(r.is_ok(), "{:?}", r);
 
-    let deleted_user = User::get(kwargs!(role == "admin"), &database.conn)
-        .await
-        .unwrap();
+    let deleted_user = User::get(kwargs!(role == "admin"), conn).await.unwrap();
     assert!(deleted_user.is_none());
 }
 
 #[tokio::test]
 async fn test_join() {
     // Setup
-    let database = setup_database("test_join").await;
-
-    // Migrate
-    let result = database.up().await;
-    assert!(result.is_ok(), "{:?}", result);
+    let conn = conn().await.unwrap();
 
     // Create User
-    let r = User::create(kwargs!(name = "Jane"), &database.conn).await;
+    let r = User::create(kwargs!(name = "Jane"), conn).await;
     assert!(r.is_ok(), "{:?}", r);
 
     // Get User
-    let user = User::get(kwargs!(name = "Jane"), &database.conn)
+    let user = User::get(kwargs!(name = "Jane"), conn)
         .await
         .unwrap()
         .unwrap();
 
     // Create Profile
-    let r = Profile::create(
-        kwargs!(user_id = user.id, bio = "Loves Rust"),
-        &database.conn,
-    )
-    .await;
+    let r = Profile::create(kwargs!(user_id = user.id, bio = "Loves Rust"), conn).await;
     assert!(r.is_ok(), "{:?}", r);
 
     // Join with new syntax
     let results: Vec<User> = select!(User, Profile)
         .inner_join::<User, Profile>(kwargs!(User.id == Profile.user_id))
-        .fetch_all(&database.conn)
+        .fetch_all(conn)
         .await
         .unwrap();
 
@@ -171,7 +157,7 @@ async fn test_join() {
 
     let profile: Profile = select!(Profile)
         .r#where(kwargs!(Profile.profile_id = 1))
-        .fetch_one(&database.conn)
+        .fetch_one(conn)
         .await
         .unwrap();
     assert_eq!(profile.bio, "Loves Rust");
