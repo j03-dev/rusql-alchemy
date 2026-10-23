@@ -86,6 +86,10 @@ struct User {
 }
 ```
 
+> **Defaults and `Option`:** A field with `#[field(default = ...)]` is created as `NOT NULL`, even when its Rust type is `Option<T>`. `None` means "not provided": `save()` omits the column so the SQL default is applied, and `update()` keeps the existing value. Use `Option<T>` **without** a default when you need a genuinely nullable column.
+>
+> With Serde/Actix, missing JSON fields still need `#[serde(default)]` (on the struct) if you want the generated Rust `Default` to fill them before saving.
+
 > **Note for PostgreSQL users:** For auto-incrementing primary keys, it's recommended to use the `Serial` type instead of `Integer` with `auto=true`.
 > 
 > ```rust

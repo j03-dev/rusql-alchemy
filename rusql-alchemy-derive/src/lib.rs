@@ -34,8 +34,8 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
         primary_key,
         default_fields,
         schema_fields,
-        create_args,
-        update_args,
+        create_assignments,
+        update_assignments,
     } = process::process_fields(fields);
 
     let schema = {
@@ -82,11 +82,9 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
                 Self: Sized,
                 E: sqlx::Executor<'e, Database = sqlx::Any> + Send,
             {
-                Self::create(
-                    ::rusql_alchemy::kwargs!(#(#create_args = self.#create_args),*),
-                    conn,
-                )
-                .await
+                let mut args = Vec::new();
+                #(#create_assignments)*
+                Self::create(args, conn).await
             }
         }
 
@@ -99,11 +97,9 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
             where
                 Self: Sized,
             {
-                Self::create(
-                    ::rusql_alchemy::kwargs!(#(#create_args = self.#create_args),*),
-                    conn,
-                )
-                .await
+                let mut args = Vec::new();
+                #(#create_assignments)*
+                Self::create(args, conn).await
             }
         }
     };
@@ -120,7 +116,12 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
             #delete
 
             async fn update(&self, conn: &::rusql_alchemy::db::Connection) -> ::std::result::Result<(), ::rusql_alchemy::Error> {
-                Self::set(self.#primary_key.clone(), ::rusql_alchemy::kwargs!(#(#update_args = self.#update_args),*),conn).await
+                let mut args = Vec::new();
+                #(#update_assignments)*
+                if args.is_empty() {
+                    return Ok(());
+                }
+                Self::set(self.#primary_key.clone(), args, conn).await
             }
 
         }

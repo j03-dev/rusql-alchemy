@@ -62,6 +62,28 @@ struct Profile {
     created_at: DateTime,
 }
 
+#[cfg(not(feature = "turso"))]
+#[derive(Model, Clone, FromRow, Debug)]
+struct Event {
+    #[field(primary_key = true, auto = true)]
+    id: Option<Integer>,
+    name: String,
+    note: Option<String>,
+    #[field(default = "now")]
+    created_at: Option<DateTime>,
+}
+
+#[cfg(feature = "turso")]
+#[derive(Model, Clone, serde::Deserialize, Debug)]
+struct Event {
+    #[field(primary_key = true, auto = true)]
+    id: Option<Integer>,
+    name: String,
+    note: Option<String>,
+    #[field(default = "now")]
+    created_at: Option<DateTime>,
+}
+
 #[tokio::test]
 async fn test_main() {
     // Setup
@@ -156,4 +178,41 @@ async fn test_join() {
         .await
         .unwrap();
     assert_eq!(profile.bio, "Loves Rust");
+}
+
+#[tokio::test]
+async fn test_default_option_field_is_not_nullable() {
+    let ref conn = conn("test_default_option_field").await.unwrap();
+
+    assert!(Event::SCHEMA.contains("created_at varchar(40) default current_timestamp not null"));
+    assert!(!Event::SCHEMA.contains("note varchar(255) not null"));
+
+    let event = Event {
+        id: None,
+        name: "Launch".to_string(),
+        note: None,
+        created_at: None,
+    };
+    let saved = event.save(conn).await.unwrap();
+    assert_eq!(saved.id, Some(1));
+    assert!(saved.created_at.is_some());
+
+    let explicit = Event {
+        id: None,
+        name: "Retro".to_string(),
+        note: None,
+        created_at: Some("2000-01-01 00:00:00".to_string()),
+    };
+    let mut saved = explicit.save(conn).await.unwrap();
+    assert_eq!(saved.created_at.as_deref(), Some("2000-01-01 00:00:00"));
+
+    saved.name = "Retro updated".to_string();
+    saved.created_at = None;
+    saved.update(conn).await.unwrap();
+
+    let updated = Event::get(kwargs!(name = "Retro updated"), conn)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(updated.created_at.as_deref(), Some("2000-01-01 00:00:00"));
 }

@@ -6,8 +6,8 @@ pub struct Output {
     pub primary_key: TokenStream,
     pub default_fields: Vec<TokenStream>,
     pub schema_fields: Vec<TokenStream>,
-    pub create_args: Vec<TokenStream>,
-    pub update_args: Vec<TokenStream>,
+    pub create_assignments: Vec<TokenStream>,
+    pub update_assignments: Vec<TokenStream>,
 }
 
 #[derive(ExtractAttributes, Default, Debug)]
@@ -27,23 +27,24 @@ pub fn process_fields(fields: &syn::punctuated::Punctuated<syn::Field, syn::Toke
     let mut default_fields = Vec::new();
     let mut schema_fields = Vec::new();
 
-    let mut create_args = Vec::new();
-    let mut update_args = Vec::new();
+    let mut create_assignments = Vec::new();
+    let mut update_assignments = Vec::new();
 
     for field in fields {
         let attributes = ModelField::extract_attributes(&mut field.clone()).unwrap_or_default();
         let field_name = field.ident.as_ref().unwrap();
         let field_type = &field.ty;
+        let assignment = generate_field_assignment(&attributes, field_name, field_type);
 
         if attributes.primary_key.unwrap_or(false) {
             primary_key = quote! { #field_name };
             // if not autoincrement push to create candidate
             if !attributes.auto.unwrap_or(false) && extract_inner_type(field_type) != "Serial" {
-                create_args.push(quote! { #field_name });
+                create_assignments.push(assignment);
             }
         } else {
-            create_args.push(quote! { #field_name });
-            update_args.push(quote! { #field_name });
+            create_assignments.push(assignment.clone());
+            update_assignments.push(assignment);
         }
 
         let field_schema = generate_field_schema(&attributes, field_name, field_type);
@@ -57,8 +58,26 @@ pub fn process_fields(fields: &syn::punctuated::Punctuated<syn::Field, syn::Toke
         primary_key,
         default_fields,
         schema_fields,
-        create_args,
-        update_args,
+        create_assignments,
+        update_assignments,
+    }
+}
+
+fn generate_field_assignment(
+    attributes: &ModelField,
+    field_name: &syn::Ident,
+    field_type: &syn::Type,
+) -> TokenStream {
+    if attributes.default.is_some() && is_nullable(field_type) {
+        quote! {
+            if let Some(value) = self.#field_name.clone() {
+                args.extend(::rusql_alchemy::kwargs!(#field_name = value));
+            }
+        }
+    } else {
+        quote! {
+            args.extend(::rusql_alchemy::kwargs!(#field_name = self.#field_name.clone()));
+        }
     }
 }
 
@@ -73,7 +92,11 @@ fn generate_field_schema(
     let primary_key = construct_primary_key(&inner_type, &attributes.primary_key, &attributes.auto);
     let unique = construct_unique(&attributes.unique);
     let default = construct_default_sql_value(&attributes.default, &inner_type);
-    let nullable = construct_nullable(field_type);
+    let nullable = construct_nullable(
+        field_type,
+        attributes.primary_key.unwrap_or(false),
+        attributes.default.is_some(),
+    );
     let foreign_key = construct_foreign_key(&attributes.foreign_key, &attributes.on_delete);
 
     quote! { #field_name #sql_type #primary_key #unique #default #nullable #foreign_key }
@@ -86,7 +109,7 @@ fn construct_primary_key(
 ) -> TokenStream {
     if is_primary_key.unwrap_or(false) {
         let auto = match (is_auto, inner_type) {
-            (Some(true), _) => quote! { autoincrement },
+            (Some(true), "Integer") => quote! { autoincrement },
             (None, "Serial") => quote! {},
             _ => quote! {},
         };
@@ -156,8 +179,8 @@ fn construct_sql_type(inner_type: &str, size: Option<usize>) -> TokenStream {
     }
 }
 
-fn construct_nullable(ty: &syn::Type) -> TokenStream {
-    if !is_nullable(ty) {
+fn construct_nullable(ty: &syn::Type, is_pk: bool, has_default: bool) -> TokenStream {
+    if !is_nullable(ty) || is_pk || has_default {
         quote! { not null }
     } else {
         quote! {}
@@ -203,7 +226,6 @@ fn construct_default_sql_value(default: &Option<TokenStream>, inner_type: &str) 
     }
 }
 
-// Default for Rust `Default` impl
 fn generate_default_field(
     default: &Option<TokenStream>,
     field_name: &syn::Ident,
@@ -212,41 +234,32 @@ fn generate_default_field(
     let inner_type = extract_inner_type(field_type);
     let nullable = is_nullable(field_type);
 
-    let default_value = match default {
+    let value = match default {
         Some(value) => {
             let value = value.to_string().replace('"', "");
             match (inner_type.as_str(), value.as_str()) {
-                ("Date", "now") => {
-                    quote! { rusql_alchemy::chrono::Utc::now().format("%Y-%m-%d").to_string() }
-                }
-                ("DateTime", "now") => {
-                    quote! { rusql_alchemy::chrono::Utc::now().format("%Y-%m-%d %H:%M:%S").to_string() }
-                }
+                ("Date", "now") => quote! {
+                    rusql_alchemy::chrono::Utc::now().format("%Y-%m-%d").to_string()
+                },
+                ("DateTime", "now") => quote! {
+                    rusql_alchemy::chrono::Utc::now().format("%Y-%m-%d %H:%M:%S").to_string()
+                },
                 ("Boolean", "true") => quote! { 1 },
                 ("Boolean", "false") => quote! { 0 },
                 (_, "now") => panic!("The keyword 'now' only works with Date or DateTime type!"),
                 ("Boolean", _) => panic!("Invalid boolean default value, use 'true' or 'false'!"),
-                _ if nullable => quote! { Some(#value.into()) },
                 _ => quote! { #value.into() },
             }
         }
-        None => {
-            if !nullable {
-                match inner_type.as_str() {
-                    "Float" => quote! { 0.0 },
-                    "Boolean" => quote! { 0 },
-                    "Serial" | "Integer" => quote! { 0 },
-                    "String" | "Text" => quote! { String::default() },
-                    "Date" | "DateTime" => quote! { String::default() },
-                    _ => panic!("Unsupported type for default value"),
-                }
-            } else {
-                quote! { None }
-            }
-        }
+        None if nullable => return quote! { #field_name: None },
+        None => quote! { ::core::default::Default::default() },
     };
 
-    quote! { #field_name: #default_value }
+    if nullable {
+        quote! { #field_name: Some(#value) }
+    } else {
+        quote! { #field_name: #value }
+    }
 }
 
 fn extract_inner_type(field_type: &syn::Type) -> String {

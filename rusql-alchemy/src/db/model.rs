@@ -151,12 +151,16 @@ pub trait Model {
     {
         let insert_query = builder::to_insert_query(kw);
 
-        let query = format!(
-            "insert into {name} ({fields}) values ({placeholders}) returning *;",
-            name = Self::NAME,
-            fields = insert_query.fields,
-            placeholders = insert_query.placeholders,
-        );
+        let query = if insert_query.fields.is_empty() {
+            format!("insert into {} default values returning *;", Self::NAME)
+        } else {
+            format!(
+                "insert into {name} ({fields}) values ({placeholders}) returning *;",
+                name = Self::NAME,
+                fields = insert_query.fields,
+                placeholders = insert_query.placeholders,
+            )
+        };
         let mut stream = sqlx::query_as::<_, Self>(sqlx::AssertSqlSafe(query));
         binds!(insert_query.args.iter(), stream);
         Ok(stream.fetch_one(conn).await?)
@@ -194,12 +198,16 @@ pub trait Model {
     {
         let insert_query = builder::to_insert_query(kw);
 
-        let query = format!(
-            "insert into {name} ({fields}) values ({placeholders}) returning *;",
-            name = Self::NAME,
-            fields = insert_query.fields,
-            placeholders = insert_query.placeholders,
-        );
+        let query = if insert_query.fields.is_empty() {
+            format!("insert into {} default values returning *;", Self::NAME)
+        } else {
+            format!(
+                "insert into {name} ({fields}) values ({placeholders}) returning *;",
+                name = Self::NAME,
+                fields = insert_query.fields,
+                placeholders = insert_query.placeholders,
+            )
+        };
 
         let params = binds!(insert_query.args.iter());
         let mut rows = conn.query(&query, params).await?;
