@@ -226,7 +226,6 @@ fn construct_default_sql_value(default: &Option<TokenStream>, inner_type: &str) 
     }
 }
 
-// Default for Rust `Default` impl
 fn generate_default_field(
     default: &Option<TokenStream>,
     field_name: &syn::Ident,
@@ -235,49 +234,32 @@ fn generate_default_field(
     let inner_type = extract_inner_type(field_type);
     let nullable = is_nullable(field_type);
 
-    let default_value = match default {
+    let value = match default {
         Some(value) => {
             let value = value.to_string().replace('"', "");
             match (inner_type.as_str(), value.as_str()) {
-                ("Date", "now") if nullable => {
-                    quote! { Some(rusql_alchemy::chrono::Utc::now().format("%Y-%m-%d").to_string() )}
-                }
-                ("Date", "now") => {
-                    quote! { rusql_alchemy::chrono::Utc::now().format("%Y-%m-%d").to_string() }
-                }
-                ("DateTime", "now") if nullable => {
-                    quote! { Some(rusql_alchemy::chrono::Utc::now().format("%Y-%m-%d %H:%M:%S").to_string())}
-                }
-                ("DateTime", "now") => {
-                    quote! { rusql_alchemy::chrono::Utc::now().format("%Y-%m-%d %H:%M:%S").to_string() }
-                }
-                ("Boolean", "true") if nullable => quote! { Some(1) },
+                ("Date", "now") => quote! {
+                    rusql_alchemy::chrono::Utc::now().format("%Y-%m-%d").to_string()
+                },
+                ("DateTime", "now") => quote! {
+                    rusql_alchemy::chrono::Utc::now().format("%Y-%m-%d %H:%M:%S").to_string()
+                },
                 ("Boolean", "true") => quote! { 1 },
-                ("Boolean", "false") if nullable => quote! { Some(0) },
                 ("Boolean", "false") => quote! { 0 },
                 (_, "now") => panic!("The keyword 'now' only works with Date or DateTime type!"),
                 ("Boolean", _) => panic!("Invalid boolean default value, use 'true' or 'false'!"),
-                _ if nullable => quote! { Some(#value.into()) },
                 _ => quote! { #value.into() },
             }
         }
-        None => {
-            if !nullable {
-                match inner_type.as_str() {
-                    "Float" => quote! { 0.0 },
-                    "Boolean" => quote! { 0 },
-                    "Serial" | "Integer" => quote! { 0 },
-                    "String" | "Text" => quote! { String::default() },
-                    "Date" | "DateTime" => quote! { String::default() },
-                    _ => panic!("Unsupported type for default value"),
-                }
-            } else {
-                quote! { None }
-            }
-        }
+        None if nullable => return quote! { #field_name: None },
+        None => quote! { ::core::default::Default::default() },
     };
 
-    quote! { #field_name: #default_value }
+    if nullable {
+        quote! { #field_name: Some(#value) }
+    } else {
+        quote! { #field_name: #value }
+    }
 }
 
 fn extract_inner_type(field_type: &syn::Type) -> String {
