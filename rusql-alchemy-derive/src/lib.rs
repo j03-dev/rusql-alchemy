@@ -63,7 +63,10 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
 
         #[cfg(feature = "libsql")]
         quote! {
-            async fn delete(&self, conn: &::rusql_alchemy::db::Connection) -> ::std::result::Result<(), ::rusql_alchemy::Error>
+            async fn delete(
+                &self,
+                conn: &::rusql_alchemy::db::Connection
+            ) -> ::std::result::Result<(), ::rusql_alchemy::Error>
             where
                 Self: Sized
             {
@@ -141,3 +144,4 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
 
     expanded.into()
 }
+
