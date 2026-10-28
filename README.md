@@ -26,7 +26,7 @@ Depending on the database you want to use, add one of the following to your `Car
 **For PostgreSQL:**
 ```toml
 [dependencies]
-rusql-alchemy = { version = "0.6.1", default-features = false, features = ["postgres"] }
+rusql-alchemy = { version = "0.6.2", default-features = false, features = ["postgres"] }
 sqlx = "0.9"
 tokio = { version = "1", features = ["full"] }
 ```
@@ -34,7 +34,7 @@ tokio = { version = "1", features = ["full"] }
 **For MySQL:**
 ```toml
 [dependencies]
-rusql-alchemy = { version = "0.6.1", default-features = false, features = ["mysql"] }
+rusql-alchemy = { version = "0.6.2", default-features = false, features = ["mysql"] }
 sqlx = "0.9"
 tokio = { version = "1", features = ["full"] }
 ```
@@ -42,7 +42,7 @@ tokio = { version = "1", features = ["full"] }
 **For SQLite:**
 ```toml
 [dependencies]
-rusql-alchemy = "0.6.1" 
+rusql-alchemy = "0.6.2" 
 sqlx = "0.9"
 tokio = { version = "1", features = ["full"] }
 ```
@@ -50,7 +50,7 @@ tokio = { version = "1", features = ["full"] }
 **For Turso:**
 ```toml
 [dependencies]
-rusql-alchemy = { version = "0.6.1", default-features = false, features = ["turso"] }
+rusql-alchemy = { version = "0.6.2", default-features = false, features = ["turso"] }
 serde = "1.0"
 tokio = { version = "1", features = ["full"] }
 ```
@@ -58,7 +58,7 @@ tokio = { version = "1", features = ["full"] }
 **Optional — versioned migrations:**
 ```toml
 [dependencies]
-rusql-alchemy-migration = { version = "0.6.1", default-features = false, features = ["sqlite"] }
+rusql-alchemy-migration = { version = "0.6.2", default-features = false, features = ["sqlite"] }
 ```
 > `rusql-alchemy-migration` ships `sqlite` (default) and `turso` features — pick the same one you chose for `rusql-alchemy`. See [Versioned Migrations](#versioned-migrations-rusql-alchemy-migration) below.
 
@@ -210,7 +210,7 @@ async fn main() -> Result<(), rusql_alchemy::Error> {
 
 ```toml
 [dependencies]
-rusql-alchemy-migration = { version = "0.6.1", default-features = false, features = ["sqlite"] }
+rusql-alchemy-migration = { version = "0.6.2", default-features = false, features = ["sqlite"] }
 ```
 
 > The crate exposes `sqlite` (default) and `turso` features. Use the same backend feature you picked for `rusql-alchemy`.
