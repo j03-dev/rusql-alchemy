@@ -122,10 +122,11 @@ macro_rules! binds {
 /// Starts a [`SelectBuilder`](crate::db::query::statement::SelectBuilder).
 ///
 /// * `select!(User)` — a single table; you can chain `.r#where(...)`.
-/// * `select!(User, Profile)` — a join query selecting `User.*` and `Profile.*`;
+/// * `select!(User, Profile)` — prepares a join query;
 ///   chain `.inner_join::<User, Profile>(kwargs!(User.id == Profile.user_id))`
 ///   (or `left_join` / `right_join`), then run it with `fetch_all`,
-///   `fetch_one` or `fetch_optional` to get models or typed tuples.
+///   `fetch_one` or `fetch_optional`. The output type selects `User`,
+///   `Profile`, or both as a typed tuple.
 ///
 /// Joined columns are decoded by position, so the joined models may have
 /// columns with the same name (such as `id`).
@@ -135,7 +136,14 @@ macro_rules! binds {
 /// ```ignore
 /// use rusql_alchemy::prelude::*;
 ///
+/// // Both joined models.
 /// let rows: Vec<(User, Profile)> = select!(User, Profile)
+///     .inner_join::<User, Profile>(kwargs!(User.id == Profile.user_id))
+///     .fetch_all(&conn)
+///     .await?;
+///
+/// // Only one side: the output type chooses the selected model.
+/// let users: Vec<User> = select!(User, Profile)
 ///     .inner_join::<User, Profile>(kwargs!(User.id == Profile.user_id))
 ///     .fetch_all(&conn)
 ///     .await?;

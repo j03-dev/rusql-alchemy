@@ -136,7 +136,7 @@ impl<T: JoinRow> JoinRow for Option<T> {
 /// the resulting row.
 #[cfg(not(feature = "turso"))]
 pub trait JoinQuery: Sized {
-    /// The selected `(table, fields)` pairs, in `FROM`/`JOIN` order.
+    /// The selected `(table, fields)` pairs, in output/decoding order.
     fn tables() -> Vec<(&'static str, &'static [&'static str])>;
 
     /// Decodes the joined result from `row`.
@@ -149,7 +149,7 @@ pub trait JoinQuery: Sized {
 /// the resulting row.
 #[cfg(feature = "turso")]
 pub trait JoinQuery: Sized {
-    /// The selected `(table, fields)` pairs, in `FROM`/`JOIN` order.
+    /// The selected `(table, fields)` pairs, in output/decoding order.
     fn tables() -> Vec<(&'static str, &'static [&'static str])>;
 
     /// Decodes the joined result from `row`.
@@ -263,7 +263,11 @@ impl SelectBuilder {
         let mut query = format!("SELECT {select_clause}");
         let mut args = Vec::new();
 
-        if let Some((from_table, _)) = tables.first() {
+        let from_table = self
+            .from_table
+            .or_else(|| tables.first().map(|(table, _)| *table));
+
+        if let Some(from_table) = from_table {
             query.push_str(&format!(" FROM {from_table}"));
         }
 
@@ -290,8 +294,9 @@ impl SelectBuilder {
     #[cfg(not(feature = "turso"))]
     /// Fetches every row as a model or typed tuple, e.g. `Vec<(User, Product)>`.
     ///
-    /// Columns are selected with table-prefixed aliases and decoded by
-    /// position, so joined tables may have columns with the same name.
+    /// The output type determines which joined models are selected. Columns are
+    /// selected with table-prefixed aliases and decoded by position, so joined
+    /// tables may have columns with the same name.
     pub async fn fetch_all<Output>(self, conn: &Connection) -> Result<Vec<Output>, Error>
     where
         Output: JoinQuery,
@@ -313,8 +318,9 @@ impl SelectBuilder {
     #[cfg(feature = "turso")]
     /// Fetches every row as a model or typed tuple, e.g. `Vec<(User, Product)>`.
     ///
-    /// Columns are selected with table-prefixed aliases and decoded by
-    /// position, so joined tables may have columns with the same name.
+    /// The output type determines which joined models are selected. Columns are
+    /// selected with table-prefixed aliases and decoded by position, so joined
+    /// tables may have columns with the same name.
     pub async fn fetch_all<Output>(self, conn: &Connection) -> Result<Vec<Output>, Error>
     where
         Output: JoinQuery,
@@ -333,6 +339,8 @@ impl SelectBuilder {
 
     #[cfg(not(feature = "turso"))]
     /// Fetches one row as a model or typed tuple, e.g. `(User, Product)`.
+    ///
+    /// The output type determines which joined models are selected.
     pub async fn fetch_one<Output>(self, conn: &Connection) -> Result<Output, Error>
     where
         Output: JoinQuery,
@@ -349,6 +357,8 @@ impl SelectBuilder {
 
     #[cfg(feature = "turso")]
     /// Fetches one row as a model or typed tuple, e.g. `(User, Product)`.
+    ///
+    /// The output type determines which joined models are selected.
     pub async fn fetch_one<Output>(self, conn: &Connection) -> Result<Output, Error>
     where
         Output: JoinQuery,
@@ -368,6 +378,8 @@ impl SelectBuilder {
 
     #[cfg(not(feature = "turso"))]
     /// Fetches an optional row as a model or typed tuple, e.g. `(User, Product)`.
+    ///
+    /// The output type determines which joined models are selected.
     pub async fn fetch_optional<Output>(self, conn: &Connection) -> Result<Option<Output>, Error>
     where
         Output: JoinQuery,
@@ -388,6 +400,8 @@ impl SelectBuilder {
 
     #[cfg(feature = "turso")]
     /// Fetches an optional row as a model or typed tuple, e.g. `(User, Product)`.
+    ///
+    /// The output type determines which joined models are selected.
     pub async fn fetch_optional<Output>(self, conn: &Connection) -> Result<Option<Output>, Error>
     where
         Output: JoinQuery,

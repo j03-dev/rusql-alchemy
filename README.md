@@ -407,7 +407,7 @@ struct Profile {
 }
 ```
 
-Then, you can use the `select!` macro to build the query. `inner_join::<Base, Join>(on)` adds the join clause, and `fetch_all::<T>()` (or `fetch_one` / `fetch_optional`) executes it and returns the joined models as a typed tuple. For the base model alone, `fetch_all::<User>()` still works as before.
+Then, you can use the `select!` macro to build the query. `inner_join::<Base, Join>(on)` adds the join clause, and `fetch_all::<T>()` (or `fetch_one` / `fetch_optional`) executes it. The output type `T` chooses which joined models are returned: `User`, `Profile`, or `(User, Profile)`. Only the fields of the selected model(s) are selected and decoded.
 
 Joined columns are selected with unique table-prefixed aliases and decoded by position, so both models can have fields with the same name (such as `id`) without one shadowing the other.
 
@@ -447,6 +447,20 @@ async fn main() -> Result<(), Error> {
 
     Ok(())
 }
+```
+
+Selecting only one side of the join works the same way:
+
+```rust
+let users: Vec<User> = select!(User, Profile)
+    .inner_join::<User, Profile>(kwargs!(User.id == Profile.user_id))
+    .fetch_all(&database.conn)
+    .await?;
+
+let profiles: Vec<Profile> = select!(User, Profile)
+    .inner_join::<User, Profile>(kwargs!(User.id == Profile.user_id))
+    .fetch_all(&database.conn)
+    .await?;
 ```
 
 For `LEFT` / `RIGHT` joins, wrap the optional side in `Option`:

@@ -243,6 +243,30 @@ async fn test_join_duplicate_column_names() {
         .await
         .unwrap();
     assert!(optional.is_some());
+
+    let products: Vec<Product> = select!(User, Product)
+        .inner_join::<User, Product>(kwargs!(User.id == Product.user_id))
+        .fetch_all(conn)
+        .await
+        .unwrap();
+    assert_eq!(products.len(), 1);
+    assert_eq!(products[0].id, product.id);
+    assert_eq!(products[0].name, "Rust book");
+
+    let one_product: Product = select!(User, Product)
+        .inner_join::<User, Product>(kwargs!(User.id == Product.user_id))
+        .fetch_one(conn)
+        .await
+        .unwrap();
+    assert_eq!(one_product.id, product.id);
+
+    let reversed: Vec<(Product, User)> = select!(User, Product)
+        .inner_join::<User, Product>(kwargs!(User.id == Product.user_id))
+        .fetch_all(conn)
+        .await
+        .unwrap();
+    assert_eq!(reversed[0].0.id, product.id);
+    assert_eq!(reversed[0].1.id, user.id);
 }
 
 #[tokio::test]
