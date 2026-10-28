@@ -37,152 +37,117 @@ struct JoinClause {
     on_conditions: Vec<Kwargs>,
 }
 
-/// A model that can be decoded from a row selected by a join query.
+/// A joined result type: a model or a tuple such as `(User, Product)`.
 ///
-/// `#[derive(Model)]` implements this trait automatically. Fields are decoded
-/// by their position in the row, so joined tables may share column names such
-/// as `id` without one shadowing the other.
+/// It knows the tables and fields to select and how to decode each model from
+/// the resulting row. Models implement it through [`Model`].
 #[cfg(not(feature = "turso"))]
-pub trait JoinRow: Sized {
-    /// The table name used in the generated `SELECT ... FROM ... JOIN ...`.
-    const TABLE: &'static str;
-    /// The model's column names, in declaration order.
-    const FIELDS: &'static [&'static str];
+pub trait JoinQuery: Sized {
+    /// The selected `(table, fields)` pairs, in output/decoding order.
+    fn tables() -> Vec<(&'static str, &'static [&'static str])>;
 
-    /// Decodes this model from `row`, starting at `offset`, and advances the
-    /// offset by the number of fields consumed.
+    /// Decodes the joined result from `row`.
     fn from_join_row(row: &sqlx::any::AnyRow, offset: &mut usize) -> Result<Self, Error>;
-
-    /// Returns `true` when every column belonging to this model is `NULL`.
-    ///
-    /// This is used by [`Option<T>`](Option) to detect a missing row in an
-    /// outer join.
-    fn is_null_join_row(row: &sqlx::any::AnyRow, offset: usize) -> Result<bool, Error> {
-        let end = offset + Self::FIELDS.len();
-        for index in offset..end {
-            let value = sqlx::Row::try_get_raw(row, index)?;
-            if !sqlx::ValueRef::is_null(&value) {
-                return Ok(false);
-            }
-        }
-        Ok(true)
-    }
 }
 
-/// A model that can be decoded from a row selected by a join query.
+/// A joined result type: a model or a tuple such as `(User, Product)`.
 ///
-/// `#[derive(Model)]` implements this trait automatically. Fields are decoded
-/// by their position in the row, so joined tables may share column names such
-/// as `id` without one shadowing the other.
+/// It knows the tables and fields to select and how to decode each model from
+/// the resulting row. Models implement it through [`Model`].
 #[cfg(feature = "turso")]
-pub trait JoinRow: Sized {
-    /// The table name used in the generated `SELECT ... FROM ... JOIN ...`.
-    const TABLE: &'static str;
-    /// The model's column names, in declaration order.
-    const FIELDS: &'static [&'static str];
+pub trait JoinQuery: Sized {
+    /// The selected `(table, fields)` pairs, in output/decoding order.
+    fn tables() -> Vec<(&'static str, &'static [&'static str])>;
 
-    /// Decodes this model from `row`, starting at `offset`, and advances the
-    /// offset by the number of fields consumed.
+    /// Decodes the joined result from `row`.
     fn from_join_row(row: &libsql::Row, offset: &mut usize) -> Result<Self, Error>;
-
-    /// Returns `true` when every column belonging to this model is `NULL`.
-    ///
-    /// This is used by [`Option<T>`](Option) to detect a missing row in an
-    /// outer join.
-    fn is_null_join_row(row: &libsql::Row, offset: usize) -> Result<bool, Error> {
-        let end = offset + Self::FIELDS.len();
-        for index in offset..end {
-            if !row.get_value(index as i32)?.is_null() {
-                return Ok(false);
-            }
-        }
-        Ok(true)
-    }
 }
 
 #[cfg(not(feature = "turso"))]
-impl<T: JoinRow> JoinRow for Option<T> {
-    const TABLE: &'static str = T::TABLE;
-    const FIELDS: &'static [&'static str] = T::FIELDS;
+impl<T: Model> JoinQuery for T {
+    fn tables() -> Vec<(&'static str, &'static [&'static str])> {
+        vec![(<T as Model>::NAME, <T as Model>::FIELDS)]
+    }
 
     fn from_join_row(row: &sqlx::any::AnyRow, offset: &mut usize) -> Result<Self, Error> {
-        if T::is_null_join_row(row, *offset)? {
-            *offset += Self::FIELDS.len();
-            Ok(None)
-        } else {
-            Ok(Some(T::from_join_row(row, offset)?))
-        }
+        <T as Model>::from_join_row(row, offset)
     }
 }
 
 #[cfg(feature = "turso")]
-impl<T: JoinRow> JoinRow for Option<T> {
-    const TABLE: &'static str = T::TABLE;
-    const FIELDS: &'static [&'static str] = T::FIELDS;
+impl<T: Model> JoinQuery for T {
+    fn tables() -> Vec<(&'static str, &'static [&'static str])> {
+        vec![(<T as Model>::NAME, <T as Model>::FIELDS)]
+    }
 
     fn from_join_row(row: &libsql::Row, offset: &mut usize) -> Result<Self, Error> {
-        if T::is_null_join_row(row, *offset)? {
-            *offset += Self::FIELDS.len();
+        <T as Model>::from_join_row(row, offset)
+    }
+}
+
+#[cfg(not(feature = "turso"))]
+impl<T: Model> JoinQuery for Option<T> {
+    fn tables() -> Vec<(&'static str, &'static [&'static str])> {
+        vec![(<T as Model>::NAME, <T as Model>::FIELDS)]
+    }
+
+    fn from_join_row(row: &sqlx::any::AnyRow, offset: &mut usize) -> Result<Self, Error> {
+        if <T as Model>::is_null_join_row(row, *offset)? {
+            *offset += <T as Model>::FIELDS.len();
             Ok(None)
         } else {
-            Ok(Some(T::from_join_row(row, offset)?))
+            Ok(Some(<T as Model>::from_join_row(row, offset)?))
         }
     }
 }
 
-/// A joined result type: a model or a tuple such as `(User, Product)`.
-///
-/// It knows the tables and fields to select and how to decode each model from
-/// the resulting row.
-#[cfg(not(feature = "turso"))]
-pub trait JoinQuery: Sized {
-    /// The selected `(table, fields)` pairs, in output/decoding order.
-    fn tables() -> Vec<(&'static str, &'static [&'static str])>;
-
-    /// Decodes the joined result from `row`.
-    fn from_join_row(row: &sqlx::any::AnyRow, offset: &mut usize) -> Result<Self, Error>;
-}
-
-/// A joined result type: a model or a tuple such as `(User, Product)`.
-///
-/// It knows the tables and fields to select and how to decode each model from
-/// the resulting row.
 #[cfg(feature = "turso")]
-pub trait JoinQuery: Sized {
-    /// The selected `(table, fields)` pairs, in output/decoding order.
-    fn tables() -> Vec<(&'static str, &'static [&'static str])>;
+impl<T: Model> JoinQuery for Option<T> {
+    fn tables() -> Vec<(&'static str, &'static [&'static str])> {
+        vec![(<T as Model>::NAME, <T as Model>::FIELDS)]
+    }
 
-    /// Decodes the joined result from `row`.
-    fn from_join_row(row: &libsql::Row, offset: &mut usize) -> Result<Self, Error>;
+    fn from_join_row(row: &libsql::Row, offset: &mut usize) -> Result<Self, Error> {
+        if <T as Model>::is_null_join_row(row, *offset)? {
+            *offset += <T as Model>::FIELDS.len();
+            Ok(None)
+        } else {
+            Ok(Some(<T as Model>::from_join_row(row, offset)?))
+        }
+    }
 }
 
 macro_rules! impl_join_query_for_tuple {
     ($($name:ident),+) => {
         #[cfg(not(feature = "turso"))]
-        impl<$($name: JoinRow),+> JoinQuery for ($($name,)+) {
+        impl<$($name: JoinQuery),+> JoinQuery for ($($name,)+) {
             fn tables() -> Vec<(&'static str, &'static [&'static str])> {
-                vec![$(($name::TABLE, $name::FIELDS)),+]
+                let mut tables = Vec::new();
+                $(tables.extend(<$name as JoinQuery>::tables());)+
+                tables
             }
 
             fn from_join_row(
                 row: &sqlx::any::AnyRow,
                 offset: &mut usize,
             ) -> Result<Self, Error> {
-                Ok(($(<$name as JoinRow>::from_join_row(row, offset)?,)+))
+                Ok(($(<$name as JoinQuery>::from_join_row(row, offset)?,)+))
             }
         }
 
         #[cfg(feature = "turso")]
-        impl<$($name: JoinRow),+> JoinQuery for ($($name,)+) {
+        impl<$($name: JoinQuery),+> JoinQuery for ($($name,)+) {
             fn tables() -> Vec<(&'static str, &'static [&'static str])> {
-                vec![$(($name::TABLE, $name::FIELDS)),+]
+                let mut tables = Vec::new();
+                $(tables.extend(<$name as JoinQuery>::tables());)+
+                tables
             }
 
             fn from_join_row(
                 row: &libsql::Row,
                 offset: &mut usize,
             ) -> Result<Self, Error> {
-                Ok(($(<$name as JoinRow>::from_join_row(row, offset)?,)+))
+                Ok(($(<$name as JoinQuery>::from_join_row(row, offset)?,)+))
             }
         }
     };

@@ -22,9 +22,11 @@ use serde::Serialize;
 /// * `SCHEMA` — the `create table if not exists ...` statement for this model.
 /// * `NAME` — the table name.
 /// * `PK` — the primary key column name.
+/// * `FIELDS` — the column names in declaration order.
 ///
 /// Deriving the macro also submits `SCHEMA` to `inventory`, registers a
-/// `Default` impl, and implements `save`, `update` and `delete`.
+/// `Default` impl, and implements `save`, `update`, `delete` and join-row
+/// decoding.
 ///
 /// # Examples
 ///
@@ -58,6 +60,58 @@ pub trait Model {
     const SCHEMA: &'static str;
     const NAME: &'static str;
     const PK: &'static str;
+    const FIELDS: &'static [&'static str];
+
+    #[cfg(not(feature = "turso"))]
+    /// Decodes this model from a joined row, starting at `offset`, and advances
+    /// the offset by the number of fields consumed.
+    fn from_join_row(row: &sqlx::any::AnyRow, offset: &mut usize) -> Result<Self, Error>
+    where
+        Self: Sized;
+
+    #[cfg(not(feature = "turso"))]
+    /// Returns `true` when every column belonging to this model is `NULL`.
+    ///
+    /// This is used by [`Option<T>`](Option) to detect a missing row in an
+    /// outer join.
+    fn is_null_join_row(row: &sqlx::any::AnyRow, offset: usize) -> Result<bool, Error>
+    where
+        Self: Sized,
+    {
+        let end = offset + Self::FIELDS.len();
+        for index in offset..end {
+            let value = sqlx::Row::try_get_raw(row, index)?;
+            if !sqlx::ValueRef::is_null(&value) {
+                return Ok(false);
+            }
+        }
+        Ok(true)
+    }
+
+    #[cfg(feature = "turso")]
+    /// Decodes this model from a joined row, starting at `offset`, and advances
+    /// the offset by the number of fields consumed.
+    fn from_join_row(row: &libsql::Row, offset: &mut usize) -> Result<Self, Error>
+    where
+        Self: Sized;
+
+    #[cfg(feature = "turso")]
+    /// Returns `true` when every column belonging to this model is `NULL`.
+    ///
+    /// This is used by [`Option<T>`](Option) to detect a missing row in an
+    /// outer join.
+    fn is_null_join_row(row: &libsql::Row, offset: usize) -> Result<bool, Error>
+    where
+        Self: Sized,
+    {
+        let end = offset + Self::FIELDS.len();
+        for index in offset..end {
+            if !row.get_value(index as i32)?.is_null() {
+                return Ok(false);
+            }
+        }
+        Ok(true)
+    }
 
     #[cfg(not(feature = "turso"))]
     /// Saves the current model instance to the database.
