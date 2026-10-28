@@ -26,7 +26,6 @@ impl std::fmt::Display for JoinType {
 }
 
 pub struct SelectBuilder {
-    select_clause: String,
     from_table: Option<&'static str>,
     joins: Vec<JoinClause>,
     where_conditions: Option<Vec<Kwargs>>,
@@ -38,10 +37,129 @@ struct JoinClause {
     on_conditions: Vec<Kwargs>,
 }
 
+/// A joined result type: a model or a tuple such as `(User, Product)`.
+///
+/// It knows the tables and fields to select and how to decode each model from
+/// the resulting row. Models implement it through [`Model`].
+#[cfg(not(feature = "turso"))]
+pub trait JoinQuery: Sized {
+    /// The selected `(table, fields)` pairs, in output/decoding order.
+    fn tables() -> Vec<(&'static str, &'static [&'static str])>;
+
+    /// Decodes the joined result from `row`.
+    fn from_join_row(row: &sqlx::any::AnyRow, offset: &mut usize) -> Result<Self, Error>;
+}
+
+/// A joined result type: a model or a tuple such as `(User, Product)`.
+///
+/// It knows the tables and fields to select and how to decode each model from
+/// the resulting row. Models implement it through [`Model`].
+#[cfg(feature = "turso")]
+pub trait JoinQuery: Sized {
+    /// The selected `(table, fields)` pairs, in output/decoding order.
+    fn tables() -> Vec<(&'static str, &'static [&'static str])>;
+
+    /// Decodes the joined result from `row`.
+    fn from_join_row(row: &libsql::Row, offset: &mut usize) -> Result<Self, Error>;
+}
+
+#[cfg(not(feature = "turso"))]
+impl<T: Model> JoinQuery for T {
+    fn tables() -> Vec<(&'static str, &'static [&'static str])> {
+        vec![(<T as Model>::NAME, <T as Model>::FIELDS)]
+    }
+
+    fn from_join_row(row: &sqlx::any::AnyRow, offset: &mut usize) -> Result<Self, Error> {
+        <T as Model>::from_join_row(row, offset)
+    }
+}
+
+#[cfg(feature = "turso")]
+impl<T: Model> JoinQuery for T {
+    fn tables() -> Vec<(&'static str, &'static [&'static str])> {
+        vec![(<T as Model>::NAME, <T as Model>::FIELDS)]
+    }
+
+    fn from_join_row(row: &libsql::Row, offset: &mut usize) -> Result<Self, Error> {
+        <T as Model>::from_join_row(row, offset)
+    }
+}
+
+#[cfg(not(feature = "turso"))]
+impl<T: Model> JoinQuery for Option<T> {
+    fn tables() -> Vec<(&'static str, &'static [&'static str])> {
+        vec![(<T as Model>::NAME, <T as Model>::FIELDS)]
+    }
+
+    fn from_join_row(row: &sqlx::any::AnyRow, offset: &mut usize) -> Result<Self, Error> {
+        if <T as Model>::is_null_join_row(row, *offset)? {
+            *offset += <T as Model>::FIELDS.len();
+            Ok(None)
+        } else {
+            Ok(Some(<T as Model>::from_join_row(row, offset)?))
+        }
+    }
+}
+
+#[cfg(feature = "turso")]
+impl<T: Model> JoinQuery for Option<T> {
+    fn tables() -> Vec<(&'static str, &'static [&'static str])> {
+        vec![(<T as Model>::NAME, <T as Model>::FIELDS)]
+    }
+
+    fn from_join_row(row: &libsql::Row, offset: &mut usize) -> Result<Self, Error> {
+        if <T as Model>::is_null_join_row(row, *offset)? {
+            *offset += <T as Model>::FIELDS.len();
+            Ok(None)
+        } else {
+            Ok(Some(<T as Model>::from_join_row(row, offset)?))
+        }
+    }
+}
+
+macro_rules! impl_join_query_for_tuple {
+    ($($name:ident),+) => {
+        #[cfg(not(feature = "turso"))]
+        impl<$($name: JoinQuery),+> JoinQuery for ($($name,)+) {
+            fn tables() -> Vec<(&'static str, &'static [&'static str])> {
+                let mut tables = Vec::new();
+                $(tables.extend(<$name as JoinQuery>::tables());)+
+                tables
+            }
+
+            fn from_join_row(
+                row: &sqlx::any::AnyRow,
+                offset: &mut usize,
+            ) -> Result<Self, Error> {
+                Ok(($(<$name as JoinQuery>::from_join_row(row, offset)?,)+))
+            }
+        }
+
+        #[cfg(feature = "turso")]
+        impl<$($name: JoinQuery),+> JoinQuery for ($($name,)+) {
+            fn tables() -> Vec<(&'static str, &'static [&'static str])> {
+                let mut tables = Vec::new();
+                $(tables.extend(<$name as JoinQuery>::tables());)+
+                tables
+            }
+
+            fn from_join_row(
+                row: &libsql::Row,
+                offset: &mut usize,
+            ) -> Result<Self, Error> {
+                Ok(($(<$name as JoinQuery>::from_join_row(row, offset)?,)+))
+            }
+        }
+    };
+}
+
+impl_join_query_for_tuple!(A, B);
+impl_join_query_for_tuple!(A, B, C);
+impl_join_query_for_tuple!(A, B, C, D);
+
 impl SelectBuilder {
-    pub fn new(select_clause: String, from_table: Option<&'static str>) -> Self {
+    pub fn new(from_table: Option<&'static str>) -> Self {
         Self {
-            select_clause,
             from_table,
             joins: Vec::new(),
             where_conditions: None,
@@ -95,12 +213,27 @@ impl SelectBuilder {
         self
     }
 
-    fn build_query(&self) -> (String, Vec<Arg>) {
-        let mut query = format!("SELECT {}", self.select_clause);
+    fn build_join_query<Output: JoinQuery>(&self) -> (String, Vec<Arg>) {
+        let tables = Output::tables();
+        let select_clause = tables
+            .iter()
+            .flat_map(|(table, fields)| {
+                fields
+                    .iter()
+                    .map(move |field| format!("{table}.{field} AS {table}__{field}"))
+            })
+            .collect::<Vec<_>>()
+            .join(", ");
+
+        let mut query = format!("SELECT {select_clause}");
         let mut args = Vec::new();
 
-        if let Some(from_table) = &self.from_table {
-            query.push_str(&format!(" FROM {}", from_table));
+        let from_table = self
+            .from_table
+            .or_else(|| tables.first().map(|(table, _)| *table));
+
+        if let Some(from_table) = from_table {
+            query.push_str(&format!(" FROM {from_table}"));
         }
 
         for join in &self.joins {
@@ -124,89 +257,93 @@ impl SelectBuilder {
     }
 
     #[cfg(not(feature = "turso"))]
-    pub async fn fetch_one<Output>(self, conn: &Connection) -> Result<Output, Error>
+    /// Fetches every row as a model or typed tuple, e.g. `Vec<(User, Product)>`.
+    ///
+    /// The output type determines which joined models are selected. Columns are
+    /// selected with table-prefixed aliases and decoded by position, so joined
+    /// tables may have columns with the same name.
+    pub async fn fetch_all<Output>(self, conn: &Connection) -> Result<Vec<Output>, Error>
     where
-        Output: Unpin + Send + for<'r> sqlx::FromRow<'r, sqlx::any::AnyRow>,
+        Output: JoinQuery,
     {
-        let (query, args) = self.build_query();
+        let (query, args) = self.build_join_query::<Output>();
 
-        let mut stream = sqlx::query_as::<_, Output>(sqlx::AssertSqlSafe(query));
+        let mut stream = sqlx::query(sqlx::AssertSqlSafe(query));
         binds!(args, stream);
 
-        Ok(stream.fetch_one(conn).await?)
+        let rows = stream.fetch_all(conn).await?;
+        rows.iter()
+            .map(|row| {
+                let mut offset = 0;
+                Output::from_join_row(row, &mut offset)
+            })
+            .collect()
     }
 
     #[cfg(feature = "turso")]
-    pub async fn fetch_one<Output>(self, conn: &Connection) -> Result<Output, Error>
-    where
-        Output: for<'de> serde::Deserialize<'de>,
-    {
-        let (query, args) = self.build_query();
-        let params = binds!(args.iter());
-
-        let row = conn
-            .query(&query, params)
-            .await?
-            .next()
-            .await?
-            .ok_or("No rows returned")?;
-
-        Ok(libsql::de::from_row::<Output>(&row)?)
-    }
-
-    #[cfg(not(feature = "turso"))]
+    /// Fetches every row as a model or typed tuple, e.g. `Vec<(User, Product)>`.
+    ///
+    /// The output type determines which joined models are selected. Columns are
+    /// selected with table-prefixed aliases and decoded by position, so joined
+    /// tables may have columns with the same name.
     pub async fn fetch_all<Output>(self, conn: &Connection) -> Result<Vec<Output>, Error>
     where
-        Output: Unpin + Send + for<'r> sqlx::FromRow<'r, sqlx::any::AnyRow>,
+        Output: JoinQuery,
     {
-        let (query, args) = self.build_query();
-
-        let mut stream = sqlx::query_as::<_, Output>(sqlx::AssertSqlSafe(query));
-        binds!(args, stream);
-
-        Ok(stream.fetch_all(conn).await?)
-    }
-
-    #[cfg(feature = "turso")]
-    pub async fn fetch_all<Output>(self, conn: &Connection) -> Result<Vec<Output>, Error>
-    where
-        Output: for<'de> serde::Deserialize<'de>,
-    {
-        let (query, args) = self.build_query();
+        let (query, args) = self.build_join_query::<Output>();
         let params = binds!(args.iter());
 
-        let rows = conn.query(&query, params).await?;
-        let results = crate::utils::libsql_from_row(rows).await?;
+        let mut rows = conn.query(&query, params).await?;
+        let mut results = Vec::new();
+        while let Some(row) = rows.next().await? {
+            let mut offset = 0;
+            results.push(Output::from_join_row(&row, &mut offset)?);
+        }
         Ok(results)
     }
 
     #[cfg(not(feature = "turso"))]
-    pub async fn fetch_optional<Output>(self, conn: &Connection) -> Result<Option<Output>, Error>
+    /// Fetches the first matching row as a model or typed tuple.
+    ///
+    /// Returns `None` when the query matches no rows. The output type
+    /// determines which joined models are selected.
+    pub async fn fetch_one<Output>(self, conn: &Connection) -> Result<Option<Output>, Error>
     where
-        Output: Unpin + Send + for<'r> sqlx::FromRow<'r, sqlx::any::AnyRow>,
+        Output: JoinQuery,
     {
-        let (query, args) = self.build_query();
+        let (query, args) = self.build_join_query::<Output>();
 
-        let mut stream = sqlx::query_as::<_, Output>(sqlx::AssertSqlSafe(query));
+        let mut stream = sqlx::query(sqlx::AssertSqlSafe(query));
         binds!(args, stream);
 
-        Ok(stream.fetch_optional(conn).await?)
+        match stream.fetch_optional(conn).await? {
+            Some(row) => {
+                let mut offset = 0;
+                Ok(Some(Output::from_join_row(&row, &mut offset)?))
+            }
+            None => Ok(None),
+        }
     }
 
     #[cfg(feature = "turso")]
-    pub async fn fetch_optional<Output>(self, conn: &Connection) -> Result<Option<Output>, Error>
+    /// Fetches the first matching row as a model or typed tuple.
+    ///
+    /// Returns `None` when the query matches no rows. The output type
+    /// determines which joined models are selected.
+    pub async fn fetch_one<Output>(self, conn: &Connection) -> Result<Option<Output>, Error>
     where
-        Output: for<'de> serde::Deserialize<'de>,
+        Output: JoinQuery,
     {
-        let (query, args) = self.build_query();
+        let (query, args) = self.build_join_query::<Output>();
         let params = binds!(args.iter());
 
         let mut rows = conn.query(&query, params).await?;
-
-        if let Some(row) = rows.next().await? {
-            Ok(Some(libsql::de::from_row::<Output>(&row)?))
-        } else {
-            Ok(None)
+        match rows.next().await? {
+            Some(row) => {
+                let mut offset = 0;
+                Ok(Some(Output::from_join_row(&row, &mut offset)?))
+            }
+            None => Ok(None),
         }
     }
 }

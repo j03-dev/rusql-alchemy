@@ -122,29 +122,46 @@ macro_rules! binds {
 /// Starts a [`SelectBuilder`](crate::db::query::statement::SelectBuilder).
 ///
 /// * `select!(User)` — a single table; you can chain `.r#where(...)`.
-/// * `select!(User, Profile)` — a join query selecting `User.*` and `Profile.*`;
+/// * `select!(User, Profile)` — prepares a join query;
 ///   chain `.inner_join::<User, Profile>(kwargs!(User.id == Profile.user_id))`
-///   (or `left_join` / `right_join`), then run it with `fetch_one`, `fetch_all`
-///   or `fetch_optional`.
+///   (or `left_join` / `right_join`), then run it with `fetch_all` or
+///   `fetch_one`. The output type selects `User`, `Profile`, or both as a
+///   typed tuple. `fetch_all` returns an empty `Vec` when nothing matches;
+///   `fetch_one` returns `Option<T>`.
+///
+/// Joined columns are decoded by position, so the joined models may have
+/// columns with the same name (such as `id`).
 ///
 /// # Example
 ///
 /// ```ignore
 /// use rusql_alchemy::prelude::*;
 ///
+/// // Both joined models.
+/// let rows: Vec<(User, Profile)> = select!(User, Profile)
+///     .inner_join::<User, Profile>(kwargs!(User.id == Profile.user_id))
+///     .fetch_all(&conn)
+///     .await?;
+///
+/// // Only one side: the output type chooses the selected model.
 /// let users: Vec<User> = select!(User, Profile)
 ///     .inner_join::<User, Profile>(kwargs!(User.id == Profile.user_id))
+///     .fetch_all(&conn)
+///     .await?;
+///
+/// // Left join: the optional side is wrapped in Option.
+/// let rows: Vec<(User, Option<Profile>)> = select!(User, Profile)
+///     .left_join::<User, Profile>(kwargs!(User.id == Profile.user_id))
 ///     .fetch_all(&conn)
 ///     .await?;
 /// ```
 #[macro_export]
 macro_rules! select {
     ($table: ty) => {
-        $crate::db::query::statement::SelectBuilder::new(String::from("*") , Some(<$table>::NAME))
+        $crate::db::query::statement::SelectBuilder::new(Some(<$table>::NAME))
     };
 
-    ($($table:ty),+) => {{
-        let select_fields = vec![$(format!("{}.*", <$table>::NAME)),+].join(", ");
-        $crate::db::query::statement::SelectBuilder::new(select_fields, None)
-    }};
+    ($($table:ty),+) => {
+        $crate::db::query::statement::SelectBuilder::new(None)
+    };
 }

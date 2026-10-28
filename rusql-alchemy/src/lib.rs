@@ -19,6 +19,7 @@ pub use inventory;
 #[cfg(feature = "turso")]
 pub use libsql;
 pub use rusql_alchemy_derive as derive;
+pub use serde;
 #[cfg(not(feature = "turso"))]
 pub use sqlx;
 
