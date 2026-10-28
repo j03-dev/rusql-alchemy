@@ -338,49 +338,11 @@ impl SelectBuilder {
     }
 
     #[cfg(not(feature = "turso"))]
-    /// Fetches one row as a model or typed tuple, e.g. `(User, Product)`.
+    /// Fetches the first matching row as a model or typed tuple.
     ///
-    /// The output type determines which joined models are selected.
-    pub async fn fetch_one<Output>(self, conn: &Connection) -> Result<Output, Error>
-    where
-        Output: JoinQuery,
-    {
-        let (query, args) = self.build_join_query::<Output>();
-
-        let mut stream = sqlx::query(sqlx::AssertSqlSafe(query));
-        binds!(args, stream);
-
-        let row = stream.fetch_one(conn).await?;
-        let mut offset = 0;
-        Output::from_join_row(&row, &mut offset)
-    }
-
-    #[cfg(feature = "turso")]
-    /// Fetches one row as a model or typed tuple, e.g. `(User, Product)`.
-    ///
-    /// The output type determines which joined models are selected.
-    pub async fn fetch_one<Output>(self, conn: &Connection) -> Result<Output, Error>
-    where
-        Output: JoinQuery,
-    {
-        let (query, args) = self.build_join_query::<Output>();
-        let params = binds!(args.iter());
-
-        let row = conn
-            .query(&query, params)
-            .await?
-            .next()
-            .await?
-            .ok_or("No rows returned")?;
-        let mut offset = 0;
-        Output::from_join_row(&row, &mut offset)
-    }
-
-    #[cfg(not(feature = "turso"))]
-    /// Fetches an optional row as a model or typed tuple, e.g. `(User, Product)`.
-    ///
-    /// The output type determines which joined models are selected.
-    pub async fn fetch_optional<Output>(self, conn: &Connection) -> Result<Option<Output>, Error>
+    /// Returns `None` when the query matches no rows. The output type
+    /// determines which joined models are selected.
+    pub async fn fetch_one<Output>(self, conn: &Connection) -> Result<Option<Output>, Error>
     where
         Output: JoinQuery,
     {
@@ -399,10 +361,11 @@ impl SelectBuilder {
     }
 
     #[cfg(feature = "turso")]
-    /// Fetches an optional row as a model or typed tuple, e.g. `(User, Product)`.
+    /// Fetches the first matching row as a model or typed tuple.
     ///
-    /// The output type determines which joined models are selected.
-    pub async fn fetch_optional<Output>(self, conn: &Connection) -> Result<Option<Output>, Error>
+    /// Returns `None` when the query matches no rows. The output type
+    /// determines which joined models are selected.
+    pub async fn fetch_one<Output>(self, conn: &Connection) -> Result<Option<Output>, Error>
     where
         Output: JoinQuery,
     {

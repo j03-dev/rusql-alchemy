@@ -194,12 +194,12 @@ async fn test_join() {
     let joined_user = results.first().unwrap();
     assert_eq!(joined_user.name, "Jane");
 
-    let profile: Profile = select!(Profile)
+    let profile: Option<Profile> = select!(Profile)
         .r#where(kwargs!(Profile.profile_id = 1))
         .fetch_one(conn)
         .await
         .unwrap();
-    assert_eq!(profile.bio, "Loves Rust");
+    assert_eq!(profile.unwrap().bio, "Loves Rust");
 }
 
 #[tokio::test]
@@ -229,20 +229,22 @@ async fn test_join_duplicate_column_names() {
     assert_eq!(joined_product.name, "Rust book");
     assert_eq!(joined_product.price, 42.5);
 
-    let one: (User, Product) = select!(User, Product)
+    let one: Option<(User, Product)> = select!(User, Product)
         .inner_join::<User, Product>(kwargs!(User.id == Product.user_id))
         .fetch_one(conn)
         .await
         .unwrap();
+    let one = one.unwrap();
     assert_eq!(one.0.id, user.id);
     assert_eq!(one.1.id, product.id);
 
-    let optional: Option<(User, Product)> = select!(User, Product)
+    let missing: Option<(User, Product)> = select!(User, Product)
         .inner_join::<User, Product>(kwargs!(User.id == Product.user_id))
-        .fetch_optional(conn)
+        .r#where(kwargs!(User.name == "Nobody"))
+        .fetch_one(conn)
         .await
         .unwrap();
-    assert!(optional.is_some());
+    assert!(missing.is_none());
 
     let products: Vec<Product> = select!(User, Product)
         .inner_join::<User, Product>(kwargs!(User.id == Product.user_id))
@@ -253,12 +255,20 @@ async fn test_join_duplicate_column_names() {
     assert_eq!(products[0].id, product.id);
     assert_eq!(products[0].name, "Rust book");
 
-    let one_product: Product = select!(User, Product)
+    let one_product: Option<Product> = select!(User, Product)
         .inner_join::<User, Product>(kwargs!(User.id == Product.user_id))
         .fetch_one(conn)
         .await
         .unwrap();
-    assert_eq!(one_product.id, product.id);
+    assert_eq!(one_product.unwrap().id, product.id);
+
+    let missing_products: Vec<Product> = select!(User, Product)
+        .inner_join::<User, Product>(kwargs!(User.id == Product.user_id))
+        .r#where(kwargs!(Product.name == "Missing"))
+        .fetch_all(conn)
+        .await
+        .unwrap();
+    assert!(missing_products.is_empty());
 
     let reversed: Vec<(Product, User)> = select!(User, Product)
         .inner_join::<User, Product>(kwargs!(User.id == Product.user_id))

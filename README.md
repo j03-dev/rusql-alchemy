@@ -407,7 +407,9 @@ struct Profile {
 }
 ```
 
-Then, you can use the `select!` macro to build the query. `inner_join::<Base, Join>(on)` adds the join clause, and `fetch_all::<T>()` (or `fetch_one` / `fetch_optional`) executes it. The output type `T` chooses which joined models are returned: `User`, `Profile`, or `(User, Profile)`. Only the fields of the selected model(s) are selected and decoded.
+Then, you can use the `select!` macro to build the query. `inner_join::<Base, Join>(on)` adds the join clause, and `fetch_all::<T>()` or `fetch_one::<T>()` executes it. The output type `T` chooses which joined models are returned: `User`, `Profile`, or `(User, Profile)`. Only the fields of the selected model(s) are selected and decoded.
+
+`fetch_all` returns an empty `Vec` when nothing matches. `fetch_one` returns `Option<T>`, so no rows is `None`, matching the `Model::get` API.
 
 Joined columns are selected with unique table-prefixed aliases and decoded by position, so both models can have fields with the same name (such as `id`) without one shadowing the other.
 

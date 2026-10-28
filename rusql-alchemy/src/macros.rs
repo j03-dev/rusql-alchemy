@@ -124,9 +124,10 @@ macro_rules! binds {
 /// * `select!(User)` — a single table; you can chain `.r#where(...)`.
 /// * `select!(User, Profile)` — prepares a join query;
 ///   chain `.inner_join::<User, Profile>(kwargs!(User.id == Profile.user_id))`
-///   (or `left_join` / `right_join`), then run it with `fetch_all`,
-///   `fetch_one` or `fetch_optional`. The output type selects `User`,
-///   `Profile`, or both as a typed tuple.
+///   (or `left_join` / `right_join`), then run it with `fetch_all` or
+///   `fetch_one`. The output type selects `User`, `Profile`, or both as a
+///   typed tuple. `fetch_all` returns an empty `Vec` when nothing matches;
+///   `fetch_one` returns `Option<T>`.
 ///
 /// Joined columns are decoded by position, so the joined models may have
 /// columns with the same name (such as `id`).
