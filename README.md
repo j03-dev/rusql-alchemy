@@ -407,7 +407,9 @@ struct Profile {
 }
 ```
 
-Then, you can use the `select!` macro to build the query. `inner_join::<Base, Join>(on)` adds the join clause, and `fetch_all::<T>()` (or `fetch_one` / `fetch_optional`) executes it and returns rows decoded as `T`.
+Then, you can use the `select!` macro to build the query. `inner_join::<Base, Join>(on)` adds the join clause, and `fetch_all::<T>()` (or `fetch_one` / `fetch_optional`) executes it and returns the joined models as a typed tuple. For the base model alone, `fetch_all::<User>()` still works as before.
+
+Joined columns are selected with unique table-prefixed aliases and decoded by position, so both models can have fields with the same name (such as `id`) without one shadowing the other.
 
 ```rust
 use rusql_alchemy::prelude::*;
@@ -433,16 +435,27 @@ async fn main() -> Result<(), Error> {
         &database.conn,
     ).await?;
 
-    // Perform an inner join to get Users
-    let results: Vec<User> = select!(User, Profile)
+    // Perform an inner join and get both models back
+    let results: Vec<(User, Profile)> = select!(User, Profile)
         .inner_join::<User, Profile>(kwargs!(User.id == Profile.user_id))
         .fetch_all(&database.conn)
         .await?;
 
-    println!("Joined users: {:?}", results);
+    for (user, profile) in results {
+        println!("User id: {:?}, Profile id: {:?}", user.id, profile.id);
+    }
 
     Ok(())
 }
+```
+
+For `LEFT` / `RIGHT` joins, wrap the optional side in `Option`:
+
+```rust
+let results: Vec<(User, Option<Profile>)> = select!(User, Profile)
+    .left_join::<User, Profile>(kwargs!(User.id == Profile.user_id))
+    .fetch_all(&database.conn)
+    .await?;
 ```
 
 ## A Personal Challenge

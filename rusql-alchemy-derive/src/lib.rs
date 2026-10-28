@@ -38,6 +38,12 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
         update_assignments,
     } = process::process_fields(fields);
 
+    let field_names = fields
+        .iter()
+        .map(|field| field.ident.as_ref().unwrap())
+        .collect::<Vec<_>>();
+    let field_types = fields.iter().map(|field| &field.ty).collect::<Vec<_>>();
+
     let schema = {
         let fields = schema_fields
             .iter()
@@ -107,6 +113,104 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
         }
     };
 
+    let join_row = {
+        #[cfg(not(feature = "libsql"))]
+        quote! {
+            impl ::rusql_alchemy::db::query::statement::JoinRow for #name {
+                const TABLE: &'static str = stringify!(#name);
+                const FIELDS: &'static [&'static str] = &[#(stringify!(#field_names)),*];
+
+                fn from_join_row(
+                    row: &::rusql_alchemy::sqlx::any::AnyRow,
+                    offset: &mut usize,
+                ) -> ::std::result::Result<Self, ::rusql_alchemy::Error> {
+                    let mut index = *offset;
+                    let value = Self {
+                        #(
+                            #field_names: {
+                                let decoded: #field_types =
+                                    ::rusql_alchemy::sqlx::Row::try_get(row, index)?;
+                                index += 1;
+                                decoded
+                            }
+                        ),*
+                    };
+                    *offset = index;
+                    Ok(value)
+                }
+            }
+
+            impl ::rusql_alchemy::db::query::statement::JoinQuery for #name {
+                fn tables() -> Vec<(&'static str, &'static [&'static str])> {
+                    vec![(
+                        <Self as ::rusql_alchemy::db::query::statement::JoinRow>::TABLE,
+                        <Self as ::rusql_alchemy::db::query::statement::JoinRow>::FIELDS,
+                    )]
+                }
+
+                fn from_join_row(
+                    row: &::rusql_alchemy::sqlx::any::AnyRow,
+                    offset: &mut usize,
+                ) -> ::std::result::Result<Self, ::rusql_alchemy::Error> {
+                    <Self as ::rusql_alchemy::db::query::statement::JoinRow>::from_join_row(
+                        row, offset,
+                    )
+                }
+            }
+        }
+
+        #[cfg(feature = "libsql")]
+        quote! {
+            impl ::rusql_alchemy::db::query::statement::JoinRow for #name {
+                const TABLE: &'static str = stringify!(#name);
+                const FIELDS: &'static [&'static str] = &[#(stringify!(#field_names)),*];
+
+                fn from_join_row(
+                    row: &::rusql_alchemy::libsql::Row,
+                    offset: &mut usize,
+                ) -> ::std::result::Result<Self, ::rusql_alchemy::Error> {
+                    let mut index = *offset;
+                    let value = Self {
+                        #(
+                            #field_names: {
+                                let deserializer =
+                                    ::rusql_alchemy::serde::de::IntoDeserializer::<
+                                        ::rusql_alchemy::serde::de::value::Error,
+                                    >::into_deserializer(row.get_value(index as i32)?);
+                                let decoded: #field_types =
+                                    ::rusql_alchemy::serde::Deserialize::deserialize(
+                                        deserializer
+                                    )?;
+                                index += 1;
+                                decoded
+                            }
+                        ),*
+                    };
+                    *offset = index;
+                    Ok(value)
+                }
+            }
+
+            impl ::rusql_alchemy::db::query::statement::JoinQuery for #name {
+                fn tables() -> Vec<(&'static str, &'static [&'static str])> {
+                    vec![(
+                        <Self as ::rusql_alchemy::db::query::statement::JoinRow>::TABLE,
+                        <Self as ::rusql_alchemy::db::query::statement::JoinRow>::FIELDS,
+                    )]
+                }
+
+                fn from_join_row(
+                    row: &::rusql_alchemy::libsql::Row,
+                    offset: &mut usize,
+                ) -> ::std::result::Result<Self, ::rusql_alchemy::Error> {
+                    <Self as ::rusql_alchemy::db::query::statement::JoinRow>::from_join_row(
+                        row, offset,
+                    )
+                }
+            }
+        }
+    };
+
     let expanded = quote! {
         #[rusql_alchemy::async_trait::async_trait]
         impl Model for #name {
@@ -135,6 +239,8 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
             }
         }
 
+        #join_row
+
         ::rusql_alchemy::inventory::submit! {
             ::rusql_alchemy::Schemas {
                 schema: #name::SCHEMA,
@@ -144,4 +250,3 @@ pub fn model_derive(input: TokenStream) -> TokenStream {
 
     expanded.into()
 }
-

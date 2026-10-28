@@ -64,6 +64,28 @@ struct Profile {
 
 #[cfg(not(feature = "turso"))]
 #[derive(Model, Clone, FromRow, Debug)]
+struct Product {
+    #[field(primary_key = true, auto = true)]
+    id: Option<Integer>,
+    #[field(foreign_key=User.id, on_delete="cascade")]
+    user_id: Integer,
+    name: String,
+    price: Float,
+}
+
+#[cfg(feature = "turso")]
+#[derive(Model, Clone, serde::Deserialize, Debug)]
+struct Product {
+    #[field(primary_key = true, auto = true)]
+    id: Option<Integer>,
+    #[field(foreign_key=User.id, on_delete="cascade")]
+    user_id: Integer,
+    name: String,
+    price: Float,
+}
+
+#[cfg(not(feature = "turso"))]
+#[derive(Model, Clone, FromRow, Debug)]
 struct Event {
     #[field(primary_key = true, auto = true)]
     id: Option<Integer>,
@@ -178,6 +200,79 @@ async fn test_join() {
         .await
         .unwrap();
     assert_eq!(profile.bio, "Loves Rust");
+}
+
+#[tokio::test]
+async fn test_join_duplicate_column_names() {
+    let ref conn = conn("test_join_duplicate_column_names").await.unwrap();
+
+    let user = User::create(kwargs!(name = "Jane"), conn).await.unwrap();
+    let product = Product::create(
+        kwargs!(user_id = user.id, name = "Rust book", price = 42.5),
+        conn,
+    )
+    .await
+    .unwrap();
+
+    let results: Vec<(User, Product)> = select!(User, Product)
+        .inner_join::<User, Product>(kwargs!(User.id == Product.user_id))
+        .fetch_all(conn)
+        .await
+        .unwrap();
+
+    assert_eq!(results.len(), 1);
+    let (joined_user, joined_product) = &results[0];
+    assert_eq!(joined_user.id, user.id);
+    assert_eq!(joined_user.name, "Jane");
+    assert_eq!(joined_product.id, product.id);
+    assert_eq!(joined_product.user_id, user.id.unwrap());
+    assert_eq!(joined_product.name, "Rust book");
+    assert_eq!(joined_product.price, 42.5);
+
+    let one: (User, Product) = select!(User, Product)
+        .inner_join::<User, Product>(kwargs!(User.id == Product.user_id))
+        .fetch_one(conn)
+        .await
+        .unwrap();
+    assert_eq!(one.0.id, user.id);
+    assert_eq!(one.1.id, product.id);
+
+    let optional: Option<(User, Product)> = select!(User, Product)
+        .inner_join::<User, Product>(kwargs!(User.id == Product.user_id))
+        .fetch_optional(conn)
+        .await
+        .unwrap();
+    assert!(optional.is_some());
+}
+
+#[tokio::test]
+async fn test_left_join_optional_model() {
+    let ref conn = conn("test_left_join_optional_model").await.unwrap();
+
+    let user = User::create(kwargs!(name = "Jane"), conn).await.unwrap();
+    let lonely = User::create(kwargs!(name = "Lonely"), conn).await.unwrap();
+    Product::create(
+        kwargs!(user_id = user.id, name = "Rust book", price = 42.5),
+        conn,
+    )
+    .await
+    .unwrap();
+
+    let results: Vec<(User, Option<Product>)> = select!(User, Product)
+        .left_join::<User, Product>(kwargs!(User.id == Product.user_id))
+        .fetch_all(conn)
+        .await
+        .unwrap();
+
+    assert_eq!(results.len(), 2);
+    for (joined_user, product) in results {
+        if joined_user.id == lonely.id {
+            assert!(product.is_none());
+        } else {
+            assert_eq!(joined_user.id, user.id);
+            assert_eq!(product.unwrap().name, "Rust book");
+        }
+    }
 }
 
 #[tokio::test]
