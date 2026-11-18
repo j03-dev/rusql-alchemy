@@ -8,7 +8,6 @@ license.workspace = true
 readme.workspace = true
 description.workspace = true
 documentation.workspace = true
-homepage.workspace = true
 repository.workspace = true
 
 
@@ -32,3 +31,4 @@ sqlx = { workspace = true, features = [
 ], optional = true }
 chrono.workspace = true
 inventory.workspace = true
+thiserror.workspace = true

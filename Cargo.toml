@@ -23,6 +23,7 @@ members = [
 [workspace.dependencies]
 # Core utilities & async
 async-trait = "0.1.92"
+thiserror = "2"
 
 # Serialization
 serde = "1.0"

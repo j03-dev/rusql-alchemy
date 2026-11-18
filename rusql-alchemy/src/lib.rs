@@ -10,8 +10,11 @@
 #[macro_use]
 mod macros;
 pub mod db;
+mod error;
 pub mod prelude;
 pub mod utils;
+
+pub use error::Error;
 
 pub use async_trait;
 pub use chrono;
@@ -22,8 +25,6 @@ pub use rusql_alchemy_derive as derive;
 pub use serde;
 #[cfg(not(feature = "turso"))]
 pub use sqlx;
-
-pub type Error = Box<dyn std::error::Error + Send + Sync>;
 
 /// A model schema registered with `inventory` by `#[derive(Model)]`.
 pub struct Schemas {
