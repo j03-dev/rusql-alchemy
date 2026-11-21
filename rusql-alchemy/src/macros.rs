@@ -94,9 +94,20 @@ macro_rules! binds {
             $stream = match ty.as_str() {
                 "i32" | "bool" => $stream.bind(value.parse::<i32>()?),
                 "f64" => $stream.bind(value.parse::<f64>()?),
-                _ if ty.contains("Option") && value == "null" => {
+                _ if ty.contains("Option") && (value == "null" || value == "None")
+                    && (ty.ends_with("Option<i32>") || ty.ends_with("Option<bool>")) => {
+                    $stream.bind(Option::<i32>::None)
+                }
+                _ if ty.contains("Option") && (value == "null" || value == "None") => {
                     $stream.bind(Option::<String>::None)
                 }
+                // `Option<numeric>` (for example an optional `Serial` primary key)
+                // must bind as its inner numeric type: binding it as TEXT breaks
+                // typed comparisons such as `id = $1` on PostgreSQL.
+                _ if ty.ends_with("Option<i32>") || ty.ends_with("Option<bool>") => {
+                    $stream.bind(value.parse::<i32>()?)
+                }
+                _ if ty.ends_with("Option<f64>") => $stream.bind(value.parse::<f64>()?),
                 _ => $stream.bind(value),
             };
         }
@@ -111,7 +122,15 @@ macro_rules! binds {
             match ty.as_str() {
                 "i32" | "bool" => params.push(Value::Integer(value.parse::<i64>()?)),
                 "f64" => params.push(Value::Real(value.parse::<f64>()?)),
-                _ if ty.contains("Option") && value == "null" => params.push(Value::Null),
+                _ if ty.contains("Option") && (value == "null" || value == "None") => {
+                    params.push(Value::Null)
+                }
+                // `Option<numeric>` must bind as its inner numeric type, see the
+                // `sqlx` arm above.
+                _ if ty.ends_with("Option<i32>") || ty.ends_with("Option<bool>") => {
+                    params.push(Value::Integer(value.parse::<i64>()?))
+                }
+                _ if ty.ends_with("Option<f64>") => params.push(Value::Real(value.parse::<f64>()?)),
                 _ => params.push(Value::Text(value)),
             };
         }

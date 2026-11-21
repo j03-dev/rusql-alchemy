@@ -15,6 +15,7 @@ description = "manage migration for rusql-alchemy"
 default = ["sqlite"]
 sqlite = ["rusql-alchemy/sqlite"]
 turso = ["rusql-alchemy/turso"]
+postgres = ["rusql-alchemy/postgres"]
 
 
 [dependencies]

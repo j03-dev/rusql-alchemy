@@ -44,6 +44,12 @@ pub fn to_select_query(kw: Vec<Kwargs>) -> Query {
                 value_type,
                 comparison_operator,
             } => {
+                // SQLite accepts `==`, PostgreSQL and MySQL do not: always emit `=`.
+                let comparison_operator = if comparison_operator == "==" {
+                    "="
+                } else {
+                    comparison_operator.as_str()
+                };
                 if value_type == "column" {
                     placeholders.push(format!("{field}{comparison_operator}{value}"));
                 } else {
