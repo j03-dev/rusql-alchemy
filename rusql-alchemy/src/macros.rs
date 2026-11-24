@@ -94,8 +94,10 @@ macro_rules! binds {
             $stream = match ty.as_str() {
                 "i32" | "bool" => $stream.bind(value.parse::<i32>()?),
                 "f64" => $stream.bind(value.parse::<f64>()?),
-                _ if ty.contains("Option") && (value == "null" || value == "None")
-                    && (ty.ends_with("Option<i32>") || ty.ends_with("Option<bool>")) => {
+                _ if ty.contains("Option")
+                    && (value == "null" || value == "None")
+                    && (ty.ends_with("Option<i32>") || ty.ends_with("Option<bool>")) =>
+                {
                     $stream.bind(Option::<i32>::None)
                 }
                 _ if ty.contains("Option") && (value == "null" || value == "None") => {

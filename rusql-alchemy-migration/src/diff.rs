@@ -350,12 +350,11 @@ mod tests {
                    CREATE TABLE AppUser (id INTEGER);";
         let result = diff(old, "");
 
-        assert_eq!(
-            result.up,
-            "DROP TABLE AppSettings;\nDROP TABLE AppUser;"
+        assert_eq!(result.up, "DROP TABLE AppSettings;\nDROP TABLE AppUser;");
+        assert!(
+            result.down.find("CREATE TABLE AppUser").unwrap()
+                < result.down.find("CREATE TABLE AppSettings").unwrap()
         );
-        assert!(result.down.find("CREATE TABLE AppUser").unwrap()
-            < result.down.find("CREATE TABLE AppSettings").unwrap());
     }
 
     #[test]
