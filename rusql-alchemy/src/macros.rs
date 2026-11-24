@@ -89,28 +89,12 @@ macro_rules! kwargs {
 macro_rules! binds {
     ($args:expr, $stream:expr) => {{
         for arg in $args {
-            let value = arg.value.replace('"', "");
-            let ty = arg.ty.replace('"', "");
-            $stream = match ty.as_str() {
-                "i32" | "bool" => $stream.bind(value.parse::<i32>()?),
-                "f64" => $stream.bind(value.parse::<f64>()?),
-                _ if ty.contains("Option")
-                    && (value == "null" || value == "None")
-                    && (ty.ends_with("Option<i32>") || ty.ends_with("Option<bool>")) =>
-                {
-                    $stream.bind(Option::<i32>::None)
-                }
-                _ if ty.contains("Option") && (value == "null" || value == "None") => {
-                    $stream.bind(Option::<String>::None)
-                }
-                // `Option<numeric>` (for example an optional `Serial` primary key)
-                // must bind as its inner numeric type: binding it as TEXT breaks
-                // typed comparisons such as `id = $1` on PostgreSQL.
-                _ if ty.ends_with("Option<i32>") || ty.ends_with("Option<bool>") => {
-                    $stream.bind(value.parse::<i32>()?)
-                }
-                _ if ty.ends_with("Option<f64>") => $stream.bind(value.parse::<f64>()?),
-                _ => $stream.bind(value),
+            let value = $crate::db::query::BindValue::parse(&arg.value, &arg.ty)?;
+            $stream = match value {
+                $crate::db::query::BindValue::Int32(v) => $stream.bind(v),
+                $crate::db::query::BindValue::Int64(v) => $stream.bind(v),
+                $crate::db::query::BindValue::Real(v) => $stream.bind(v),
+                $crate::db::query::BindValue::Text(v) => $stream.bind(v),
             };
         }
     }};
@@ -119,22 +103,17 @@ macro_rules! binds {
         use libsql::Value;
         let mut params = Vec::new();
         for arg in $args {
-            let value = arg.value.replace('"', "");
-            let ty = arg.ty.replace('"', "");
-            match ty.as_str() {
-                "i32" | "bool" => params.push(Value::Integer(value.parse::<i64>()?)),
-                "f64" => params.push(Value::Real(value.parse::<f64>()?)),
-                _ if ty.contains("Option") && (value == "null" || value == "None") => {
-                    params.push(Value::Null)
+            let value = $crate::db::query::BindValue::parse(&arg.value, &arg.ty)?;
+            params.push(match value {
+                $crate::db::query::BindValue::Int32(v) => {
+                    v.map(|n| Value::Integer(n as i64)).unwrap_or(Value::Null)
                 }
-                // `Option<numeric>` must bind as its inner numeric type, see the
-                // `sqlx` arm above.
-                _ if ty.ends_with("Option<i32>") || ty.ends_with("Option<bool>") => {
-                    params.push(Value::Integer(value.parse::<i64>()?))
+                $crate::db::query::BindValue::Int64(v) => {
+                    v.map(Value::Integer).unwrap_or(Value::Null)
                 }
-                _ if ty.ends_with("Option<f64>") => params.push(Value::Real(value.parse::<f64>()?)),
-                _ => params.push(Value::Text(value)),
-            };
+                $crate::db::query::BindValue::Real(v) => v.map(Value::Real).unwrap_or(Value::Null),
+                $crate::db::query::BindValue::Text(v) => v.map(Value::Text).unwrap_or(Value::Null),
+            });
         }
         libsql::params_from_iter(params)
     }};
