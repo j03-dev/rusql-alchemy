@@ -11,12 +11,12 @@ path = "tests.rs"
 
 [features]
 default = ["sqlite"]
-sqlite = ["rusql-alchemy/sqlite"]
+sqlite = ["rusql-alchemy/sqlite", "sqlx"]
 turso = ["rusql-alchemy/turso"]
 
 
 [dependencies]
-sqlx.workspace = true
+sqlx = { workspace = true, optional = true }
 serde.workspace = true
 rusql-alchemy = { workspace = true, features = [] }
 tokio = { version = "1", features = ["full"] }
